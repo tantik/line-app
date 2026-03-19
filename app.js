@@ -1,14 +1,22 @@
 const LIFF_ID = "2009534336-E6S4sA5p";
 
 async function init() {
-  await liff.init({ liffId: LIFF_ID });
+  try {
+    await liff.init({ liffId: LIFF_ID });
 
- // if (!liff.isLoggedIn()) {
-  //  liff.login();
- // }
+    // ❌ УБИРАЕМ login
+    // if (!liff.isLoggedIn()) {
+    //   liff.login();
+    // }
 
-  const profile = await liff.getProfile();
-  console.log("User:", profile);
+    if (liff.isLoggedIn()) {
+      const profile = await liff.getProfile();
+      console.log("User:", profile);
+    }
+
+  } catch (e) {
+    console.log("LIFF init error:", e);
+  }
 }
 
 init();
