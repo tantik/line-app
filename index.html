@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Salon Mini App</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+
+<div class="screen active">
+  <h1>LINE予約デモ</h1>
+  <p>LINEで簡単に予約できます</p>
+
+  <button onclick="goBooking()">予約デモ</button>
+  <button onclick="goForm()">お問い合わせ</button>
+</div>
+
+<div class="screen" id="booking">
+  <h2>予約</h2>
+
+  <select id="service">
+    <option value="">サービス選択</option>
+    <option>カット</option>
+    <option>カラー</option>
+  </select>
+
+  <input type="date" id="date" />
+
+  <select id="time">
+    <option value="">時間選択</option>
+    <option>10:00</option>
+    <option>12:00</option>
+  </select>
+
+  <button onclick="confirmBooking()">確認</button>
+</div>
+
+<div class="screen" id="form">
+  <h2>お問い合わせ</h2>
+
+  <input id="name" placeholder="名前" />
+  <input id="phone" placeholder="電話番号" />
+
+  <button onclick="submitForm()">送信</button>
+</div>
+
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script src="./app.js"></script>
+
+</body>
+</html>

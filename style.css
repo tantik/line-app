@@ -1,0 +1,70 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #2f4f4f;
+  color: #fff;
+}
+
+/* контейнер как телефон */
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+/* экран */
+.screen {
+  display: none;
+  width: 360px;
+  min-height: 640px;
+  background: #3e6259;
+  border-radius: 24px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.screen.active {
+  display: block;
+}
+
+/* заголовки */
+h1, h2 {
+  margin: 10px 0;
+}
+
+/* кнопки */
+button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 12px;
+  background: #e6b17e;
+  color: #000;
+  font-weight: bold;
+  font-size: 16px;
+}
+
+/* input */
+input, select {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: none;
+  background: #f5f5f5;
+  color: #000;
+}
+
+/* маленький текст */
+p {
+  opacity: 0.8;
+}
+
+/* центрирование главного экрана */
+.screen:first-child {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
