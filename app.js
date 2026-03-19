@@ -1,4 +1,4 @@
-const LIFF_ID = "PASTE_YOUR_LIFF_ID_HERE";
+const LIFF_ID = "2009520436-mnlGZ5e";
 
 async function init() {
   await liff.init({ liffId: LIFF_ID });
