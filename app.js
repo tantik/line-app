@@ -51,6 +51,7 @@ function finishBooking() {
   goWelcome();
 }
 
+
 function submitForm() {
   const name = document.getElementById("name").value.trim();
   const phone = document.getElementById("phone").value.trim();
@@ -66,19 +67,24 @@ function submitForm() {
 
   fetch("https://script.google.com/macros/s/AKfycbxFir4mJn21gJyWvh_OOb9I_glIF_K7hOvwDdbbyrHph1vWGYG98n_NaiX8E6wVrQcq/exec", {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify({
-      name: name,
-      phone: phone,
-      service: service,
-      date: date,
-      time: time
-    })
+      name,
+      phone,
+      service,
+      date,
+      time
+    }),
+    mode: "no-cors"
   })
   .then(() => {
     alert("送信完了！");
     goWelcome();
   })
-  .catch(() => {
+  .catch((err) => {
+    console.log(err);
     alert("送信エラー");
   });
 }
