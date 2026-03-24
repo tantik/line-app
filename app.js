@@ -64,7 +64,7 @@ function submitForm() {
     return;
   }
 
-  fetch("https://script.google.com/macros/s/AKfycbzsjKQ627Z8IEXy5u8m8sttRdUwhcMqWqzavg1p4B56BMqplQthPFLxfsnFhC_5pPuO/exec", {
+  fetch("https://script.google.com/macros/s/AKfycbzZUpkaWclGEip-Ispmka5ns3mJ8Ibysdxj5HYTzA2p4fSuarJFV2-6E3FAzC9Vz6U/exec", {
     method: "POST",
     body: JSON.stringify({
       name: name,
