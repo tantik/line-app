@@ -1,12 +1,15 @@
 const LIFF_ID = "2009586903-hyNXZaW7";
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbw1yzmTeDnWAc6P2w4Vs9Hs0QG47jK-Ja8PLDwGV9GnC6PPzlqzBf-1sIusvceUttU/exec";
 
+let userId = "";
+
 async function init() {
   try {
     await liff.init({ liffId: LIFF_ID });
 
     if (liff.isLoggedIn()) {
       const profile = await liff.getProfile();
+      userId = profile.userId;
       console.log("User:", profile);
     }
   } catch (e) {
@@ -111,7 +114,8 @@ function submitForm() {
       phone,
       service,
       date,
-      time
+      time,
+      userId
     })
   })
     .then(() => {
