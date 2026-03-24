@@ -1,4 +1,4 @@
-const LIFF_ID = "ТВОЙ_LIFF_ID";
+const LIFF_ID = "2009586903-hyNXZaW7";
 
 async function init() {
   try {
