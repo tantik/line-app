@@ -7,46 +7,94 @@
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
+  <div id="app">
 
-<div class="screen active">
-  <h1>LINE予約デモ</h1>
-  <p>LINEで簡単に予約できます</p>
+    <!-- WELCOME -->
+    <section class="screen active" id="welcome">
+      <h1>LINE予約デモ</h1>
+      <p>LINEで簡単に予約できます</p>
 
-  <button onclick="goBooking()">予約デモ</button>
-  <button onclick="goForm()">お問い合わせ</button>
-</div>
+      <button onclick="goBooking()">予約デモ</button>
+      <button onclick="goForm()">お問い合わせ</button>
+    </section>
 
-<div class="screen" id="booking">
-  <h2>予約</h2>
+    <!-- BOOKING -->
+    <section class="screen" id="booking">
+        <button onclick="goWelcome()" style="margin-bottom:20px;">← 戻る</button>
 
-  <select id="service">
-    <option value="">サービス選択</option>
-    <option>カット</option>
-    <option>カラー</option>
-  </select>
+        <h2>予約</h2>
+        <p>ご希望のサービスを選択してください</p>
 
-  <input type="date" id="date" />
+        <div class="service-grid">
+            <button class="service-card" type="button" onclick="selectService('カット', this)">
+            <span class="service-icon">✂️</span>
+            <span class="service-label">カット</span>
+            </button>
 
-  <select id="time">
-    <option value="">時間選択</option>
-    <option>10:00</option>
-    <option>12:00</option>
-  </select>
+            <button class="service-card" type="button" onclick="selectService('カラー', this)">
+            <span class="service-icon">🎨</span>
+            <span class="service-label">カラー</span>
+            </button>
 
-  <button onclick="confirmBooking()">確認</button>
-</div>
+            <button class="service-card" type="button" onclick="selectService('パーマ', this)">
+            <span class="service-icon">✨</span>
+            <span class="service-label">パーマ</span>
+            </button>
+        </div>
 
-<div class="screen" id="form">
-  <h2>お問い合わせ</h2>
+        <input type="hidden" id="service" />
 
-  <input id="name" placeholder="名前" />
-  <input id="phone" placeholder="電話番号" />
+        <input type="date" id="date" />
 
-  <button onclick="submitForm()">送信</button>
-</div>
+        <select id="time">
+            <option value="">時間選択</option>
+            <option>10:00</option>
+            <option>12:00</option>
+            <option>14:00</option>
+        </select>
+        
+        <button onclick="goConfirm()">確認</button>
+    </section>
 
-<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-<script src="./app.js"></script>
+    <!-- FORM -->
+    <section class="screen" id="form">
+      <button onclick="goWelcome()" style="margin-bottom:20px;">← 戻る</button>
 
+      <h2>お問い合わせ</h2>
+
+      <input id="name" placeholder="名前" />
+      <input id="phone" placeholder="電話番号" />
+
+      <button onclick="submitForm()">送信</button>
+    </section>
+
+    <section class="screen" id="confirm">
+        <button onclick="goBooking()" style="margin-bottom:20px;">← 戻る</button>
+
+        <h2>予約確認</h2>
+        <p>内容をご確認ください</p>
+
+        <div class="summary-card">
+            <div class="summary-row">
+            <span>サービス</span>
+            <strong id="confirmService">-</strong>
+            </div>
+            <div class="summary-row">
+            <span>日付</span>
+            <strong id="confirmDate">-</strong>
+            </div>
+            <div class="summary-row">
+            <span>時間</span>
+            <strong id="confirmTime">-</strong>
+            </div>
+        </div>
+
+        <button onclick="finishBooking()">予約を確定する</button>
+    </section>
+
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>

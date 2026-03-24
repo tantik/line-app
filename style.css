@@ -92,3 +92,57 @@ input, select {
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
   }
 }
+.service-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 8px 0 18px;
+}
+
+.service-card {
+  background: #f3f1ef;
+  color: #000;
+  border: none;
+  border-radius: 18px;
+  padding: 18px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 110px;
+}
+
+.service-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.service-label {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.service-card.active-service {
+  outline: 3px solid #e3ad78;
+  background: #fff;
+}
+
+.summary-card {
+  background: #f3f1ef;
+  color: #000;
+  border-radius: 18px;
+  padding: 18px;
+  margin: 16px 0 24px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 16px;
+}
+
+.summary-row strong {
+  font-weight: 700;
+}
