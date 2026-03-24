@@ -52,7 +52,7 @@
             <option>12:00</option>
             <option>14:00</option>
         </select>
-        
+
         <button onclick="goConfirm()">確認</button>
     </section>
 
@@ -91,7 +91,12 @@
 
         <button onclick="finishBooking()">予約を確定する</button>
     </section>
+    <section class="screen" id="success">
+        <h2>予約が完了しました</h2>
+        <p>ご連絡をお待ちください</p>
 
+        <button onclick="goWelcome()">トップに戻る</button>
+    </section>
   </div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>

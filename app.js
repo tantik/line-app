@@ -119,7 +119,6 @@ function submitForm() {
     })
   })
     .then(() => {
-      alert("送信完了！");
       clearForm();
       goWelcome();
     })
