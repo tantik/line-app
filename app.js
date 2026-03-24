@@ -1,4 +1,5 @@
 const LIFF_ID = "2009586903-hyNXZaW7";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbw1yzmTeDnWAc6P2w4Vs9Hs0QG47jK-Ja8PLDwGV9GnC6PPzlqzBf-1sIusvceUttU/exec";
 
 async function init() {
   try {
@@ -44,51 +45,6 @@ function selectService(service, button) {
   button.classList.add("active-service");
 }
 
-
-
-function finishBooking() {
-  alert("予約が確定しました！");
-  goWelcome();
-}
-
-
-function submitForm() {
-  const name = document.getElementById("name").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-
-  const service = document.getElementById("service").value;
-  const date = document.getElementById("date").value;
-  const time = document.getElementById("time").value;
-
-  if (!name || !phone) {
-    alert("名前と電話番号を入力してください");
-    return;
-  }
-
-  fetch("https://script.google.com/macros/s/AKfycbxFir4mJn21gJyWvh_OOb9I_glIF_K7hOvwDdbbyrHph1vWGYG98n_NaiX8E6wVrQcq/exec", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      name,
-      phone,
-      service,
-      date,
-      time
-    }),
-    mode: "no-cors"
-  })
-  .then(() => {
-    alert("送信完了！");
-    goWelcome();
-  })
-  .catch((err) => {
-    console.log(err);
-    alert("送信エラー");
-  });
-}
-
 function goConfirm() {
   const service = document.getElementById("service").value;
   const date = document.getElementById("date").value;
@@ -104,4 +60,67 @@ function goConfirm() {
   document.getElementById("confirmTime").textContent = time;
 
   showScreen("confirm");
+}
+
+function finishBooking() {
+  showScreen("form");
+}
+
+function clearForm() {
+  document.getElementById("name").value = "";
+  document.getElementById("phone").value = "";
+
+  document.getElementById("service").value = "";
+  document.getElementById("date").value = "";
+  document.getElementById("time").value = "";
+
+  document.querySelectorAll(".service-card").forEach((el) => {
+    el.classList.remove("active-service");
+  });
+
+  document.getElementById("confirmService").textContent = "-";
+  document.getElementById("confirmDate").textContent = "-";
+  document.getElementById("confirmTime").textContent = "-";
+}
+
+function submitForm() {
+  const name = document.getElementById("name").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const service = document.getElementById("service").value;
+  const date = document.getElementById("date").value;
+  const time = document.getElementById("time").value;
+
+  if (!service || !date || !time) {
+    alert("先に予約内容を選択してください");
+    goBooking();
+    return;
+  }
+
+  if (!name || !phone) {
+    alert("名前と電話番号を入力してください");
+    return;
+  }
+
+  fetch(WEBHOOK_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
+    body: JSON.stringify({
+      name,
+      phone,
+      service,
+      date,
+      time
+    })
+  })
+    .then(() => {
+      alert("送信完了！");
+      clearForm();
+      goWelcome();
+    })
+    .catch((err) => {
+      console.log("Submit error:", err);
+      alert("送信エラー");
+    });
 }
