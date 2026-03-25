@@ -2,6 +2,7 @@ const LIFF_ID = "2009586903-hyNXZaW7";
 const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbw1yzmTeDnWAc6P2w4Vs9Hs0QG47jK-Ja8PLDwGV9GnC6PPzlqzBf-1sIusvceUttU/exec";
 
 let userId = "";
+let displayName = "";
 
 async function init() {
   try {
@@ -10,7 +11,13 @@ async function init() {
     if (liff.isLoggedIn()) {
       const profile = await liff.getProfile();
       userId = profile.userId;
+      displayName = profile.displayName || "";
       console.log("User:", profile);
+
+      const nameInput = document.getElementById("name");
+      if (nameInput && !nameInput.value) {
+        nameInput.value = displayName;
+      }
     }
   } catch (e) {
     console.log("LIFF error:", e);
@@ -35,6 +42,10 @@ function goBooking() {
 }
 
 function goForm() {
+  const nameInput = document.getElementById("name");
+  if (nameInput && !nameInput.value && displayName) {
+    nameInput.value = displayName;
+  }
   showScreen("form");
 }
 
@@ -66,12 +77,19 @@ function goConfirm() {
 }
 
 function finishBooking() {
-  showScreen("form");
+  goForm();
 }
 
 function clearForm() {
-  document.getElementById("name").value = "";
-  document.getElementById("phone").value = "";
+  const nameInput = document.getElementById("name");
+  const phoneInput = document.getElementById("phone");
+
+  if (nameInput) {
+    nameInput.value = displayName || "";
+  }
+  if (phoneInput) {
+    phoneInput.value = "";
+  }
 
   document.getElementById("service").value = "";
   document.getElementById("date").value = "";
@@ -99,8 +117,8 @@ function submitForm() {
     return;
   }
 
-  if (!name || !phone) {
-    alert("名前と電話番号を入力してください");
+  if (!phone) {
+    alert("電話番号を入力してください");
     return;
   }
 
@@ -120,7 +138,7 @@ function submitForm() {
   })
     .then(() => {
       clearForm();
-      goWelcome();
+      showScreen("success");
     })
     .catch((err) => {
       console.log("Submit error:", err);
