@@ -1,5 +1,5 @@
 const LIFF_ID = "2009586903-hyNXZaW7";
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbw1yzmTeDnWAc6P2w4Vs9Hs0QG47jK-Ja8PLDwGV9GnC6PPzlqzBf-1sIusvceUttU/exec";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzASxQyVMiZEzOOuqja4MXArVWGGFZa3v8uNVWsbm_LG8__tsUiVIGZ7XTI284WatYi/exec";
 
 let userId = "";
 let displayName = "";
