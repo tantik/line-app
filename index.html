@@ -25,24 +25,14 @@
         <h2>予約</h2>
         <p>ご希望のサービスを選択してください</p>
 
-        <div class="service-grid">
-            <button class="service-card" type="button" onclick="selectService('カット', this)">
-            <span class="service-icon">✂️</span>
-            <span class="service-label">カット</span>
-            </button>
-
-            <button class="service-card" type="button" onclick="selectService('カラー', this)">
-            <span class="service-icon">🎨</span>
-            <span class="service-label">カラー</span>
-            </button>
-
-            <button class="service-card" type="button" onclick="selectService('パーマ', this)">
-            <span class="service-icon">✨</span>
-            <span class="service-label">パーマ</span>
-            </button>
-        </div>
+        <div id="serviceCategories" class="service-grid"></div>
+        <div id="serviceList" class="service-grid"></div>
+        <div id="staffList" class="service-grid"></div>
+        <input type="hidden" id="staffId" />
+        <input type="hidden" id="staffName" />
 
         <input type="hidden" id="service" />
+        <input type="hidden" id="serviceId" />
 
         <input type="date" id="date" />
 
@@ -52,6 +42,8 @@
             <option>12:00</option>
             <option>14:00</option>
         </select>
+
+        
 
         <button onclick="goConfirm()">確認</button>
     </section>

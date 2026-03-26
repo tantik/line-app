@@ -147,3 +147,59 @@ input, select {
 .summary-row strong {
   font-weight: 700;
 }
+#serviceCategories {
+  margin-bottom: 16px;
+}
+
+#serviceList {
+  margin-top: 8px;
+}
+
+/* категории — чуть темнее */
+#serviceCategories .service-card {
+  background: #e8e3df;
+}
+
+/* активная категория */
+#serviceCategories .service-card.active-service {
+  background: #fff;
+  outline: 3px solid #e3ad78;
+}
+
+/* услуги — белые */
+#serviceList .service-card {
+  background: #ffffff;
+}
+
+/* активная услуга */
+#serviceList .service-card.active-service {
+  outline: 3px solid #e3ad78;
+}
+
+#staffList {
+  margin-top: 16px;
+}
+
+.staff-card {
+  background: #ffffff;
+  color: #000;
+  padding: 12px 10px;
+  min-height: 150px;
+}
+
+.staff-photo {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+  margin: 0 auto 8px;
+}
+
+.staff-card small {
+  display: block;
+  margin-top: 6px;
+  opacity: 0.7;
+  font-size: 12px;
+  line-height: 1.3;
+}

@@ -1,8 +1,19 @@
 const LIFF_ID = "2009586903-hyNXZaW7";
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyzqKaKyDDBFXivJVGEIW8n8mV3565_cBeV2grhXFNqC1XK8RLQl0kUD5ZnyUHqjeSj/exec";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxBYyreRdx4doCI2DagQPCAZf7NSKbqSAVGdy48UExYeTpRY8m42mwCxFzGEaryXzYO/exec";
+const SERVICES_URL = `${WEBHOOK_URL}?action=services`;
+const STAFF_URL = `${WEBHOOK_URL}?action=staff`;
 
 let userId = "";
 let displayName = "";
+
+let services = [];
+let staff = [];
+
+let selectedCategory = "";
+let selectedServiceName = "";
+let selectedServiceId = "";
+let selectedStaffId = "";
+let selectedStaffName = "";
 
 async function init() {
   try {
@@ -19,12 +30,146 @@ async function init() {
         nameInput.value = displayName;
       }
     }
+
+    await Promise.all([loadServices(), loadStaff()]);
   } catch (e) {
     console.log("LIFF error:", e);
   }
 }
 
 init();
+
+async function loadServices() {
+  try {
+    const res = await fetch(SERVICES_URL);
+    services = await res.json();
+    renderCategories();
+  } catch (e) {
+    console.log("Services load error:", e);
+  }
+}
+
+async function loadStaff() {
+  try {
+    const res = await fetch(STAFF_URL);
+    staff = await res.json();
+    renderStaff();
+  } catch (e) {
+    console.log("Staff load error:", e);
+  }
+}
+
+function renderCategories() {
+  const box = document.getElementById("serviceCategories");
+  if (!box) return;
+
+  const categories = [...new Set(services.map((item) => item.category))];
+  box.innerHTML = "";
+
+  categories.forEach((category) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "service-card";
+    btn.innerHTML = `
+      <span class="service-icon">${getCategoryIcon(category)}</span>
+      <span class="service-label">${category}</span>
+    `;
+    btn.onclick = () => selectCategory(category, btn);
+    box.appendChild(btn);
+  });
+}
+
+function renderServices(category) {
+  const box = document.getElementById("serviceList");
+  if (!box) return;
+
+  const filtered = services.filter((item) => item.category === category);
+  box.innerHTML = "";
+
+  filtered.forEach((service) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "service-card";
+    btn.innerHTML = `
+      <span class="service-icon">✦</span>
+      <span class="service-label">${service.name}</span>
+    `;
+    btn.onclick = () => selectService(service, btn);
+    box.appendChild(btn);
+  });
+}
+
+function renderStaff() {
+  const box = document.getElementById("staffList");
+  if (!box) return;
+
+  box.innerHTML = "";
+
+  staff.forEach((member) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "service-card staff-card";
+    btn.innerHTML = `
+      <img src="${member.photoUrl}" alt="${member.name}" class="staff-photo" />
+      <span class="service-label">${member.name}</span>
+      <small>${member.startTime} - ${member.endTime}</small>
+    `;
+    btn.onclick = () => selectStaff(member, btn);
+    box.appendChild(btn);
+  });
+}
+
+function selectCategory(category, button) {
+  selectedCategory = category;
+  selectedServiceName = "";
+  selectedServiceId = "";
+
+  document.getElementById("service").value = "";
+  document.getElementById("serviceId").value = "";
+
+  document.querySelectorAll("#serviceCategories .service-card").forEach((el) => {
+    el.classList.remove("active-service");
+  });
+
+  button.classList.add("active-service");
+  renderServices(category);
+}
+
+function selectService(service, button) {
+  selectedServiceName = service.name;
+  selectedServiceId = service.serviceId;
+
+  document.getElementById("service").value = service.name;
+  document.getElementById("serviceId").value = service.serviceId;
+
+  document.querySelectorAll("#serviceList .service-card").forEach((el) => {
+    el.classList.remove("active-service");
+  });
+
+  button.classList.add("active-service");
+}
+
+function selectStaff(member, button) {
+  selectedStaffId = member.staffId;
+  selectedStaffName = member.name;
+
+  document.getElementById("staffId").value = member.staffId;
+  document.getElementById("staffName").value = member.name;
+
+  document.querySelectorAll("#staffList .service-card").forEach((el) => {
+    el.classList.remove("active-service");
+  });
+
+  button.classList.add("active-service");
+}
+
+function getCategoryIcon(category) {
+  if (category === "カット") return "✂️";
+  if (category === "カラー") return "🎨";
+  if (category === "パーマ") return "✨";
+  if (category === "ネイル") return "💅";
+  return "•";
+}
 
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach((el) => {
@@ -49,27 +194,18 @@ function goForm() {
   showScreen("form");
 }
 
-function selectService(service, button) {
-  document.getElementById("service").value = service;
-
-  document.querySelectorAll(".service-card").forEach((el) => {
-    el.classList.remove("active-service");
-  });
-
-  button.classList.add("active-service");
-}
-
 function goConfirm() {
   const service = document.getElementById("service").value;
+  const staffName = document.getElementById("staffName").value;
   const date = document.getElementById("date").value;
   const time = document.getElementById("time").value;
 
-  if (!service || !date || !time) {
-    alert("サービス・日付・時間を選択してください");
+  if (!service || !staffName || !date || !time) {
+    alert("サービス・スタッフ・日付・時間を選択してください");
     return;
   }
 
-  document.getElementById("confirmService").textContent = service;
+  document.getElementById("confirmService").textContent = `${service} / ${staffName}`;
   document.getElementById("confirmDate").textContent = date;
   document.getElementById("confirmTime").textContent = time;
 
@@ -92,12 +228,24 @@ function clearForm() {
   }
 
   document.getElementById("service").value = "";
+  document.getElementById("serviceId").value = "";
+  document.getElementById("staffId").value = "";
+  document.getElementById("staffName").value = "";
   document.getElementById("date").value = "";
   document.getElementById("time").value = "";
+
+  selectedCategory = "";
+  selectedServiceName = "";
+  selectedServiceId = "";
+  selectedStaffId = "";
+  selectedStaffName = "";
 
   document.querySelectorAll(".service-card").forEach((el) => {
     el.classList.remove("active-service");
   });
+
+  const serviceList = document.getElementById("serviceList");
+  if (serviceList) serviceList.innerHTML = "";
 
   document.getElementById("confirmService").textContent = "-";
   document.getElementById("confirmDate").textContent = "-";
@@ -107,11 +255,14 @@ function clearForm() {
 function submitForm() {
   const name = document.getElementById("name").value.trim();
   const phone = document.getElementById("phone").value.trim();
-  const service = document.getElementById("service").value;
+  const serviceName = document.getElementById("service").value;
+  const serviceId = document.getElementById("serviceId").value;
+  const staffId = document.getElementById("staffId").value;
+  const staffName = document.getElementById("staffName").value;
   const date = document.getElementById("date").value;
   const time = document.getElementById("time").value;
 
-  if (!service || !date || !time) {
+  if (!serviceName || !serviceId || !staffId || !staffName || !date || !time) {
     alert("先に予約内容を選択してください");
     goBooking();
     return;
@@ -130,10 +281,13 @@ function submitForm() {
     body: JSON.stringify({
       name,
       phone,
-      service,
+      userId,
+      staffId,
+      staffName,
+      serviceId,
+      serviceName,
       date,
-      time,
-      userId
+      time
     })
   })
     .then(() => {
