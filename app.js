@@ -1,5 +1,5 @@
 const LIFF_ID = "2009586903-hyNXZaW7";
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzJoMyVlYZAtHebdOry-bMi8U8Y1Got6CTML2Rbab3ry3bVKIkkieK1r73FzDotjm3j/exec";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzkBOs4p0J_Zls-7QMA82EpJBq-8qHwlYPVykZlD6nrlp6S9sNCHXJhJstFAuz-sKR1/exec";
 const SERVICES_URL = `${WEBHOOK_URL}?action=services`;
 const STAFF_URL = `${WEBHOOK_URL}?action=staff`;
 const BOOKINGS_URL = `${WEBHOOK_URL}?action=bookings`;
@@ -38,6 +38,11 @@ async function init() {
       loadStaff(),
       loadBookings()
     ]);
+
+    const dateInput = document.getElementById("date");
+    if (dateInput) {
+      dateInput.addEventListener("change", refreshTimeForSelectedStaff);
+    }
   } catch (e) {
     console.log("LIFF error:", e);
   }
@@ -180,6 +185,16 @@ function selectStaff(member, button) {
   renderTimeOptions(member.startTime, member.endTime, member.slotMinutes);
 }
 
+function refreshTimeForSelectedStaff() {
+  const staffId = document.getElementById("staffId").value;
+  if (!staffId) return;
+
+  const member = staff.find((item) => String(item.staffId) === String(staffId));
+  if (!member) return;
+
+  renderTimeOptions(member.startTime, member.endTime, member.slotMinutes);
+}
+
 function renderTimeOptions(startTime, endTime, slotMinutes) {
   const timeSelect = document.getElementById("time");
   const selectedDate = document.getElementById("date").value;
@@ -187,6 +202,8 @@ function renderTimeOptions(startTime, endTime, slotMinutes) {
   if (!timeSelect) return;
 
   timeSelect.innerHTML = `<option value="">時間選択</option>`;
+
+  if (!selectedDate) return;
 
   const [startHour, startMinute] = startTime.split(":").map(Number);
   const [endHour, endMinute] = endTime.split(":").map(Number);
@@ -283,7 +300,7 @@ function clearForm() {
   document.getElementById("staffId").value = "";
   document.getElementById("staffName").value = "";
   document.getElementById("date").value = "";
-  document.getElementById("time").value = "";
+  document.getElementById("time").innerHTML = `<option value="">時間選択</option>`;
 
   selectedCategory = "";
   selectedServiceName = "";
