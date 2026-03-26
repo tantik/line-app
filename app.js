@@ -1,5 +1,5 @@
 const LIFF_ID = "2009586903-hyNXZaW7";
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzkBOs4p0J_Zls-7QMA82EpJBq-8qHwlYPVykZlD6nrlp6S9sNCHXJhJstFAuz-sKR1/exec";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwaJf527yoEzfRWX-YokM8Thux7LASeCeigB6eMWxg8F7lipNtbvGsMrHiwTJuRc1kD/exec";
 const SERVICES_URL = `${WEBHOOK_URL}?action=services`;
 const STAFF_URL = `${WEBHOOK_URL}?action=staff`;
 const BOOKINGS_URL = `${WEBHOOK_URL}?action=bookings`;
@@ -203,7 +203,7 @@ function renderTimeOptions(startTime, endTime, slotMinutes) {
 
   timeSelect.innerHTML = `<option value="">時間選択</option>`;
 
-  if (!selectedDate) return;
+  if (!selectedDate || !selectedStaffId) return;
 
   const [startHour, startMinute] = startTime.split(":").map(Number);
   const [endHour, endMinute] = endTime.split(":").map(Number);
@@ -212,8 +212,12 @@ function renderTimeOptions(startTime, endTime, slotMinutes) {
   const end = endHour * 60 + endMinute;
 
   const busySlots = bookings
-    .filter((b) => String(b.staffId) === String(selectedStaffId) && b.date === selectedDate)
-    .map((b) => b.time);
+    .filter((b) =>
+      String(b.staffId) === String(selectedStaffId) &&
+      String(b.date).trim() === String(selectedDate).trim() &&
+      String(b.status).trim() === "booked"
+    )
+    .map((b) => normalizeTimeClient(b.time));
 
   while (start < end) {
     const hour = String(Math.floor(start / 60)).padStart(2, "0");
@@ -229,6 +233,14 @@ function renderTimeOptions(startTime, endTime, slotMinutes) {
 
     start += Number(slotMinutes);
   }
+}
+
+function normalizeTimeClient(value) {
+  const str = String(value).trim();
+  if (/^\d:\d{2}$/.test(str)) {
+    return "0" + str;
+  }
+  return str;
 }
 
 function getCategoryIcon(category) {
@@ -355,10 +367,19 @@ function submitForm() {
       serviceId,
       serviceName,
       date,
-      time
+      time: normalizeTimeClient(time)
     })
   })
-    .then(async () => {
+    .then(async (res) => {
+      const result = await res.json();
+
+      if (result.status === "error") {
+        await loadBookings();
+        refreshTimeForSelectedStaff();
+        alert("この時間はすでに予約されています");
+        return;
+      }
+
       await loadBookings();
       clearForm();
       showScreen("success");
