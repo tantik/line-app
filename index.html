@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="jp">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,79 +9,151 @@
 <body>
   <div id="app">
 
-    <!-- WELCOME -->
-    <section class="screen active" id="welcome">
-      <h1>LINE予約デモ</h1>
-      <p>LINEで簡単に予約できます</p>
+    <!-- STEP 1 -->
+    <section class="screen active" id="bookingStep1">
+      <div class="topbar">
+        <button class="icon-back" type="button" onclick="goWelcomeLike()">←</button>
+        <div class="step-badge">1/3</div>
+      </div>
 
-      <button onclick="goBooking()">予約デモ</button>
-      <button onclick="goForm()">お問い合わせ</button>
-    </section>
+      <h1 class="screen-title">予約</h1>
+      <p class="screen-subtitle">サービスと担当者を選択してください</p>
 
-    <!-- BOOKING -->
-    <section class="screen" id="booking">
-        <button onclick="goWelcome()" style="margin-bottom:20px;">← 戻る</button>
-
-        <h2>予約</h2>
-        <p>ご希望のサービスを選択してください</p>
-
-        <div id="serviceCategories" class="service-grid"></div>
-        <div id="serviceList" class="service-grid"></div>
-        <div id="staffList" class="service-grid"></div>
-        <input type="hidden" id="staffId" />
-        <input type="hidden" id="staffName" />
-
-        <input type="hidden" id="service" />
-        <input type="hidden" id="serviceId" />
-
-        <input type="date" id="date" />
-
-        <select id="time">
-          <option value="">時間選択</option>
-      </select>
-        <button onclick="goConfirm()">確認</button>
-    </section>
-
-    <!-- FORM -->
-    <section class="screen" id="form">
-      <button onclick="goWelcome()" style="margin-bottom:20px;">← 戻る</button>
-
-      <h2>お問い合わせ</h2>
-
-      <input id="name" placeholder="名前" />
-      <input id="phone" placeholder="電話番号" />
-
-      <button onclick="submitForm()">送信</button>
-    </section>
-
-    <section class="screen" id="confirm">
-        <button onclick="goBooking()" style="margin-bottom:20px;">← 戻る</button>
-
-        <h2>予約確認</h2>
-        <p>内容をご確認ください</p>
-
-        <div class="summary-card">
-            <div class="summary-row">
-            <span>サービス</span>
-            <strong id="confirmService">-</strong>
-            </div>
-            <div class="summary-row">
-            <span>日付</span>
-            <strong id="confirmDate">-</strong>
-            </div>
-            <div class="summary-row">
-            <span>時間</span>
-            <strong id="confirmTime">-</strong>
-            </div>
+      <div class="section-block">
+        <div class="section-header">
+          <h2 class="section-title">サービス選択</h2>
         </div>
 
-        <button onclick="finishBooking()">予約を確定する</button>
-    </section>
-    <section class="screen" id="success">
-        <h2>予約が完了しました</h2>
-        <p>ご連絡をお待ちください</p>
+        <div id="serviceCategories" class="horizontal-scroll cards-row"></div>
+        <div id="serviceList" class="horizontal-scroll cards-row cards-row-secondary"></div>
+      </div>
 
-        <button onclick="goWelcome()">トップに戻る</button>
+      <div class="section-block">
+        <div class="section-header">
+          <h2 class="section-title">担当者選択</h2>
+          <button class="text-link" type="button" onclick="clearSelectedStaff()">未選択にする</button>
+        </div>
+
+        <div id="staffListStep1" class="staff-grid"></div>
+      </div>
+
+      <div class="bottom-bar">
+        <button class="primary-btn" type="button" onclick="goStep2()">次へ</button>
+      </div>
+
+      <input type="hidden" id="staffId" />
+      <input type="hidden" id="staffName" />
+      <input type="hidden" id="service" />
+      <input type="hidden" id="serviceId" />
+    </section>
+
+    <!-- STEP 2 -->
+    <section class="screen" id="bookingStep2">
+      <div class="topbar">
+        <button class="icon-back" type="button" onclick="showScreen('bookingStep1')">←</button>
+        <div class="step-badge">2/3</div>
+      </div>
+
+      <h1 class="screen-title">日時を選択</h1>
+      <p class="screen-subtitle">日付・時間・担当者を確認してください</p>
+
+      <div class="section-block">
+        <div class="section-header">
+          <h2 class="section-title">日付選択</h2>
+        </div>
+        <div id="dateGrid" class="date-grid"></div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-header">
+          <h2 class="section-title">時間選択</h2>
+        </div>
+        <div id="timeSlots" class="time-grid"></div>
+      </div>
+
+      <div class="section-block">
+        <div class="section-header">
+          <h2 class="section-title">対応可能な担当者</h2>
+        </div>
+        <div id="staffListStep2" class="staff-list-vertical"></div>
+      </div>
+
+      <div class="summary-floating">
+        <div class="summary-line"><span>サービス</span><strong id="liveSummaryService">-</strong></div>
+        <div class="summary-line"><span>担当者</span><strong id="liveSummaryStaff">-</strong></div>
+        <div class="summary-line"><span>日時</span><strong id="liveSummaryDateTime">-</strong></div>
+      </div>
+
+      <div class="bottom-bar">
+        <button class="primary-btn" type="button" onclick="goConfirm()">確認へ</button>
+      </div>
+    </section>
+
+    <!-- CONFIRM -->
+    <section class="screen" id="confirm">
+      <div class="topbar">
+        <button class="icon-back" type="button" onclick="showScreen('bookingStep2')">←</button>
+        <div class="step-badge">3/3</div>
+      </div>
+
+      <h1 class="screen-title">予約確認</h1>
+      <p class="screen-subtitle">内容をご確認ください</p>
+
+      <div class="summary-card">
+        <div class="summary-row">
+          <span>サービス</span>
+          <strong id="confirmService">-</strong>
+        </div>
+        <div class="summary-row">
+          <span>担当者</span>
+          <strong id="confirmStaff">-</strong>
+        </div>
+        <div class="summary-row">
+          <span>日付</span>
+          <strong id="confirmDate">-</strong>
+        </div>
+        <div class="summary-row">
+          <span>時間</span>
+          <strong id="confirmTime">-</strong>
+        </div>
+      </div>
+
+      <div class="section-block">
+        <h2 class="section-title">お客様情報</h2>
+        <input id="name" placeholder="名前" />
+        <input id="phone" placeholder="電話番号" />
+      </div>
+
+      <div class="bottom-bar dual-buttons">
+        <button class="secondary-btn" type="button" onclick="showScreen('bookingStep2')">戻る</button>
+        <button class="primary-btn" type="button" onclick="submitForm()">予約を確定</button>
+      </div>
+    </section>
+
+    <!-- SUCCESS -->
+    <section class="screen" id="success">
+      <div class="success-wrap">
+        <div class="success-icon">✓</div>
+        <h1 class="screen-title">予約完了</h1>
+        <p class="screen-subtitle">ご予約ありがとうございます</p>
+
+        <div class="summary-card">
+          <div class="summary-row">
+            <span>サービス</span>
+            <strong id="successService">-</strong>
+          </div>
+          <div class="summary-row">
+            <span>担当者</span>
+            <strong id="successStaff">-</strong>
+          </div>
+          <div class="summary-row">
+            <span>日時</span>
+            <strong id="successDateTime">-</strong>
+          </div>
+        </div>
+
+        <button class="primary-btn" type="button" onclick="resetAndGoStart()">トップに戻る</button>
+      </div>
     </section>
   </div>
 
