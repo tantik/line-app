@@ -1,5 +1,5 @@
 const LIFF_ID = "2009586903-hyNXZaW7";
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyzqKaKyDDBFXivJVGEIW8n8mV3565_cBeV2grhXFNqC1XK8RLQl0kUD5ZnyUHqjeSj/exec";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzJoMyVlYZAtHebdOry-bMi8U8Y1Got6CTML2Rbab3ry3bVKIkkieK1r73FzDotjm3j/exec";
 const SERVICES_URL = `${WEBHOOK_URL}?action=services`;
 const STAFF_URL = `${WEBHOOK_URL}?action=staff`;
 const BOOKINGS_URL = `${WEBHOOK_URL}?action=bookings`;
