@@ -161,6 +161,33 @@ function selectStaff(member, button) {
   });
 
   button.classList.add("active-service");
+
+  renderTimeOptions(member.startTime, member.endTime, member.slotMinutes);
+}
+function renderTimeOptions(startTime, endTime, slotMinutes) {
+  const timeSelect = document.getElementById("time");
+  if (!timeSelect) return;
+
+  timeSelect.innerHTML = `<option value="">時間選択</option>`;
+
+  const [startHour, startMinute] = startTime.split(":").map(Number);
+  const [endHour, endMinute] = endTime.split(":").map(Number);
+
+  let start = startHour * 60 + startMinute;
+  const end = endHour * 60 + endMinute;
+
+  while (start < end) {
+    const hour = String(Math.floor(start / 60)).padStart(2, "0");
+    const minute = String(start % 60).padStart(2, "0");
+    const value = `${hour}:${minute}`;
+
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = value;
+    timeSelect.appendChild(option);
+
+    start += Number(slotMinutes);
+  }
 }
 
 function getCategoryIcon(category) {
