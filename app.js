@@ -1,5 +1,5 @@
 const LIFF_ID = "2009586903-hyNXZaW7";
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxBYyreRdx4doCI2DagQPCAZf7NSKbqSAVGdy48UExYeTpRY8m42mwCxFzGEaryXzYO/exec";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzJoMyVlYZAtHebdOry-bMi8U8Y1Got6CTML2Rbab3ry3bVKIkkieK1r73FzDotjm3j/exec";
 const SERVICES_URL = `${WEBHOOK_URL}?action=services`;
 const STAFF_URL = `${WEBHOOK_URL}?action=staff`;
 
@@ -164,8 +164,11 @@ function selectStaff(member, button) {
 
   renderTimeOptions(member.startTime, member.endTime, member.slotMinutes);
 }
+
 function renderTimeOptions(startTime, endTime, slotMinutes) {
   const timeSelect = document.getElementById("time");
+  const selectedDate = document.getElementById("date").value;
+
   if (!timeSelect) return;
 
   timeSelect.innerHTML = `<option value="">時間選択</option>`;
@@ -176,15 +179,21 @@ function renderTimeOptions(startTime, endTime, slotMinutes) {
   let start = startHour * 60 + startMinute;
   const end = endHour * 60 + endMinute;
 
+  const busySlots = bookings
+    .filter(b => b.staffId == selectedStaffId && b.date === selectedDate)
+    .map(b => b.time);
+
   while (start < end) {
     const hour = String(Math.floor(start / 60)).padStart(2, "0");
     const minute = String(start % 60).padStart(2, "0");
     const value = `${hour}:${minute}`;
 
-    const option = document.createElement("option");
-    option.value = value;
-    option.textContent = value;
-    timeSelect.appendChild(option);
+    if (!busySlots.includes(value)) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = value;
+      timeSelect.appendChild(option);
+    }
 
     start += Number(slotMinutes);
   }
@@ -326,3 +335,15 @@ function submitForm() {
       alert("送信エラー");
     });
 }
+
+const BOOKINGS_URL = `${WEBHOOK_URL}?action=bookings`;
+let bookings = [];
+async function loadBookings() {
+  try {
+    const res = await fetch(BOOKINGS_URL);
+    bookings = await res.json();
+  } catch (e) {
+    console.log("Bookings load error:", e);
+  }
+}
+await Promise.all([loadServices(), loadStaff(), loadBookings()]);
