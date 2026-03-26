@@ -1,13 +1,15 @@
 const LIFF_ID = "2009586903-hyNXZaW7";
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbzJoMyVlYZAtHebdOry-bMi8U8Y1Got6CTML2Rbab3ry3bVKIkkieK1r73FzDotjm3j/exec";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyzqKaKyDDBFXivJVGEIW8n8mV3565_cBeV2grhXFNqC1XK8RLQl0kUD5ZnyUHqjeSj/exec";
 const SERVICES_URL = `${WEBHOOK_URL}?action=services`;
 const STAFF_URL = `${WEBHOOK_URL}?action=staff`;
+const BOOKINGS_URL = `${WEBHOOK_URL}?action=bookings`;
 
 let userId = "";
 let displayName = "";
 
 let services = [];
 let staff = [];
+let bookings = [];
 
 let selectedCategory = "";
 let selectedServiceName = "";
@@ -31,7 +33,11 @@ async function init() {
       }
     }
 
-    await Promise.all([loadServices(), loadStaff()]);
+    await Promise.all([
+      loadServices(),
+      loadStaff(),
+      loadBookings()
+    ]);
   } catch (e) {
     console.log("LIFF error:", e);
   }
@@ -56,6 +62,15 @@ async function loadStaff() {
     renderStaff();
   } catch (e) {
     console.log("Staff load error:", e);
+  }
+}
+
+async function loadBookings() {
+  try {
+    const res = await fetch(BOOKINGS_URL);
+    bookings = await res.json();
+  } catch (e) {
+    console.log("Bookings load error:", e);
   }
 }
 
@@ -180,8 +195,8 @@ function renderTimeOptions(startTime, endTime, slotMinutes) {
   const end = endHour * 60 + endMinute;
 
   const busySlots = bookings
-    .filter(b => b.staffId == selectedStaffId && b.date === selectedDate)
-    .map(b => b.time);
+    .filter((b) => String(b.staffId) === String(selectedStaffId) && b.date === selectedDate)
+    .map((b) => b.time);
 
   while (start < end) {
     const hour = String(Math.floor(start / 60)).padStart(2, "0");
@@ -326,7 +341,8 @@ function submitForm() {
       time
     })
   })
-    .then(() => {
+    .then(async () => {
+      await loadBookings();
       clearForm();
       showScreen("success");
     })
@@ -335,15 +351,3 @@ function submitForm() {
       alert("送信エラー");
     });
 }
-
-const BOOKINGS_URL = `${WEBHOOK_URL}?action=bookings`;
-let bookings = [];
-async function loadBookings() {
-  try {
-    const res = await fetch(BOOKINGS_URL);
-    bookings = await res.json();
-  } catch (e) {
-    console.log("Bookings load error:", e);
-  }
-}
-await Promise.all([loadServices(), loadStaff(), loadBookings()]);
