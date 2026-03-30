@@ -1,5 +1,6 @@
 const LIFF_ID = "2009586903-hyNXZaW7";
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwaJf527yoEzfRWX-YokM8Thux7LASeCeigB6eMWxg8F7lipNtbvGsMrHiwTJuRc1kD/exec";
+const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbxvWTM_U2g-I27F2gEEhdWFBDV7GADGXRaDr_uLcozE9Jz4dMU7FE_4QhTi4ItjOh8X/exec";
+
 const SERVICES_URL = `${WEBHOOK_URL}?action=services`;
 const STAFF_URL = `${WEBHOOK_URL}?action=staff`;
 const BOOKINGS_URL = `${WEBHOOK_URL}?action=bookings`;
@@ -11,11 +12,8 @@ let services = [];
 let staff = [];
 let bookings = [];
 
-let selectedCategory = "";
-let selectedServiceName = "";
-let selectedServiceId = "";
-let selectedStaffId = "";
-let selectedStaffName = "";
+let selectedService = null;
+let selectedStaff = null;
 let selectedDate = "";
 let selectedTime = "";
 
@@ -23,15 +21,18 @@ async function init() {
   try {
     await liff.init({ liffId: LIFF_ID });
 
-    if (liff.isLoggedIn()) {
-      const profile = await liff.getProfile();
-      userId = profile.userId;
-      displayName = profile.displayName || "";
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    }
 
-      const nameInput = document.getElementById("name");
-      if (nameInput && !nameInput.value) {
-        nameInput.value = displayName;
-      }
+    const profile = await liff.getProfile();
+    userId = profile.userId || "";
+    displayName = profile.displayName || "";
+
+    const nameInput = document.getElementById("name");
+    if (nameInput && !nameInput.value) {
+      nameInput.value = displayName;
     }
 
     await Promise.all([
@@ -40,10 +41,14 @@ async function init() {
       loadBookings()
     ]);
 
+    renderServices();
+    renderStaffStep1();
     renderDateOptions();
-    updateLiveSummary();
+    renderTimeOptions();
+    renderStaffStep2();
+    updateSummary();
   } catch (e) {
-    console.log("LIFF error:", e);
+    console.log("LIFF init error:", e);
   }
 }
 
@@ -53,7 +58,6 @@ async function loadServices() {
   try {
     const res = await fetch(SERVICES_URL);
     services = await res.json();
-    renderCategories();
   } catch (e) {
     console.log("Services load error:", e);
   }
@@ -63,8 +67,6 @@ async function loadStaff() {
   try {
     const res = await fetch(STAFF_URL);
     staff = await res.json();
-    renderStaffStep1();
-    renderStaffStep2();
   } catch (e) {
     console.log("Staff load error:", e);
   }
@@ -79,42 +81,42 @@ async function loadBookings() {
   }
 }
 
-function renderCategories() {
+function renderServices() {
   const box = document.getElementById("serviceCategories");
   if (!box) return;
 
-  const categories = [...new Set(services.map((item) => item.category))];
   box.innerHTML = "";
 
-  categories.forEach((category) => {
+  services.forEach((service) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "service-card";
+
     btn.innerHTML = `
-      <span class="service-icon">${getCategoryIcon(category)}</span>
-      <span class="service-label">${category}</span>
-    `;
-    btn.onclick = () => selectCategory(category, btn);
-    box.appendChild(btn);
-  });
-}
-
-function renderServices(category) {
-  const box = document.getElementById("serviceList");
-  if (!box) return;
-
-  const filtered = services.filter((item) => item.category === category);
-  box.innerHTML = "";
-
-  filtered.forEach((service) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "service-card";
-    btn.innerHTML = `
-      <span class="service-icon">✦</span>
+      <span class="service-icon">${service.icon || "✦"}</span>
       <span class="service-label">${service.name}</span>
+      <small>¥${service.price} / ${service.duration}分</small>
     `;
-    btn.onclick = () => selectService(service, btn);
+
+    if (selectedService && String(selectedService.serviceId) === String(service.serviceId)) {
+      btn.classList.add("active-service");
+    }
+
+    btn.onclick = () => {
+      selectedService = service;
+
+      if (selectedStaff && !staffCanDoService(selectedStaff, selectedService.serviceId)) {
+        selectedStaff = null;
+        selectedTime = "";
+      }
+
+      renderServices();
+      renderStaffStep1();
+      renderTimeOptions();
+      renderStaffStep2();
+      updateSummary();
+    };
+
     box.appendChild(btn);
   });
 }
@@ -125,11 +127,16 @@ function renderStaffStep1() {
 
   box.innerHTML = "";
 
-  staff.forEach((member) => {
+  const filtered = selectedService
+    ? staff.filter(member => staffCanDoService(member, selectedService.serviceId))
+    : staff;
+
+  filtered.forEach((member) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "staff-card";
-    if (String(member.staffId) === String(selectedStaffId)) {
+
+    if (selectedStaff && String(member.staffId) === String(selectedStaff.staffId)) {
       btn.classList.add("active-service");
     }
 
@@ -139,110 +146,22 @@ function renderStaffStep1() {
       <small>${member.startTime} - ${member.endTime}</small>
     `;
 
-    btn.onclick = () => selectStaff(member);
-    box.appendChild(btn);
-  });
-}
-
-function renderStaffStep2() {
-  const box = document.getElementById("staffListStep2");
-  if (!box) return;
-
-  let filteredStaff = [...staff];
-
-  if (selectedTime) {
-    filteredStaff = filteredStaff.filter((member) => isStaffAvailable(member, selectedDate, selectedTime));
-  }
-
-  box.innerHTML = "";
-
-  filteredStaff.forEach((member) => {
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = "staff-row";
-    if (String(member.staffId) === String(selectedStaffId)) {
-      row.classList.add("active-service");
-    }
-
-    row.innerHTML = `
-      <img src="${member.photoUrl}" alt="${member.name}" class="staff-photo" />
-      <div class="staff-row-info">
-        <div class="staff-row-name">${member.name}</div>
-        <div class="staff-row-time">${member.startTime} - ${member.endTime}</div>
-      </div>
-    `;
-
-    row.onclick = () => {
-      selectedStaffId = member.staffId;
-      selectedStaffName = member.name;
-      document.getElementById("staffId").value = member.staffId;
-      document.getElementById("staffName").value = member.name;
+    btn.onclick = () => {
+      selectedStaff = member;
+      selectedTime = "";
 
       renderStaffStep1();
-      renderStaffStep2();
       renderTimeOptions();
-      updateLiveSummary();
+      renderStaffStep2();
+      updateSummary();
     };
 
-    box.appendChild(row);
-  });
-}
-
-function selectCategory(category, button) {
-  selectedCategory = category;
-  selectedServiceName = "";
-  selectedServiceId = "";
-
-  document.getElementById("service").value = "";
-  document.getElementById("serviceId").value = "";
-
-  document.querySelectorAll("#serviceCategories .service-card").forEach((el) => {
-    el.classList.remove("active-service");
+    box.appendChild(btn);
   });
 
-  button.classList.add("active-service");
-  renderServices(category);
-  updateLiveSummary();
-}
-
-function selectService(service, button) {
-  selectedServiceName = service.name;
-  selectedServiceId = service.serviceId;
-
-  document.getElementById("service").value = service.name;
-  document.getElementById("serviceId").value = service.serviceId;
-
-  document.querySelectorAll("#serviceList .service-card").forEach((el) => {
-    el.classList.remove("active-service");
-  });
-
-  button.classList.add("active-service");
-  updateLiveSummary();
-}
-
-function selectStaff(member) {
-  selectedStaffId = member.staffId;
-  selectedStaffName = member.name;
-
-  document.getElementById("staffId").value = member.staffId;
-  document.getElementById("staffName").value = member.name;
-
-  renderStaffStep1();
-  renderStaffStep2();
-  renderTimeOptions();
-  updateLiveSummary();
-}
-
-function clearSelectedStaff() {
-  selectedStaffId = "";
-  selectedStaffName = "";
-  document.getElementById("staffId").value = "";
-  document.getElementById("staffName").value = "";
-
-  renderStaffStep1();
-  renderStaffStep2();
-  renderTimeOptions();
-  updateLiveSummary();
+  if (!filtered.length) {
+    box.innerHTML = `<div class="screen-subtitle">このサービスに対応できる担当者がいません</div>`;
+  }
 }
 
 function renderDateOptions() {
@@ -266,6 +185,7 @@ function renderDateOptions() {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "date-btn";
+
     if (value === selectedDate) {
       btn.classList.add("active-slot");
     }
@@ -277,10 +197,12 @@ function renderDateOptions() {
 
     btn.onclick = () => {
       selectedDate = value;
+      selectedTime = "";
+
       renderDateOptions();
       renderTimeOptions();
       renderStaffStep2();
-      updateLiveSummary();
+      updateSummary();
     };
 
     box.appendChild(btn);
@@ -298,188 +220,219 @@ function renderTimeOptions() {
     return;
   }
 
-  let startTime = "10:00";
-  let endTime = "20:00";
-  let slotMinutes = 30;
-
-  if (selectedStaffId) {
-    const member = staff.find((item) => String(item.staffId) === String(selectedStaffId));
-    if (member) {
-      startTime = member.startTime;
-      endTime = member.endTime;
-      slotMinutes = Number(member.slotMinutes) || 30;
-    }
+  if (!selectedService) {
+    box.innerHTML = `<div class="screen-subtitle">先にサービスを選択してください</div>`;
+    return;
   }
 
-  const [startHour, startMinute] = startTime.split(":").map(Number);
-  const [endHour, endMinute] = endTime.split(":").map(Number);
+  const duration = Number(selectedService.duration || 0);
+  if (!duration) {
+    box.innerHTML = `<div class="screen-subtitle">サービス時間が未設定です</div>`;
+    return;
+  }
 
-  let current = startHour * 60 + startMinute;
-  const end = endHour * 60 + endMinute;
+  let availableMembers = staff.filter(member =>
+    staffCanDoService(member, selectedService.serviceId)
+  );
 
-  while (current < end) {
-    const hour = String(Math.floor(current / 60)).padStart(2, "0");
-    const minute = String(current % 60).padStart(2, "0");
-    const value = `${hour}:${minute}`;
+  if (selectedStaff) {
+    availableMembers = availableMembers.filter(member =>
+      String(member.staffId) === String(selectedStaff.staffId)
+    );
+  }
+
+  const globalStart = getEarliestStart(availableMembers);
+  const globalEnd = getLatestEnd(availableMembers);
+
+  if (globalStart === null || globalEnd === null) {
+    box.innerHTML = `<div class="screen-subtitle">対応可能な担当者がいません</div>`;
+    return;
+  }
+
+  let current = globalStart;
+
+  while (current + duration <= globalEnd) {
+    const time = minutesToTime(current);
 
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "time-btn";
-    btn.textContent = value;
+    btn.textContent = time;
 
-    let isAvailable = true;
-
-    if (selectedStaffId) {
-      const member = staff.find((item) => String(item.staffId) === String(selectedStaffId));
-      if (member) {
-        isAvailable = isStaffAvailable(member, selectedDate, value);
-      }
-    } else {
-      isAvailable = staff.some((member) => isStaffAvailable(member, selectedDate, value));
-    }
+    const isAvailable = isAnyStaffAvailableAtTime(time, duration);
 
     if (!isAvailable) {
       btn.classList.add("disabled-slot");
       btn.disabled = true;
-    } else if (value === selectedTime) {
+    } else if (time === selectedTime) {
       btn.classList.add("active-slot");
     }
 
     btn.onclick = () => {
-      selectedTime = value;
-      renderTimeOptions();
-      renderStaffStep2();
+      selectedTime = time;
 
-      if (selectedStaffId) {
-        const currentStaff = staff.find((item) => String(item.staffId) === String(selectedStaffId));
-        if (currentStaff && !isStaffAvailable(currentStaff, selectedDate, selectedTime)) {
-          selectedStaffId = "";
-          selectedStaffName = "";
-          document.getElementById("staffId").value = "";
-          document.getElementById("staffName").value = "";
-          renderStaffStep1();
-          renderStaffStep2();
-        }
+      if (selectedStaff && !isStaffAvailable(selectedStaff, selectedDate, selectedTime, duration)) {
+        selectedStaff = null;
       }
 
-      updateLiveSummary();
+      renderTimeOptions();
+      renderStaffStep1();
+      renderStaffStep2();
+      updateSummary();
     };
 
     box.appendChild(btn);
-    current += slotMinutes;
+    current += 30;
   }
 }
 
-function isStaffAvailable(member, date, time) {
-  if (!date || !time) return true;
+function renderStaffStep2() {
+  const box = document.getElementById("staffListStep2");
+  if (!box) return;
 
-  const normalizedTime = normalizeTimeClient(time);
+  box.innerHTML = "";
 
-  const [startHour, startMinute] = String(member.startTime).split(":").map(Number);
-  const [endHour, endMinute] = String(member.endTime).split(":").map(Number);
-  const [checkHour, checkMinute] = normalizedTime.split(":").map(Number);
+  if (!selectedService) {
+    box.innerHTML = `<div class="screen-subtitle">先にサービスを選択してください</div>`;
+    return;
+  }
 
-  const start = startHour * 60 + startMinute;
-  const end = endHour * 60 + endMinute;
-  const current = checkHour * 60 + checkMinute;
+  let filtered = staff.filter(member =>
+    staffCanDoService(member, selectedService.serviceId)
+  );
 
-  if (current < start || current >= end) {
+  if (selectedDate && selectedTime) {
+    const duration = Number(selectedService.duration || 0);
+    filtered = filtered.filter(member =>
+      isStaffAvailable(member, selectedDate, selectedTime, duration)
+    );
+  }
+
+  filtered.forEach((member) => {
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "staff-row";
+
+    if (selectedStaff && String(member.staffId) === String(selectedStaff.staffId)) {
+      row.classList.add("active-service");
+    }
+
+    row.innerHTML = `
+      <img src="${member.photoUrl}" alt="${member.name}" class="staff-photo" />
+      <div class="staff-row-info">
+        <div class="staff-row-name">${member.name}</div>
+        <div class="staff-row-time">${member.startTime} - ${member.endTime}</div>
+      </div>
+    `;
+
+    row.onclick = () => {
+      selectedStaff = member;
+      selectedTime = "";
+
+      renderStaffStep1();
+      renderTimeOptions();
+      renderStaffStep2();
+      updateSummary();
+    };
+
+    box.appendChild(row);
+  });
+
+  if (!filtered.length) {
+    box.innerHTML = `<div class="screen-subtitle">この条件で対応できる担当者がいません</div>`;
+  }
+}
+
+function staffCanDoService(member, serviceId) {
+  const arr = Array.isArray(member.services) ? member.services : [];
+  return arr.map(String).includes(String(serviceId));
+}
+
+function getEarliestStart(members) {
+  if (!members.length) return null;
+  const starts = members.map(m => timeToMinutes(m.startTime));
+  return Math.min(...starts);
+}
+
+function getLatestEnd(members) {
+  if (!members.length) return null;
+  const ends = members.map(m => timeToMinutes(m.endTime));
+  return Math.max(...ends);
+}
+
+function isAnyStaffAvailableAtTime(time, duration) {
+  if (!selectedService || !selectedDate) return false;
+
+  let candidates = staff.filter(member =>
+    staffCanDoService(member, selectedService.serviceId)
+  );
+
+  if (selectedStaff) {
+    candidates = candidates.filter(member =>
+      String(member.staffId) === String(selectedStaff.staffId)
+    );
+  }
+
+  return candidates.some(member =>
+    isStaffAvailable(member, selectedDate, time, duration)
+  );
+}
+
+function isStaffAvailable(member, date, time, duration) {
+  if (!member || !date || !time || !duration) return false;
+
+  if (!isStaffWorkingOnDate(member, date)) {
     return false;
   }
 
-  const busySlots = bookings
-    .filter((b) =>
-      String(b.staffId) === String(member.staffId) &&
-      String(b.date).trim() === String(date).trim() &&
-      String(b.status).trim() === "booked"
-    )
-    .map((b) => normalizeTimeClient(b.time));
+  const start = timeToMinutes(time);
+  const end = start + Number(duration);
 
-  return !busySlots.includes(normalizedTime);
-}
+  const memberStart = timeToMinutes(member.startTime);
+  const memberEnd = timeToMinutes(member.endTime);
 
-function normalizeTimeClient(value) {
-  const str = String(value).trim();
-  if (/^\d:\d{2}$/.test(str)) {
-    return "0" + str;
+  if (start < memberStart || end > memberEnd) {
+    return false;
   }
-  return str;
-}
 
-function getCategoryIcon(category) {
-  if (category === "カット") return "✂️";
-  if (category === "カラー") return "🎨";
-  if (category === "パーマ") return "✨";
-  if (category === "ネイル") return "💅";
-  return "•";
-}
+  const busy = bookings.filter(b =>
+    String(b.staffId) === String(member.staffId) &&
+    String(b.date).trim() === String(date).trim() &&
+    String(b.status).trim() === "booked"
+  );
 
-function showScreen(id) {
-  document.querySelectorAll(".screen").forEach((el) => {
-    el.classList.remove("active");
+  return !busy.some(b => {
+    const bStart = timeToMinutes(normalizeTime(b.time));
+    const bEnd = bStart + Number(b.duration || 0);
+    return start < bEnd && end > bStart;
   });
-  document.getElementById(id).classList.add("active");
 }
 
-function goWelcomeLike() {
-  selectedTime = "";
-  selectedDate = "";
-  updateLiveSummary();
-  showScreen("bookingStep1");
+function isStaffWorkingOnDate(member, date) {
+  const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const d = new Date(date + "T00:00:00");
+  const dayCode = daysMap[d.getDay()];
+  const workDays = String(member.workDays || "")
+    .split(",")
+    .map(x => x.trim())
+    .filter(Boolean);
+
+  return workDays.includes(dayCode);
 }
 
-function goStep2() {
-  const service = document.getElementById("service").value;
+function updateSummary() {
+  const serviceText = selectedService
+    ? `${selectedService.name} ¥${selectedService.price}`
+    : "-";
 
-  if (!service) {
-    alert("サービスを選択してください");
-    return;
+  const staffText = selectedStaff ? selectedStaff.name : "-";
+
+  let dateTimeText = "-";
+  if (selectedDate && selectedTime) {
+    dateTimeText = `${selectedDate} / ${selectedTime}`;
+  } else if (selectedDate) {
+    dateTimeText = selectedDate;
   }
-
-  if (selectedDate) {
-    renderDateOptions();
-  } else {
-    renderDateOptions();
-  }
-
-  renderTimeOptions();
-  renderStaffStep2();
-  updateLiveSummary();
-  showScreen("bookingStep2");
-}
-
-function goConfirm() {
-  const service = document.getElementById("service").value;
-  const staffName = document.getElementById("staffName").value;
-  const date = selectedDate;
-  const time = selectedTime;
-
-  if (!service || !staffName || !date || !time) {
-    alert("サービス・担当者・日付・時間を選択してください");
-    return;
-  }
-
-  document.getElementById("confirmService").textContent = service;
-  document.getElementById("confirmStaff").textContent = staffName;
-  document.getElementById("confirmDate").textContent = date;
-  document.getElementById("confirmTime").textContent = time;
-
-  const nameInput = document.getElementById("name");
-  if (nameInput && !nameInput.value && displayName) {
-    nameInput.value = displayName;
-  }
-
-  showScreen("confirm");
-}
-
-function updateLiveSummary() {
-  const serviceText = selectedServiceName || "-";
-  const staffText = selectedStaffName || "-";
-  const dateTimeText = selectedDate && selectedTime
-    ? `${selectedDate} / ${selectedTime}`
-    : selectedDate
-      ? `${selectedDate}`
-      : "-";
 
   const s1 = document.getElementById("liveSummaryService");
   const s2 = document.getElementById("liveSummaryStaff");
@@ -490,54 +443,45 @@ function updateLiveSummary() {
   if (s3) s3.textContent = dateTimeText;
 }
 
-function clearForm() {
-  const nameInput = document.getElementById("name");
-  const phoneInput = document.getElementById("phone");
+function goStep2() {
+  if (!selectedService) {
+    alert("サービスを選択してください");
+    return;
+  }
 
-  if (nameInput) nameInput.value = displayName || "";
-  if (phoneInput) phoneInput.value = "";
-
-  document.getElementById("service").value = "";
-  document.getElementById("serviceId").value = "";
-  document.getElementById("staffId").value = "";
-  document.getElementById("staffName").value = "";
-
-  selectedCategory = "";
-  selectedServiceName = "";
-  selectedServiceId = "";
-  selectedStaffId = "";
-  selectedStaffName = "";
-  selectedDate = "";
-  selectedTime = "";
-
-  document.querySelectorAll(".service-card").forEach((el) => {
-    el.classList.remove("active-service");
-  });
-
-  const serviceList = document.getElementById("serviceList");
-  if (serviceList) serviceList.innerHTML = "";
-
-  renderCategories();
-  renderStaffStep1();
   renderDateOptions();
   renderTimeOptions();
   renderStaffStep2();
-  updateLiveSummary();
+  updateSummary();
+  showScreen("bookingStep2");
 }
 
-function submitForm() {
-  const name = document.getElementById("name").value.trim();
-  const phone = document.getElementById("phone").value.trim();
-  const serviceName = document.getElementById("service").value;
-  const serviceId = document.getElementById("serviceId").value;
-  const staffId = document.getElementById("staffId").value;
-  const staffName = document.getElementById("staffName").value;
-  const date = selectedDate;
-  const time = selectedTime;
+function goConfirm() {
+  if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) {
+    alert("サービス・担当者・日付・時間を選択してください");
+    return;
+  }
 
-  if (!serviceName || !serviceId || !staffId || !staffName || !date || !time) {
+  document.getElementById("confirmService").textContent =
+    `${selectedService.name} ¥${selectedService.price}`;
+  document.getElementById("confirmStaff").textContent = selectedStaff.name;
+  document.getElementById("confirmDate").textContent = selectedDate;
+  document.getElementById("confirmTime").textContent = selectedTime;
+
+  const nameInput = document.getElementById("name");
+  if (nameInput && !nameInput.value && displayName) {
+    nameInput.value = displayName;
+  }
+
+  showScreen("confirm");
+}
+
+async function submitForm() {
+  const name = (document.getElementById("name")?.value || "").trim();
+  const phone = (document.getElementById("phone")?.value || "").trim();
+
+  if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) {
     alert("先に予約内容を選択してください");
-    showScreen("bookingStep1");
     return;
   }
 
@@ -546,49 +490,119 @@ function submitForm() {
     return;
   }
 
-  fetch(WEBHOOK_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "text/plain;charset=utf-8"
-    },
-    body: JSON.stringify({
-      name,
-      phone,
-      userId,
-      staffId,
-      staffName,
-      serviceId,
-      serviceName,
-      date,
-      time: normalizeTimeClient(time)
-    })
-  })
-    .then(async (res) => {
-      const result = await res.json();
-
-      if (result.status === "error") {
-        await loadBookings();
-        renderTimeOptions();
-        renderStaffStep2();
-        alert("この時間はすでに予約されています");
-        return;
-      }
-
-      document.getElementById("successService").textContent = serviceName;
-      document.getElementById("successStaff").textContent = staffName;
-      document.getElementById("successDateTime").textContent = `${date} / ${time}`;
-
-      await loadBookings();
-      clearForm();
-      showScreen("success");
-    })
-    .catch((err) => {
-      console.log("Submit error:", err);
-      alert("送信エラー");
+  try {
+    const res = await fetch(WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify({
+        name,
+        phone,
+        userId,
+        staffId: selectedStaff.staffId,
+        staffName: selectedStaff.name,
+        serviceId: selectedService.serviceId,
+        serviceName: selectedService.name,
+        date: selectedDate,
+        time: selectedTime,
+        duration: Number(selectedService.duration || 0)
+      })
     });
+
+    const result = await res.json();
+
+    if (result.status === "error") {
+      await loadBookings();
+      renderTimeOptions();
+      renderStaffStep2();
+      alert("この時間はすでに予約されています");
+      return;
+    }
+
+    const successService = document.getElementById("successService");
+    const successStaff = document.getElementById("successStaff");
+    const successDateTime = document.getElementById("successDateTime");
+
+    if (successService) successService.textContent = selectedService.name;
+    if (successStaff) successStaff.textContent = selectedStaff.name;
+    if (successDateTime) successDateTime.textContent = `${selectedDate} / ${selectedTime}`;
+
+    await loadBookings();
+    showScreen("success");
+  } catch (err) {
+    console.log("Submit error:", err);
+    alert("送信エラー");
+  }
+}
+
+function clearSelectedStaff() {
+  selectedStaff = null;
+  selectedTime = "";
+  renderStaffStep1();
+  renderTimeOptions();
+  renderStaffStep2();
+  updateSummary();
+}
+
+function goWelcomeLike() {
+  clearState();
+  renderServices();
+  renderStaffStep1();
+  renderDateOptions();
+  renderTimeOptions();
+  renderStaffStep2();
+  updateSummary();
+  showScreen("bookingStep1");
 }
 
 function resetAndGoStart() {
-  clearForm();
+  clearState();
+
+  const nameInput = document.getElementById("name");
+  const phoneInput = document.getElementById("phone");
+
+  if (nameInput) nameInput.value = displayName || "";
+  if (phoneInput) phoneInput.value = "";
+
+  renderServices();
+  renderStaffStep1();
+  renderDateOptions();
+  renderTimeOptions();
+  renderStaffStep2();
+  updateSummary();
   showScreen("bookingStep1");
+}
+
+function clearState() {
+  selectedService = null;
+  selectedStaff = null;
+  selectedDate = "";
+  selectedTime = "";
+}
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach((el) => {
+    el.classList.remove("active");
+  });
+
+  const target = document.getElementById(id);
+  if (target) target.classList.add("active");
+}
+
+function minutesToTime(min) {
+  const h = String(Math.floor(min / 60)).padStart(2, "0");
+  const m = String(min % 60).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+function timeToMinutes(value) {
+  const [h, m] = normalizeTime(value).split(":").map(Number);
+  return h * 60 + m;
+}
+
+function normalizeTime(value) {
+  const str = String(value || "").trim();
+  if (/^\d:\d{2}$/.test(str)) return "0" + str;
+  return str;
 }
