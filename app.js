@@ -81,28 +81,28 @@ async function loadBookings() {
   }
 }
 
-function renderServices1() {
-  const box = document.getElementById("serviceCategories");
-  if (!box) return;
+/* ---------- SERVICES ---------- */
 
-  box.innerHTML = "";
+function renderServices() {
+  const el = document.getElementById("servicesList");
+  if (!el) return;
+
+  el.innerHTML = "";
 
   services.forEach((service) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "service-card";
-
-    btn.innerHTML = `
-      <span class="service-icon">${service.icon || "✦"}</span>
-      <span class="service-label">${service.name}</span>
-      <small>¥${service.price} / ${service.duration}分</small>
-    `;
-
+    const card = document.createElement("div");
+    card.className = "service-card";
     if (selectedService && String(selectedService.serviceId) === String(service.serviceId)) {
-      btn.classList.add("active-service");
+      card.classList.add("active");
     }
 
-    btn.onclick = () => {
+    card.innerHTML = `
+      <div class="service-card-name">${escapeHtml(service.name || "-")}</div>
+      <div class="service-card-meta">${escapeHtml(String(service.duration || 0))}分</div>
+      <div class="service-card-price">¥${escapeHtml(String(service.price || 0))}</div>
+    `;
+
+    card.onclick = () => {
       selectedService = service;
 
       if (selectedStaff && !staffCanDoService(selectedStaff, selectedService.serviceId)) {
@@ -117,38 +117,11 @@ function renderServices1() {
       updateSummary();
     };
 
-    box.appendChild(btn);
+    el.appendChild(card);
   });
 }
-function renderServices() {
-  const container = document.getElementById("servicesList");
-  container.innerHTML = "";
 
-  services.forEach(service => {
-    const div = document.createElement("div");
-    div.className = "service-card";
-
-    if (selectedService && selectedService.serviceId === service.serviceId) {
-      div.classList.add("active");
-    }
-
-    div.innerHTML = `
-      <div class="service-info">
-        <div class="service-name">${service.name}</div>
-        <div class="service-meta">${service.duration}分</div>
-      </div>
-      <div class="service-price">¥${service.price}</div>
-    `;
-
-    div.onclick = () => {
-      selectedService = service;
-      renderServices();
-      renderStaff(); // уже есть у тебя
-    };
-
-    container.appendChild(div);
-  });
-}
+/* ---------- STAFF STEP 1 ---------- */
 
 function renderStaffStep1() {
   const box = document.getElementById("staffListStep1");
@@ -157,25 +130,25 @@ function renderStaffStep1() {
   box.innerHTML = "";
 
   const filtered = selectedService
-    ? staff.filter(member => staffCanDoService(member, selectedService.serviceId))
+    ? staff.filter((member) => staffCanDoService(member, selectedService.serviceId))
     : staff;
 
   filtered.forEach((member) => {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "staff-card";
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "staff-card";
 
     if (selectedStaff && String(member.staffId) === String(selectedStaff.staffId)) {
-      btn.classList.add("active-service");
+      card.classList.add("active");
     }
 
-    btn.innerHTML = `
-      <img src="${member.photoUrl}" alt="${member.name}" class="staff-photo" />
-      <span class="service-label">${member.name}</span>
-      <small>${member.startTime} - ${member.endTime}</small>
+    card.innerHTML = `
+      <img src="${escapeAttr(member.photoUrl || "")}" alt="${escapeAttr(member.name || "")}" class="staff-photo" />
+      <div class="staff-name">${escapeHtml(member.name || "-")}</div>
+      <div class="staff-time">${escapeHtml(member.startTime || "-")} - ${escapeHtml(member.endTime || "-")}</div>
     `;
 
-    btn.onclick = () => {
+    card.onclick = () => {
       selectedStaff = member;
       selectedTime = "";
 
@@ -185,7 +158,7 @@ function renderStaffStep1() {
       updateSummary();
     };
 
-    box.appendChild(btn);
+    box.appendChild(card);
   });
 
   if (!filtered.length) {
@@ -193,8 +166,10 @@ function renderStaffStep1() {
   }
 }
 
+/* ---------- DATES: 60 days, 2 rows ---------- */
+
 function renderDateOptions() {
-  const box = document.getElementById("dateGrid");
+  const box = document.getElementById("dateList");
   if (!box) return;
 
   box.innerHTML = "";
@@ -202,7 +177,7 @@ function renderDateOptions() {
   const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
   const today = new Date();
 
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 60; i++) {
     const d = new Date();
     d.setDate(today.getDate() + i);
 
@@ -211,20 +186,19 @@ function renderDateOptions() {
     const dd = String(d.getDate()).padStart(2, "0");
     const value = `${yyyy}-${mm}-${dd}`;
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "date-btn";
+    const item = document.createElement("div");
+    item.className = "date-item";
 
     if (value === selectedDate) {
-      btn.classList.add("active-slot");
+      item.classList.add("active");
     }
 
-    btn.innerHTML = `
-      <span class="date-top">${weekdays[d.getDay()]}</span>
-      <span class="date-main">${mm}/${dd}</span>
+    item.innerHTML = `
+      <div class="date-item-weekday">${weekdays[d.getDay()]}</div>
+      <div class="date-item-date">${mm}/${dd}</div>
     `;
 
-    btn.onclick = () => {
+    item.onclick = () => {
       selectedDate = value;
       selectedTime = "";
 
@@ -234,12 +208,14 @@ function renderDateOptions() {
       updateSummary();
     };
 
-    box.appendChild(btn);
+    box.appendChild(item);
   }
 }
 
+/* ---------- TIME ---------- */
+
 function renderTimeOptions() {
-  const box = document.getElementById("timeSlots");
+  const box = document.getElementById("timeList");
   if (!box) return;
 
   box.innerHTML = "";
@@ -260,18 +236,18 @@ function renderTimeOptions() {
     return;
   }
 
-  let availableMembers = staff.filter(member =>
+  let candidates = staff.filter((member) =>
     staffCanDoService(member, selectedService.serviceId)
   );
 
   if (selectedStaff) {
-    availableMembers = availableMembers.filter(member =>
+    candidates = candidates.filter((member) =>
       String(member.staffId) === String(selectedStaff.staffId)
     );
   }
 
-  const globalStart = getEarliestStart(availableMembers);
-  const globalEnd = getLatestEnd(availableMembers);
+  const globalStart = getEarliestStart(candidates);
+  const globalEnd = getLatestEnd(candidates);
 
   if (globalStart === null || globalEnd === null) {
     box.innerHTML = `<div class="screen-subtitle">対応可能な担当者がいません</div>`;
@@ -283,37 +259,41 @@ function renderTimeOptions() {
   while (current + duration <= globalEnd) {
     const time = minutesToTime(current);
 
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "time-btn";
-    btn.textContent = time;
+    const item = document.createElement("div");
+    item.className = "time-item";
+    item.textContent = time;
 
     const isAvailable = isAnyStaffAvailableAtTime(time, duration);
+    const isBlockedByCurrentTime = isTimeBlockedByNow(selectedDate, time);
 
-    if (!isAvailable) {
-      btn.classList.add("disabled-slot");
-      btn.disabled = true;
+    if (!isAvailable || isBlockedByCurrentTime) {
+      item.classList.add("disabled");
     } else if (time === selectedTime) {
-      btn.classList.add("active-slot");
+      item.classList.add("active");
     }
 
-    btn.onclick = () => {
+    item.onclick = () => {
+      if (!isAvailable || isBlockedByCurrentTime) return;
+
       selectedTime = time;
 
+      // НЕ сбрасываем время при выборе мастера потом
+      // если уже был выбран мастер, но он не подходит — снимаем только мастера
       if (selectedStaff && !isStaffAvailable(selectedStaff, selectedDate, selectedTime, duration)) {
         selectedStaff = null;
       }
 
       renderTimeOptions();
-      renderStaffStep1();
       renderStaffStep2();
       updateSummary();
     };
 
-    box.appendChild(btn);
+    box.appendChild(item);
     current += 30;
   }
 }
+
+/* ---------- STAFF STEP 2 ---------- */
 
 function renderStaffStep2() {
   const box = document.getElementById("staffListStep2");
@@ -326,51 +306,49 @@ function renderStaffStep2() {
     return;
   }
 
-  let filtered = staff.filter(member =>
+  let filtered = staff.filter((member) =>
     staffCanDoService(member, selectedService.serviceId)
   );
 
   if (selectedDate && selectedTime) {
     const duration = Number(selectedService.duration || 0);
-    filtered = filtered.filter(member =>
+    filtered = filtered.filter((member) =>
       isStaffAvailable(member, selectedDate, selectedTime, duration)
     );
   }
 
   filtered.forEach((member) => {
-    const row = document.createElement("button");
-    row.type = "button";
-    row.className = "staff-row";
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "staff-card";
 
     if (selectedStaff && String(member.staffId) === String(selectedStaff.staffId)) {
-      row.classList.add("active-service");
+      card.classList.add("active");
     }
 
-    row.innerHTML = `
-      <img src="${member.photoUrl}" alt="${member.name}" class="staff-photo" />
-      <div class="staff-row-info">
-        <div class="staff-row-name">${member.name}</div>
-        <div class="staff-row-time">${member.startTime} - ${member.endTime}</div>
-      </div>
+    card.innerHTML = `
+      <img src="${escapeAttr(member.photoUrl || "")}" alt="${escapeAttr(member.name || "")}" class="staff-photo" />
+      <div class="staff-name">${escapeHtml(member.name || "-")}</div>
+      <div class="staff-time">${escapeHtml(member.startTime || "-")} - ${escapeHtml(member.endTime || "-")}</div>
     `;
 
-    row.onclick = () => {
+    card.onclick = () => {
       selectedStaff = member;
-      selectedTime = "";
-
+      // ВАЖНО: selectedTime НЕ сбрасываем
       renderStaffStep1();
-      renderTimeOptions();
       renderStaffStep2();
       updateSummary();
     };
 
-    box.appendChild(row);
+    box.appendChild(card);
   });
 
   if (!filtered.length) {
     box.innerHTML = `<div class="screen-subtitle">この条件で対応できる担当者がいません</div>`;
   }
 }
+
+/* ---------- BUSINESS LOGIC ---------- */
 
 function staffCanDoService(member, serviceId) {
   const arr = Array.isArray(member.services) ? member.services : [];
@@ -379,30 +357,30 @@ function staffCanDoService(member, serviceId) {
 
 function getEarliestStart(members) {
   if (!members.length) return null;
-  const starts = members.map(m => timeToMinutes(m.startTime));
+  const starts = members.map((m) => timeToMinutes(m.startTime));
   return Math.min(...starts);
 }
 
 function getLatestEnd(members) {
   if (!members.length) return null;
-  const ends = members.map(m => timeToMinutes(m.endTime));
+  const ends = members.map((m) => timeToMinutes(m.endTime));
   return Math.max(...ends);
 }
 
 function isAnyStaffAvailableAtTime(time, duration) {
   if (!selectedService || !selectedDate) return false;
 
-  let candidates = staff.filter(member =>
+  let candidates = staff.filter((member) =>
     staffCanDoService(member, selectedService.serviceId)
   );
 
   if (selectedStaff) {
-    candidates = candidates.filter(member =>
+    candidates = candidates.filter((member) =>
       String(member.staffId) === String(selectedStaff.staffId)
     );
   }
 
-  return candidates.some(member =>
+  return candidates.some((member) =>
     isStaffAvailable(member, selectedDate, time, duration)
   );
 }
@@ -410,9 +388,7 @@ function isAnyStaffAvailableAtTime(time, duration) {
 function isStaffAvailable(member, date, time, duration) {
   if (!member || !date || !time || !duration) return false;
 
-  if (!isStaffWorkingOnDate(member, date)) {
-    return false;
-  }
+  if (!isStaffWorkingOnDate(member, date)) return false;
 
   const start = timeToMinutes(time);
   const end = start + Number(duration);
@@ -420,17 +396,15 @@ function isStaffAvailable(member, date, time, duration) {
   const memberStart = timeToMinutes(member.startTime);
   const memberEnd = timeToMinutes(member.endTime);
 
-  if (start < memberStart || end > memberEnd) {
-    return false;
-  }
+  if (start < memberStart || end > memberEnd) return false;
 
-  const busy = bookings.filter(b =>
+  const busy = bookings.filter((b) =>
     String(b.staffId) === String(member.staffId) &&
     String(b.date).trim() === String(date).trim() &&
     String(b.status).trim() === "booked"
   );
 
-  return !busy.some(b => {
+  return !busy.some((b) => {
     const bStart = timeToMinutes(normalizeTime(b.time));
     const bEnd = bStart + Number(b.duration || 0);
     return start < bEnd && end > bStart;
@@ -443,18 +417,42 @@ function isStaffWorkingOnDate(member, date) {
   const dayCode = daysMap[d.getDay()];
   const workDays = String(member.workDays || "")
     .split(",")
-    .map(x => x.trim())
+    .map((x) => x.trim())
     .filter(Boolean);
 
   return workDays.includes(dayCode);
 }
+
+function isTimeBlockedByNow(dateStr, timeStr) {
+  const today = getTodayString();
+  if (dateStr !== today) return false;
+
+  const now = new Date();
+  const [hh, mm] = normalizeTime(timeStr).split(":").map(Number);
+
+  const selectedDateTime = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    hh,
+    mm,
+    0,
+    0
+  );
+
+  const diffMinutes = (selectedDateTime.getTime() - now.getTime()) / 60000;
+
+  return diffMinutes < 20;
+}
+
+/* ---------- SUMMARY ---------- */
 
 function updateSummary() {
   const serviceText = selectedService
     ? `${selectedService.name} ¥${selectedService.price}`
     : "-";
 
-  const staffText = selectedStaff ? selectedStaff.name : "-";
+  const staffText = selectedStaff ? selectedStaff.name : "未選択";
 
   let dateTimeText = "-";
   if (selectedDate && selectedTime) {
@@ -472,6 +470,8 @@ function updateSummary() {
   if (s3) s3.textContent = dateTimeText;
 }
 
+/* ---------- NAVIGATION ---------- */
+
 function goStep2() {
   if (!selectedService) {
     alert("サービスを選択してください");
@@ -486,16 +486,20 @@ function goStep2() {
 }
 
 function goConfirm() {
-  if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) {
+  if (!selectedService || !selectedDate || !selectedTime || !selectedStaff) {
     alert("サービス・担当者・日付・時間を選択してください");
     return;
   }
 
-  document.getElementById("confirmService").textContent =
-    `${selectedService.name} ¥${selectedService.price}`;
-  document.getElementById("confirmStaff").textContent = selectedStaff.name;
-  document.getElementById("confirmDate").textContent = selectedDate;
-  document.getElementById("confirmTime").textContent = selectedTime;
+  const confirmService = document.getElementById("confirmService");
+  const confirmStaff = document.getElementById("confirmStaff");
+  const confirmDate = document.getElementById("confirmDate");
+  const confirmTime = document.getElementById("confirmTime");
+
+  if (confirmService) confirmService.textContent = `${selectedService.name} ¥${selectedService.price}`;
+  if (confirmStaff) confirmStaff.textContent = selectedStaff.name;
+  if (confirmDate) confirmDate.textContent = selectedDate;
+  if (confirmTime) confirmTime.textContent = selectedTime;
 
   const nameInput = document.getElementById("name");
   if (nameInput && !nameInput.value && displayName) {
@@ -619,6 +623,8 @@ function showScreen(id) {
   if (target) target.classList.add("active");
 }
 
+/* ---------- UTILS ---------- */
+
 function minutesToTime(min) {
   const h = String(Math.floor(min / 60)).padStart(2, "0");
   const m = String(min % 60).padStart(2, "0");
@@ -634,4 +640,25 @@ function normalizeTime(value) {
   const str = String(value || "").trim();
   if (/^\d:\d{2}$/.test(str)) return "0" + str;
   return str;
+}
+
+function getTodayString() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
 }

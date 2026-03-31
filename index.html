@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="jp">
+<html lang="ja">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -23,10 +23,7 @@
         <div class="section-header">
           <h2 class="section-title">サービス選択</h2>
         </div>
-
-        <div id="serviceCategories" class="horizontal-scroll cards-row"></div>
-        <!-- div id="serviceList" class="horizontal-scroll cards-row cards-row-secondary"></div-->
-        <div id="servicesList" class="services-grid"></div>
+        <div class="services-scroll" id="servicesList"></div>
       </div>
 
       <div class="section-block">
@@ -34,18 +31,12 @@
           <h2 class="section-title">担当者選択</h2>
           <button class="text-link" type="button" onclick="clearSelectedStaff()">未選択にする</button>
         </div>
-
         <div id="staffListStep1" class="staff-grid"></div>
       </div>
 
       <div class="bottom-bar">
         <button class="primary-btn" type="button" onclick="goStep2()">次へ</button>
       </div>
-
-      <input type="hidden" id="staffId" />
-      <input type="hidden" id="staffName" />
-      <input type="hidden" id="service" />
-      <input type="hidden" id="serviceId" />
     </section>
 
     <!-- STEP 2 -->
@@ -62,21 +53,21 @@
         <div class="section-header">
           <h2 class="section-title">日付選択</h2>
         </div>
-        <div id="dateGrid" class="date-grid"></div>
+        <div id="dateList" class="date-scroll-grid"></div>
       </div>
 
       <div class="section-block">
         <div class="section-header">
           <h2 class="section-title">時間選択</h2>
         </div>
-        <div id="timeSlots" class="time-grid"></div>
+        <div id="timeList" class="time-scroll-grid"></div>
       </div>
 
       <div class="section-block">
         <div class="section-header">
           <h2 class="section-title">対応可能な担当者</h2>
         </div>
-        <div id="staffListStep2" class="staff-list-vertical"></div>
+        <div id="staffListStep2" class="staff-grid compact"></div>
       </div>
 
       <div class="summary-floating">
@@ -100,15 +91,13 @@
       <h1 class="screen-title">予約確認</h1>
       <p class="screen-subtitle">内容をご確認ください</p>
 
+      <div class="confirm-hero">
+        <div class="confirm-hero-title">ご予約内容</div>
+        <div class="confirm-hero-main" id="confirmService">-</div>
+        <div class="confirm-hero-sub" id="confirmStaff">-</div>
+      </div>
+
       <div class="summary-card">
-        <div class="summary-row">
-          <span>サービス</span>
-          <strong id="confirmService">-</strong>
-        </div>
-        <div class="summary-row">
-          <span>担当者</span>
-          <strong id="confirmStaff">-</strong>
-        </div>
         <div class="summary-row">
           <span>日付</span>
           <strong id="confirmDate">-</strong>
