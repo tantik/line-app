@@ -3,6 +3,8 @@ const CONFIG = {
   WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbwkciKG7WBzh2xiFAzfGsWuM0JoZaw-TIspQFL_bIX3nIpAQMqytSBAsXP3hWzF1Af5/exec",
   BUSINESS_LABEL: "Salon",
   DATE_RANGE_DAYS: 60,
+  INITIAL_VISIBLE_DAYS: 14,
+  LOAD_MORE_DAYS_STEP: 14,
   TIME_STEP_MINUTES: 30,
   SAME_DAY_BLOCK_MINUTES: 20,
   CACHE_TTL_MS: 3 * 60 * 1000
@@ -25,6 +27,8 @@ let selectedDate = "";
 let selectedTime = "";
 let previousScreen = "welcome";
 let initDone = false;
+let visibleDaysCount = CONFIG.INITIAL_VISIBLE_DAYS;
+let bookingsPrefetchStarted = false;
 
 const cacheStore = {
   services: { data: null, ts: 0 },
@@ -63,9 +67,10 @@ async function init() {
     renderServices();
     renderStaffStep1();
     renderDateOptions();
-    renderTimeOptions();
-    renderStaffStep2();
+    renderStep2IdleState();
     updateSummary();
+
+    startBookingsPrefetch();
   } catch (e) {
     console.log("LIFF init error:", e);
     alert("初期化エラーが発生しました");
@@ -87,6 +92,14 @@ function setLoading(show, title = "読み込み中...", text = "少々お待ち�
   if (textEl) textEl.textContent = text;
 
   overlay.classList.toggle("active", !!show);
+}
+
+function setInlineTimeLoading(show, text = "空き状況を確認中...") {
+  const box = document.getElementById("inlineTimeLoading");
+  if (!box) return;
+  box.style.display = show ? "flex" : "none";
+  const textNode = box.querySelector("div:last-child");
+  if (textNode) textNode.textContent = text;
 }
 
 function getCache(key) {
@@ -139,7 +152,7 @@ async function loadStaff(useCache = true) {
   }
 }
 
-async function ensureBookingsLoaded(force = false) {
+async function ensureBookingsLoaded(force = false, silent = false) {
   try {
     const cached = !force ? getCache("bookings") : null;
     if (cached) {
@@ -147,14 +160,32 @@ async function ensureBookingsLoaded(force = false) {
       return;
     }
 
-    setLoading(true, "空き状況を確認中...", "予約データを取得しています");
+    if (!silent) {
+      setInlineTimeLoading(true, "空き状況を確認中...");
+    }
+
     bookings = await fetchJson(BOOKINGS_URL);
     setCache("bookings", bookings);
   } catch (e) {
     console.log("Bookings load error:", e);
   } finally {
-    setLoading(false);
+    if (!silent) {
+      setInlineTimeLoading(false);
+    }
   }
+}
+
+function startBookingsPrefetch() {
+  if (bookingsPrefetchStarted) return;
+  bookingsPrefetchStarted = true;
+
+  setTimeout(async () => {
+    try {
+      await ensureBookingsLoaded(false, true);
+    } catch (e) {
+      console.log("Prefetch bookings error:", e);
+    }
+  }, 400);
 }
 
 /* ---------- SERVICES ---------- */
@@ -191,8 +222,16 @@ function renderServices() {
 
       renderServices();
       renderStaffStep1();
-      renderTimeOptions();
-      renderStaffStep2();
+
+      if (isStep2Active()) {
+        if (selectedDate) {
+          renderTimeOptions();
+          renderStaffStep2();
+        } else {
+          renderStep2IdleState();
+        }
+      }
+
       updateSummary();
     };
 
@@ -232,8 +271,16 @@ function renderStaffStep1() {
       selectedTime = "";
 
       renderStaffStep1();
-      renderTimeOptions();
-      renderStaffStep2();
+
+      if (isStep2Active()) {
+        if (selectedDate) {
+          renderTimeOptions();
+          renderStaffStep2();
+        } else {
+          renderStep2IdleState();
+        }
+      }
+
       updateSummary();
     };
 
@@ -249,14 +296,17 @@ function renderStaffStep1() {
 
 function renderDateOptions() {
   const box = document.getElementById("dateList");
+  const countLabel = document.getElementById("dateCountLabel");
+  const moreBtn = document.getElementById("loadMoreDatesBtn");
   if (!box) return;
 
   box.innerHTML = "";
 
   const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
   const today = new Date();
+  const count = Math.min(visibleDaysCount, CONFIG.DATE_RANGE_DAYS);
 
-  for (let i = 0; i < CONFIG.DATE_RANGE_DAYS; i++) {
+  for (let i = 0; i < count; i++) {
     const d = new Date(today);
     d.setDate(today.getDate() + i);
 
@@ -280,10 +330,17 @@ function renderDateOptions() {
     item.onclick = async () => {
       selectedDate = value;
       selectedTime = "";
-
-      await ensureBookingsLoaded(false);
-
       renderDateOptions();
+
+      const slotHint = document.getElementById("slotHint");
+      if (slotHint) slotHint.textContent = "空き状況を確認しています";
+
+      setInlineTimeLoading(true, "空き状況を確認中...");
+      await ensureBookingsLoaded(false);
+      setInlineTimeLoading(false);
+
+      if (slotHint) slotHint.textContent = "時間を選択してください";
+
       renderTimeOptions();
       renderStaffStep2();
       updateSummary();
@@ -291,20 +348,61 @@ function renderDateOptions() {
 
     box.appendChild(item);
   }
+
+  if (countLabel) {
+    countLabel.textContent = `${count}日表示`;
+  }
+
+  if (moreBtn) {
+    moreBtn.classList.toggle("hidden", count >= CONFIG.DATE_RANGE_DAYS);
+  }
+}
+
+function loadMoreDates() {
+  visibleDaysCount = Math.min(
+    visibleDaysCount + CONFIG.LOAD_MORE_DAYS_STEP,
+    CONFIG.DATE_RANGE_DAYS
+  );
+  renderDateOptions();
+}
+
+/* ---------- STEP 2 IDLE ---------- */
+
+function renderStep2IdleState() {
+  const timeBox = document.getElementById("timeList");
+  const staffBox = document.getElementById("staffListStep2");
+  const slotHint = document.getElementById("slotHint");
+
+  if (slotHint) slotHint.textContent = "日付を選択してください";
+
+  if (timeBox) {
+    timeBox.innerHTML = `<div class="screen-subtitle">先に日付を選択してください</div>`;
+  }
+
+  if (staffBox) {
+    if (!selectedService) {
+      staffBox.innerHTML = `<div class="screen-subtitle">先にサービスを選択してください</div>`;
+    } else {
+      staffBox.innerHTML = `<div class="screen-subtitle">時間を選ぶと表示されます</div>`;
+    }
+  }
 }
 
 /* ---------- TIME ---------- */
 
 function renderTimeOptions() {
   const box = document.getElementById("timeList");
+  const slotHint = document.getElementById("slotHint");
   if (!box) return;
 
   box.innerHTML = "";
 
   if (!selectedDate || !selectedService) {
-    box.innerHTML = `<div class="screen-subtitle">先に選択してください</div>`;
+    renderStep2IdleState();
     return;
   }
+
+  if (slotHint) slotHint.textContent = "時間を選択してください";
 
   const duration = Number(selectedService.duration || 0);
 
@@ -356,6 +454,7 @@ function renderTimeOptions() {
 
       if (selectedStaff && !isStaffAvailable(selectedStaff, selectedDate, selectedTime, duration)) {
         selectedStaff = null;
+        renderStaffStep1();
       }
 
       renderTimeOptions();
@@ -381,12 +480,19 @@ function renderStaffStep2() {
     return;
   }
 
-  let filtered = staff.filter((member) => staffCanDoService(member, selectedService.serviceId));
-
-  if (selectedDate && selectedTime) {
-    const duration = Number(selectedService.duration || 0);
-    filtered = filtered.filter((member) => isStaffAvailable(member, selectedDate, selectedTime, duration));
+  if (!selectedDate || !selectedTime) {
+    box.innerHTML = `<div class="screen-subtitle">時間を選ぶと表示されます</div>`;
+    return;
   }
+
+  let filtered = staff.filter((member) =>
+    staffCanDoService(member, selectedService.serviceId)
+  );
+
+  const duration = Number(selectedService.duration || 0);
+  filtered = filtered.filter((member) =>
+    isStaffAvailable(member, selectedDate, selectedTime, duration)
+  );
 
   filtered.forEach((member) => {
     const card = document.createElement("button");
@@ -440,13 +546,19 @@ function getLatestEnd(members) {
 function isAnyStaffAvailableAtTime(time, duration) {
   if (!selectedService || !selectedDate) return false;
 
-  let candidates = staff.filter((member) => staffCanDoService(member, selectedService.serviceId));
+  let candidates = staff.filter((member) =>
+    staffCanDoService(member, selectedService.serviceId)
+  );
 
   if (selectedStaff) {
-    candidates = candidates.filter((member) => String(member.staffId) === String(selectedStaff.staffId));
+    candidates = candidates.filter((member) =>
+      String(member.staffId) === String(selectedStaff.staffId)
+    );
   }
 
-  return candidates.some((member) => isStaffAvailable(member, selectedDate, time, duration));
+  return candidates.some((member) =>
+    isStaffAvailable(member, selectedDate, time, duration)
+  );
 }
 
 function isStaffAvailable(member, date, time, duration) {
@@ -531,6 +643,11 @@ function updateSummary() {
 
 /* ---------- NAVIGATION ---------- */
 
+function isStep2Active() {
+  const current = document.querySelector(".screen.active");
+  return current && current.id === "bookingStep2";
+}
+
 function goDemoStart() {
   clearState();
 
@@ -543,8 +660,7 @@ function goDemoStart() {
   renderServices();
   renderStaffStep1();
   renderDateOptions();
-  renderTimeOptions();
-  renderStaffStep2();
+  renderStep2IdleState();
   updateSummary();
   showScreen("bookingStep1");
 }
@@ -556,8 +672,14 @@ function goStep2() {
   }
 
   renderDateOptions();
-  renderTimeOptions();
-  renderStaffStep2();
+
+  if (selectedDate) {
+    renderTimeOptions();
+    renderStaffStep2();
+  } else {
+    renderStep2IdleState();
+  }
+
   updateSummary();
   showScreen("bookingStep2");
 }
@@ -628,7 +750,7 @@ async function submitForm() {
     const result = await res.json();
 
     if (result.status === "error") {
-      await ensureBookingsLoaded(true);
+      await ensureBookingsLoaded(true, true);
       renderTimeOptions();
       renderStaffStep2();
       alert("この時間はすでに予約されています");
@@ -640,7 +762,7 @@ async function submitForm() {
     document.getElementById("successService").textContent = selectedService.name;
     document.getElementById("successStaff").textContent = selectedStaff.name;
 
-    await ensureBookingsLoaded(true);
+    await ensureBookingsLoaded(true, true);
     showScreen("success");
   } catch (err) {
     console.log("Submit error:", err);
@@ -739,9 +861,18 @@ function clearLeadForm() {
 function clearSelectedStaff() {
   selectedStaff = null;
   selectedTime = "";
+
   renderStaffStep1();
-  renderTimeOptions();
-  renderStaffStep2();
+
+  if (isStep2Active()) {
+    if (selectedDate) {
+      renderTimeOptions();
+      renderStaffStep2();
+    } else {
+      renderStep2IdleState();
+    }
+  }
+
   updateSummary();
 }
 
@@ -757,8 +888,7 @@ function resetAndGoStart() {
   renderServices();
   renderStaffStep1();
   renderDateOptions();
-  renderTimeOptions();
-  renderStaffStep2();
+  renderStep2IdleState();
   updateSummary();
   showScreen("welcome");
 }
@@ -768,6 +898,7 @@ function clearState() {
   selectedStaff = null;
   selectedDate = "";
   selectedTime = "";
+  visibleDaysCount = CONFIG.INITIAL_VISIBLE_DAYS;
 }
 
 function showScreen(id) {

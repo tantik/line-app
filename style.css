@@ -102,6 +102,27 @@ body::before {
   color: var(--muted);
 }
 
+.inline-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.08);
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.inline-loading-spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: var(--accent);
+  animation: spin 0.8s linear infinite;
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -144,6 +165,12 @@ body::before {
   font-size: 15px;
   line-height: 1.5;
   color: var(--muted);
+}
+
+.small-muted {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .hero-card,
@@ -310,6 +337,11 @@ body::before {
   cursor: pointer;
   scroll-snap-align: start;
   box-shadow: 0 14px 28px rgba(0,0,0,0.10);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.service-card:active {
+  transform: scale(0.98);
 }
 
 .service-card::after {
@@ -393,6 +425,11 @@ body::before {
   text-align: center;
   cursor: pointer;
   box-shadow: 0 8px 18px rgba(0,0,0,0.06);
+  transition: transform 0.15s ease, outline 0.15s ease;
+}
+
+.staff-card:active {
+  transform: scale(0.98);
 }
 
 .staff-card.active {
@@ -443,6 +480,11 @@ body::before {
   gap: 4px;
   cursor: pointer;
   border: 1px solid transparent;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.date-item:active {
+  transform: scale(0.97);
 }
 
 .date-item.active {
@@ -458,6 +500,23 @@ body::before {
 .date-item-date {
   font-size: 15px;
   font-weight: 800;
+}
+
+.more-dates-btn {
+  width: 100%;
+  margin-top: 12px;
+  border: 1px solid rgba(255,255,255,0.16);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 14px;
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.more-dates-btn.hidden {
+  display: none;
 }
 
 .time-scroll-grid {
@@ -484,6 +543,11 @@ body::before {
   cursor: pointer;
   border: 2px solid transparent;
   gap: 4px;
+  transition: transform 0.15s ease;
+}
+
+.time-item:active {
+  transform: scale(0.97);
 }
 
 .time-label {
@@ -621,6 +685,11 @@ textarea {
   resize: vertical;
 }
 
+.section-block input {
+  display: block;
+  margin-bottom: 10px;
+}
+
 .bottom-bar {
   position: fixed;
   left: 0;
@@ -685,6 +754,12 @@ textarea {
   margin-bottom: 22px;
 }
 
+.success-actions {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
 .install-promo-title,
 .lead-hero-title {
   font-size: 22px;
@@ -720,8 +795,3 @@ textarea {
     border-bottom-right-radius: 28px;
   }
 }
-.section-block input{
-  display: block;
-  margin-bottom: 10px;
-}
-.success-actions{margin-top: 12px;}

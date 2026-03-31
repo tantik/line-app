@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Salon Mini App</title>
-  <link rel="stylesheet" href="./style.css?v=5" />
+  <link rel="stylesheet" href="./style.css?v=6" />
 </head>
 <body>
   <div id="loadingOverlay" class="loading-overlay active">
@@ -97,14 +97,27 @@
       <div class="section-block">
         <div class="section-header">
           <h2 class="section-title">日付選択</h2>
+          <div class="small-muted" id="dateCountLabel">14日表示</div>
         </div>
+
         <div id="dateList" class="date-scroll-grid"></div>
+
+        <button id="loadMoreDatesBtn" class="more-dates-btn" type="button" onclick="loadMoreDates()">
+          もっと見る
+        </button>
       </div>
 
       <div class="section-block">
         <div class="section-header">
           <h2 class="section-title">時間選択</h2>
+          <div class="small-muted" id="slotHint">日付を選択してください</div>
         </div>
+
+        <div id="inlineTimeLoading" class="inline-loading" style="display:none;">
+          <div class="inline-loading-spinner"></div>
+          <div>空き状況を確認中...</div>
+        </div>
+
         <div id="timeList" class="time-scroll-grid"></div>
       </div>
 
@@ -271,6 +284,6 @@
   </div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="./app.js?v=5"></script>
+  <script src="./app.js?v=6"></script>
 </body>
 </html>
