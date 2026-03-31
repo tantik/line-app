@@ -18,14 +18,20 @@
       --muted: rgba(255,255,255,0.74);
       --line: rgba(255,255,255,0.12);
       --success: #cfe9d2;
+      --info: #d8e7ff;
       --shadow: 0 18px 44px rgba(0,0,0,0.2);
+      --danger-soft: #ffe0e0;
     }
 
     * { box-sizing: border-box; }
 
+    html, body {
+      min-height: 100%;
+    }
+
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: var(--bg-dark);
       color: var(--text);
     }
@@ -33,7 +39,10 @@
     .app {
       min-height: 100vh;
       padding: 20px 16px 32px;
-      background: var(--bg);
+      background:
+        radial-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+        linear-gradient(180deg, #456b62 0%, #2f5b57 100%);
+      background-size: 20px 20px, auto;
     }
 
     .topbar {
@@ -66,6 +75,7 @@
       padding: 4px;
       gap: 4px;
       min-width: 120px;
+      flex-shrink: 0;
     }
 
     .mode-btn {
@@ -79,6 +89,29 @@
     }
 
     .mode-btn.active {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .quick-btn {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 10px;
+      background: rgba(255,255,255,0.1);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .quick-btn.primary {
       background: var(--accent);
       color: #000;
     }
@@ -105,6 +138,8 @@
       color: #000;
       font-size: 15px;
       font-weight: 700;
+      appearance: none;
+      -webkit-appearance: none;
     }
 
     .summary-grid {
@@ -119,6 +154,7 @@
       border-radius: 18px;
       padding: 14px;
       border: 1px solid var(--line);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.10);
     }
 
     .summary-label {
@@ -132,6 +168,51 @@
       font-size: 24px;
       font-weight: 800;
       line-height: 1;
+    }
+
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 0 0 18px;
+    }
+
+    .legend-chip {
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+    }
+
+    .legend-chip.accent {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .legend-chip.info {
+      background: rgba(255,255,255,0.14);
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: inline-block;
+      margin-right: 6px;
+      vertical-align: middle;
     }
 
     .section-day {
@@ -154,6 +235,7 @@
       overflow: hidden;
       background: rgba(255,255,255,0.06);
       border: 1px solid var(--line);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.10);
     }
 
     .master-head {
@@ -240,7 +322,7 @@
       font-size: 12px;
       font-weight: 800;
       white-space: nowrap;
-      max-width: 48%;
+      max-width: 52%;
       overflow: hidden;
       text-overflow: ellipsis;
     }
@@ -260,14 +342,32 @@
       color: #666;
     }
 
+    .booking-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
     .booking-status {
       display: inline-block;
-      margin-top: 10px;
       padding: 6px 10px;
       border-radius: 999px;
       background: var(--success);
       font-size: 12px;
       font-weight: 800;
+    }
+
+    .booking-date-chip {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--info);
+      font-size: 12px;
+      font-weight: 800;
+      color: #000;
     }
 
     .empty-box {
@@ -280,31 +380,94 @@
       color: var(--muted);
     }
 
-    .loading {
-      margin-top: 24px;
-      color: var(--muted);
-      text-align: center;
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(23,35,33,0.56);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      padding: 20px;
     }
 
-    .legend {
+    .loading-overlay.active {
       display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin: 0 0 18px;
     }
 
-    .legend-chip {
-      padding: 8px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
+    .loading-card {
+      width: 100%;
+      max-width: 280px;
+      padding: 28px 22px;
+      border-radius: 24px;
+      background: rgba(255,255,255,0.12);
+      border: 1px solid rgba(255,255,255,0.15);
+      text-align: center;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+    }
+
+    .loading-spinner {
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      border: 4px solid rgba(255,255,255,0.2);
+      border-top-color: var(--accent);
+      margin: 0 auto 14px;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .loading-title {
+      font-size: 18px;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .loading-text {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .skeleton-section {
+      display: grid;
+      gap: 14px;
+      margin-top: 8px;
+    }
+
+    .skeleton-card {
+      border-radius: 20px;
       background: rgba(255,255,255,0.08);
-      color: var(--text);
+      border: 1px solid rgba(255,255,255,0.08);
+      padding: 16px;
     }
 
-    .legend-chip.accent {
-      background: var(--accent);
-      color: #000;
+    .skeleton-line {
+      height: 14px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.07), rgba(255,255,255,0.18), rgba(255,255,255,0.07));
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite linear;
+      margin-bottom: 10px;
+    }
+
+    .skeleton-line:last-child {
+      margin-bottom: 0;
+    }
+
+    .w-30 { width: 30%; }
+    .w-40 { width: 40%; }
+    .w-50 { width: 50%; }
+    .w-60 { width: 60%; }
+    .w-80 { width: 80%; }
+    .w-100 { width: 100%; }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
     }
 
     @media (max-width: 390px) {
@@ -318,6 +481,10 @@
 
       .topbar {
         flex-direction: column;
+      }
+
+      .quick-actions {
+        grid-template-columns: 1fr 1fr;
       }
     }
 
@@ -338,6 +505,14 @@
   </style>
 </head>
 <body>
+  <div id="loadingOverlay" class="loading-overlay active">
+    <div class="loading-card">
+      <div class="loading-spinner"></div>
+      <div class="loading-title">読み込み中...</div>
+      <div class="loading-text">予約データを準備しています</div>
+    </div>
+  </div>
+
   <div class="app">
     <div class="topbar">
       <div>
@@ -349,6 +524,13 @@
         <button class="mode-btn active" id="modeDayBtn" type="button">日</button>
         <button class="mode-btn" id="modeWeekBtn" type="button">週</button>
       </div>
+    </div>
+
+    <div class="quick-actions">
+      <button class="quick-btn primary" type="button" id="todayBtn">今日</button>
+      <button class="quick-btn" type="button" id="tomorrowBtn">明日</button>
+      <button class="quick-btn" type="button" id="thisWeekBtn">今週</button>
+      <button class="quick-btn" type="button" id="refreshBtn">更新</button>
     </div>
 
     <div class="filters">
@@ -386,22 +568,50 @@
       <div class="legend-chip accent">今日の表示</div>
       <div class="legend-chip">スタッフ別</div>
       <div class="legend-chip">サービス絞り込み</div>
+      <div class="legend-chip info" id="modeLabel">日表示</div>
     </div>
 
-    <div id="loading" class="loading">読み込み中...</div>
-    <div id="calendarContainer"></div>
+    <div class="status-bar">
+      <div><span class="status-dot"></span><span id="lastUpdated">最終更新: --</span></div>
+      <div id="rangeLabel">表示範囲: --</div>
+    </div>
+
+    <div id="calendarContainer">
+      <div class="skeleton-section" id="skeletonBlock">
+        <div class="skeleton-card">
+          <div class="skeleton-line w-40"></div>
+          <div class="skeleton-line w-100"></div>
+          <div class="skeleton-line w-80"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton-line w-30"></div>
+          <div class="skeleton-line w-100"></div>
+          <div class="skeleton-line w-60"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
-    const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyro-5QEqFFrln5PcosifzwsdLJHirOa_hlVStJL4bDcqy6O2M6sxrmOslPCma2jFoM/exec";
-    const CALENDAR_URL = `${WEBHOOK_URL}?action=calendar`;
-    const STAFF_URL = `${WEBHOOK_URL}?action=staff`;
-    const SERVICES_URL = `${WEBHOOK_URL}?action=services`;
+    const CONFIG = {
+      WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbwkciKG7WBzh2xiFAzfGsWuM0JoZaw-TIspQFL_bIX3nIpAQMqytSBAsXP3hWzF1Af5/exec",
+      CACHE_TTL_MS: 3 * 60 * 1000
+    };
+
+    const CALENDAR_URL = `${CONFIG.WEBHOOK_URL}?action=calendar`;
+    const STAFF_URL = `${CONFIG.WEBHOOK_URL}?action=staff`;
+    const SERVICES_URL = `${CONFIG.WEBHOOK_URL}?action=services`;
 
     let calendarItems = [];
     let staff = [];
     let services = [];
     let currentMode = "day";
+
+    const cacheStore = {
+      calendar: { data: null, ts: 0 },
+      staff: { data: null, ts: 0 },
+      services: { data: null, ts: 0 }
+    };
 
     async function init() {
       const dateInput = document.getElementById("selectedDate");
@@ -414,41 +624,156 @@
       document.getElementById("staffFilter").addEventListener("change", renderCalendar);
       document.getElementById("serviceFilter").addEventListener("change", renderCalendar);
 
-      await Promise.all([
-        loadCalendar(),
-        loadStaff(),
-        loadServices()
-      ]);
+      document.getElementById("todayBtn").addEventListener("click", () => {
+        dateInput.value = getToday();
+        currentMode = "day";
+        syncModeButtons();
+        renderCalendar();
+      });
 
-      fillFilters();
-      renderCalendar();
+      document.getElementById("tomorrowBtn").addEventListener("click", () => {
+        dateInput.value = getRelativeDate(1);
+        currentMode = "day";
+        syncModeButtons();
+        renderCalendar();
+      });
+
+      document.getElementById("thisWeekBtn").addEventListener("click", () => {
+        dateInput.value = getToday();
+        currentMode = "week";
+        syncModeButtons();
+        renderCalendar();
+      });
+
+      document.getElementById("refreshBtn").addEventListener("click", async () => {
+        await refreshAllData();
+      });
+
+      setLoading(true, "読み込み中...", "予約データを準備しています");
+
+      try {
+        await Promise.all([
+          loadCalendar(true),
+          loadStaff(true),
+          loadServices(true)
+        ]);
+
+        fillFilters();
+        renderCalendar();
+        updateLastUpdated();
+      } catch (err) {
+        console.log("init error:", err);
+        renderErrorState("データの読み込みに失敗しました");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function setLoading(show, title = "読み込み中...", text = "少々お待ちください") {
+      const overlay = document.getElementById("loadingOverlay");
+      if (!overlay) return;
+
+      const titleEl = overlay.querySelector(".loading-title");
+      const textEl = overlay.querySelector(".loading-text");
+
+      if (titleEl) titleEl.textContent = title;
+      if (textEl) textEl.textContent = text;
+
+      overlay.classList.toggle("active", !!show);
+    }
+
+    function getCache(key) {
+      const item = cacheStore[key];
+      if (!item || !item.data) return null;
+      if (Date.now() - item.ts > CONFIG.CACHE_TTL_MS) return null;
+      return item.data;
+    }
+
+    function setCache(key, data) {
+      cacheStore[key] = {
+        data: Array.isArray(data) ? [...data] : data,
+        ts: Date.now()
+      };
+    }
+
+    async function fetchJson(url) {
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }
+
+    async function loadCalendar(useCache = true) {
+      const cached = useCache ? getCache("calendar") : null;
+      if (cached) {
+        calendarItems = cached;
+        return;
+      }
+
+      calendarItems = await fetchJson(CALENDAR_URL);
+      setCache("calendar", calendarItems);
+    }
+
+    async function loadStaff(useCache = true) {
+      const cached = useCache ? getCache("staff") : null;
+      if (cached) {
+        staff = cached;
+        return;
+      }
+
+      staff = await fetchJson(STAFF_URL);
+      setCache("staff", staff);
+    }
+
+    async function loadServices(useCache = true) {
+      const cached = useCache ? getCache("services") : null;
+      if (cached) {
+        services = cached;
+        return;
+      }
+
+      services = await fetchJson(SERVICES_URL);
+      setCache("services", services);
+    }
+
+    async function refreshAllData() {
+      setLoading(true, "更新中...", "最新の予約データを取得しています");
+
+      try {
+        await Promise.all([
+          loadCalendar(false),
+          loadStaff(false),
+          loadServices(false)
+        ]);
+
+        fillFilters(true);
+        renderCalendar();
+        updateLastUpdated();
+      } catch (err) {
+        console.log("refresh error:", err);
+        alert("更新に失敗しました");
+      } finally {
+        setLoading(false);
+      }
     }
 
     function switchMode(mode) {
       currentMode = mode;
-      document.getElementById("modeDayBtn").classList.toggle("active", mode === "day");
-      document.getElementById("modeWeekBtn").classList.toggle("active", mode === "week");
+      syncModeButtons();
       renderCalendar();
     }
 
-    async function loadCalendar() {
-      const res = await fetch(CALENDAR_URL);
-      calendarItems = await res.json();
+    function syncModeButtons() {
+      document.getElementById("modeDayBtn").classList.toggle("active", currentMode === "day");
+      document.getElementById("modeWeekBtn").classList.toggle("active", currentMode === "week");
+      document.getElementById("modeLabel").textContent = currentMode === "day" ? "日表示" : "週表示";
     }
 
-    async function loadStaff() {
-      const res = await fetch(STAFF_URL);
-      staff = await res.json();
-    }
-
-    async function loadServices() {
-      const res = await fetch(SERVICES_URL);
-      services = await res.json();
-    }
-
-    function fillFilters() {
+    function fillFilters(keepValues = false) {
       const staffFilter = document.getElementById("staffFilter");
       const serviceFilter = document.getElementById("serviceFilter");
+
+      const prevStaff = keepValues ? staffFilter.value : "";
+      const prevService = keepValues ? serviceFilter.value : "";
 
       staffFilter.innerHTML = `<option value="">全スタッフ</option>`;
       serviceFilter.innerHTML = `<option value="">全サービス</option>`;
@@ -470,13 +795,15 @@
           option.textContent = service.name;
           serviceFilter.appendChild(option);
         });
+
+      if (keepValues) {
+        staffFilter.value = prevStaff;
+        serviceFilter.value = prevService;
+      }
     }
 
     function renderCalendar() {
-      const loading = document.getElementById("loading");
       const container = document.getElementById("calendarContainer");
-
-      loading.style.display = "none";
       container.innerHTML = "";
 
       const selectedDate = document.getElementById("selectedDate").value;
@@ -487,9 +814,12 @@
 
       if (currentMode === "day") {
         filtered = filtered.filter(item => item.date === selectedDate);
+        document.getElementById("rangeLabel").textContent = `表示範囲: ${formatDayTitle(selectedDate)}`;
       } else {
         const weekDates = getWeekDates(selectedDate);
         filtered = filtered.filter(item => weekDates.includes(item.date));
+        document.getElementById("rangeLabel").textContent =
+          `表示範囲: ${formatDayTitle(weekDates[0])} - ${formatDayTitle(weekDates[6])}`;
       }
 
       if (staffFilter) {
@@ -531,7 +861,7 @@
       sortedStaff.forEach(member => {
         const bookings = grouped[member.name] || [];
         if (!bookings.length) return;
-        container.appendChild(createMasterSection(member, bookings));
+        container.appendChild(createMasterSection(member, bookings, false));
       });
     }
 
@@ -545,9 +875,7 @@
         const dayBlock = document.createElement("section");
         dayBlock.className = "section-day";
 
-        dayBlock.innerHTML = `
-          <div class="day-title">${formatDayTitle(date)}</div>
-        `;
+        dayBlock.innerHTML = `<div class="day-title">${formatDayTitle(date)}</div>`;
 
         const grouped = groupByStaff(itemsForDay);
         const sortedStaff = [...staff].sort((a, b) => a.name.localeCompare(b.name));
@@ -555,35 +883,35 @@
         sortedStaff.forEach(member => {
           const bookings = grouped[member.name] || [];
           if (!bookings.length) return;
-          dayBlock.appendChild(createMasterSection(member, bookings));
+          dayBlock.appendChild(createMasterSection(member, bookings, true));
         });
 
         container.appendChild(dayBlock);
       });
     }
 
-    function createMasterSection(member, bookings) {
+    function createMasterSection(member, bookings, showDateChip) {
       const section = document.createElement("section");
       section.className = "master-section";
 
       section.innerHTML = `
         <div class="master-head">
-          <img src="${member.photoUrl}" alt="${escapeHtml(member.name)}" class="master-photo" />
+          <img src="${escapeAttr(member.photoUrl || "")}" alt="${escapeAttr(member.name || "")}" class="master-photo" />
           <div>
-            <h2 class="master-name">${escapeHtml(member.name)}</h2>
-            <p class="master-sub">${escapeHtml(member.startTime)} - ${escapeHtml(member.endTime)}</p>
+            <h2 class="master-name">${escapeHtml(member.name || "-")}</h2>
+            <p class="master-sub">${escapeHtml(member.startTime || "-")} - ${escapeHtml(member.endTime || "-")}</p>
           </div>
           <div class="master-count">${bookings.length}件</div>
         </div>
         <div class="booking-list">
-          ${bookings.map(renderBookingCard).join("")}
+          ${bookings.map(item => renderBookingCard(item, showDateChip)).join("")}
         </div>
       `;
 
       return section;
     }
 
-    function renderBookingCard(item) {
+    function renderBookingCard(item, showDateChip) {
       return `
         <div class="booking-card">
           <div class="booking-top">
@@ -596,7 +924,11 @@
 
           <div class="booking-row"><span>顧客:</span> ${escapeHtml(item.customerName || "-")}</div>
           <div class="booking-row"><span>電話:</span> ${escapeHtml(item.phone || "-")}</div>
-          <div class="booking-status">予約済み</div>
+
+          <div class="booking-footer">
+            <div class="booking-status">予約済み</div>
+            ${showDateChip ? `<div class="booking-date-chip">${escapeHtml(formatDayTitle(item.date))}</div>` : ``}
+          </div>
         </div>
       `;
     }
@@ -622,12 +954,26 @@
       }, {});
     }
 
+    function updateLastUpdated() {
+      const now = new Date();
+      document.getElementById("lastUpdated").textContent =
+        `最終更新: ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    }
+
+    function renderErrorState(text) {
+      document.getElementById("calendarContainer").innerHTML = `
+        <div class="empty-box">${escapeHtml(text)}</div>
+      `;
+    }
+
     function getToday() {
+      return formatDate(new Date());
+    }
+
+    function getRelativeDate(offsetDays) {
       const d = new Date();
-      const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
-      return `${yyyy}-${mm}-${dd}`;
+      d.setDate(d.getDate() + offsetDays);
+      return formatDate(d);
     }
 
     function getWeekDates(dateStr) {
@@ -648,17 +994,21 @@
 
     function formatDate(d) {
       const yyyy = d.getFullYear();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = pad(d.getMonth() + 1);
+      const dd = pad(d.getDate());
       return `${yyyy}-${mm}-${dd}`;
     }
 
     function formatDayTitle(dateStr) {
       const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
       const d = new Date(dateStr + "T00:00:00");
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
-      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = pad(d.getMonth() + 1);
+      const dd = pad(d.getDate());
       return `${mm}/${dd}（${weekdays[d.getDay()]}）`;
+    }
+
+    function pad(num) {
+      return String(num).padStart(2, "0");
     }
 
     function escapeHtml(value) {
@@ -668,6 +1018,10 @@
         .replaceAll(">", "&gt;")
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value);
     }
 
     init();
