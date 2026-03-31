@@ -486,3 +486,104 @@ input {
     border-bottom-right-radius: 28px;
   }
 }
+
+
+.service-card {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 42%;
+  min-width: 148px;
+  max-width: 170px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,244,240,0.96));
+  color: var(--text-dark);
+  border-radius: 20px;
+  padding: 16px 14px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  scroll-snap-align: start;
+  box-shadow: 0 10px 22px rgba(0,0,0,0.08);
+}
+
+.service-card::after {
+  content: attr(data-icon);
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+  font-size: 42px;
+  opacity: 0.10;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.service-card.active {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, #fff8f1, #fff2e2);
+  box-shadow: 0 12px 26px rgba(0,0,0,0.10);
+}
+
+.service-card-name {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.service-card-meta {
+  font-size: 12px;
+  color: #666;
+  position: relative;
+  z-index: 1;
+}
+
+.service-card-price {
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 800;
+  position: relative;
+  z-index: 1;
+}
+
+.service-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4f4f4f;
+  background: rgba(255,255,255,0.7);
+  padding: 6px 8px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.confirm-hero {
+  background: linear-gradient(135deg, rgba(227,173,120,0.30), rgba(255,255,255,0.14));
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 24px;
+  padding: 20px 18px;
+  margin-bottom: 18px;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+}
+
+.confirm-hero-title {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.confirm-hero-main {
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+
+.confirm-hero-sub {
+  font-size: 15px;
+  color: #fff;
+  opacity: 0.92;
+}

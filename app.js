@@ -92,11 +92,14 @@ function renderServices() {
   services.forEach((service) => {
     const card = document.createElement("div");
     card.className = "service-card";
+    card.setAttribute("data-icon", getServiceVisual(service.name));
+
     if (selectedService && String(selectedService.serviceId) === String(service.serviceId)) {
       card.classList.add("active");
     }
 
     card.innerHTML = `
+      <div class="service-card-badge">${getServiceVisual(service.name)} サービス</div>
       <div class="service-card-name">${escapeHtml(service.name || "-")}</div>
       <div class="service-card-meta">${escapeHtml(String(service.duration || 0))}分</div>
       <div class="service-card-price">¥${escapeHtml(String(service.price || 0))}</div>
@@ -661,4 +664,15 @@ function escapeHtml(value) {
 
 function escapeAttr(value) {
   return escapeHtml(value);
+}
+function getServiceVisual(name) {
+  const n = String(name || "");
+
+  if (n.includes("カット")) return "✂️";
+  if (n.includes("カラー")) return "🎨";
+  if (n.includes("ネイル")) return "💅";
+  if (n.includes("パーマ")) return "✨";
+  if (n.includes("トリートメント")) return "🫧";
+  if (n.includes("ヘッドスパ")) return "💆";
+  return "✦";
 }
