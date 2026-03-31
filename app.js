@@ -1,9 +1,16 @@
-const LIFF_ID = "2009586903-hyNXZaW7";
-const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbyro-5QEqFFrln5PcosifzwsdLJHirOa_hlVStJL4bDcqy6O2M6sxrmOslPCma2jFoM/exec";
+const CONFIG = {
+  LIFF_ID: "2009586903-hyNXZaW7",
+  WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbwkciKG7WBzh2xiFAzfGsWuM0JoZaw-TIspQFL_bIX3nIpAQMqytSBAsXP3hWzF1Af5/exec",
+  BUSINESS_LABEL: "Salon",
+  DATE_RANGE_DAYS: 60,
+  TIME_STEP_MINUTES: 30,
+  SAME_DAY_BLOCK_MINUTES: 20,
+  CACHE_TTL_MS: 3 * 60 * 1000
+};
 
-const SERVICES_URL = `${WEBHOOK_URL}?action=services`;
-const STAFF_URL = `${WEBHOOK_URL}?action=staff`;
-const BOOKINGS_URL = `${WEBHOOK_URL}?action=bookings`;
+const SERVICES_URL = `${CONFIG.WEBHOOK_URL}?action=services`;
+const STAFF_URL = `${CONFIG.WEBHOOK_URL}?action=staff`;
+const BOOKINGS_URL = `${CONFIG.WEBHOOK_URL}?action=bookings`;
 
 let userId = "";
 let displayName = "";
@@ -16,10 +23,23 @@ let selectedService = null;
 let selectedStaff = null;
 let selectedDate = "";
 let selectedTime = "";
+let previousScreen = "welcome";
+let initDone = false;
+
+const cacheStore = {
+  services: { data: null, ts: 0 },
+  staff: { data: null, ts: 0 },
+  bookings: { data: null, ts: 0 }
+};
 
 async function init() {
+  if (initDone) return;
+  initDone = true;
+
+  setLoading(true, "読み込み中...", "予約情報を準備しています");
+
   try {
-    await liff.init({ liffId: LIFF_ID });
+    await liff.init({ liffId: CONFIG.LIFF_ID });
 
     if (!liff.isLoggedIn()) {
       liff.login();
@@ -36,9 +56,8 @@ async function init() {
     }
 
     await Promise.all([
-      loadServices(),
-      loadStaff(),
-      loadBookings()
+      loadServices(true),
+      loadStaff(true)
     ]);
 
     renderServices();
@@ -49,35 +68,92 @@ async function init() {
     updateSummary();
   } catch (e) {
     console.log("LIFF init error:", e);
+    alert("初期化エラーが発生しました");
+  } finally {
+    setLoading(false);
   }
 }
 
 init();
 
-async function loadServices() {
+function setLoading(show, title = "読み込み中...", text = "少々お待ちください") {
+  const overlay = document.getElementById("loadingOverlay");
+  if (!overlay) return;
+
+  const titleEl = overlay.querySelector(".loading-title");
+  const textEl = overlay.querySelector(".loading-text");
+
+  if (titleEl) titleEl.textContent = title;
+  if (textEl) textEl.textContent = text;
+
+  overlay.classList.toggle("active", !!show);
+}
+
+function getCache(key) {
+  const item = cacheStore[key];
+  if (!item || !item.data) return null;
+  if (Date.now() - item.ts > CONFIG.CACHE_TTL_MS) return null;
+  return item.data;
+}
+
+function setCache(key, data) {
+  cacheStore[key] = {
+    data: Array.isArray(data) ? [...data] : data,
+    ts: Date.now()
+  };
+}
+
+async function fetchJson(url) {
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function loadServices(useCache = true) {
   try {
-    const res = await fetch(SERVICES_URL);
-    services = await res.json();
+    const cached = useCache ? getCache("services") : null;
+    if (cached) {
+      services = cached;
+      return;
+    }
+
+    services = await fetchJson(SERVICES_URL);
+    setCache("services", services);
   } catch (e) {
     console.log("Services load error:", e);
   }
 }
 
-async function loadStaff() {
+async function loadStaff(useCache = true) {
   try {
-    const res = await fetch(STAFF_URL);
-    staff = await res.json();
+    const cached = useCache ? getCache("staff") : null;
+    if (cached) {
+      staff = cached;
+      return;
+    }
+
+    staff = await fetchJson(STAFF_URL);
+    setCache("staff", staff);
   } catch (e) {
     console.log("Staff load error:", e);
   }
 }
 
-async function loadBookings() {
+async function ensureBookingsLoaded(force = false) {
   try {
-    const res = await fetch(BOOKINGS_URL);
-    bookings = await res.json();
+    const cached = !force ? getCache("bookings") : null;
+    if (cached) {
+      bookings = cached;
+      return;
+    }
+
+    setLoading(true, "空き状況を確認中...", "予約データを取得しています");
+    bookings = await fetchJson(BOOKINGS_URL);
+    setCache("bookings", bookings);
   } catch (e) {
     console.log("Bookings load error:", e);
+  } finally {
+    setLoading(false);
   }
 }
 
@@ -180,8 +256,8 @@ function renderDateOptions() {
   const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
   const today = new Date();
 
-  for (let i = 0; i < 60; i++) {
-    const d = new Date();
+  for (let i = 0; i < CONFIG.DATE_RANGE_DAYS; i++) {
+    const d = new Date(today);
     d.setDate(today.getDate() + i);
 
     const yyyy = d.getFullYear();
@@ -201,9 +277,11 @@ function renderDateOptions() {
       <div class="date-item-date">${mm}/${dd}</div>
     `;
 
-    item.onclick = () => {
+    item.onclick = async () => {
       selectedDate = value;
       selectedTime = "";
+
+      await ensureBookingsLoaded(false);
 
       renderDateOptions();
       renderTimeOptions();
@@ -230,14 +308,10 @@ function renderTimeOptions() {
 
   const duration = Number(selectedService.duration || 0);
 
-  let candidates = staff.filter((m) =>
-    staffCanDoService(m, selectedService.serviceId)
-  );
+  let candidates = staff.filter((m) => staffCanDoService(m, selectedService.serviceId));
 
   if (selectedStaff) {
-    candidates = candidates.filter((m) =>
-      String(m.staffId) === String(selectedStaff.staffId)
-    );
+    candidates = candidates.filter((m) => String(m.staffId) === String(selectedStaff.staffId));
   }
 
   const start = getEarliestStart(candidates);
@@ -290,7 +364,7 @@ function renderTimeOptions() {
     };
 
     box.appendChild(item);
-    current += 30;
+    current += CONFIG.TIME_STEP_MINUTES;
   }
 }
 
@@ -307,15 +381,11 @@ function renderStaffStep2() {
     return;
   }
 
-  let filtered = staff.filter((member) =>
-    staffCanDoService(member, selectedService.serviceId)
-  );
+  let filtered = staff.filter((member) => staffCanDoService(member, selectedService.serviceId));
 
   if (selectedDate && selectedTime) {
     const duration = Number(selectedService.duration || 0);
-    filtered = filtered.filter((member) =>
-      isStaffAvailable(member, selectedDate, selectedTime, duration)
-    );
+    filtered = filtered.filter((member) => isStaffAvailable(member, selectedDate, selectedTime, duration));
   }
 
   filtered.forEach((member) => {
@@ -370,19 +440,13 @@ function getLatestEnd(members) {
 function isAnyStaffAvailableAtTime(time, duration) {
   if (!selectedService || !selectedDate) return false;
 
-  let candidates = staff.filter((member) =>
-    staffCanDoService(member, selectedService.serviceId)
-  );
+  let candidates = staff.filter((member) => staffCanDoService(member, selectedService.serviceId));
 
   if (selectedStaff) {
-    candidates = candidates.filter((member) =>
-      String(member.staffId) === String(selectedStaff.staffId)
-    );
+    candidates = candidates.filter((member) => String(member.staffId) === String(selectedStaff.staffId));
   }
 
-  return candidates.some((member) =>
-    isStaffAvailable(member, selectedDate, time, duration)
-  );
+  return candidates.some((member) => isStaffAvailable(member, selectedDate, time, duration));
 }
 
 function isStaffAvailable(member, date, time, duration) {
@@ -440,16 +504,13 @@ function isTimeBlockedByNow(dateStr, timeStr) {
   );
 
   const diffMinutes = (selectedDateTime.getTime() - now.getTime()) / 60000;
-  return diffMinutes < 20;
+  return diffMinutes < CONFIG.SAME_DAY_BLOCK_MINUTES;
 }
 
 /* ---------- SUMMARY ---------- */
 
 function updateSummary() {
-  const serviceText = selectedService
-    ? `${selectedService.name} ¥${selectedService.price}`
-    : "-";
-
+  const serviceText = selectedService ? `${selectedService.name} ¥${selectedService.price}` : "-";
   const staffText = selectedStaff ? selectedStaff.name : "未選択";
 
   let dateTimeText = "-";
@@ -470,6 +531,24 @@ function updateSummary() {
 
 /* ---------- NAVIGATION ---------- */
 
+function goDemoStart() {
+  clearState();
+
+  const nameInput = document.getElementById("name");
+  const phoneInput = document.getElementById("phone");
+
+  if (nameInput) nameInput.value = displayName || "";
+  if (phoneInput) phoneInput.value = "";
+
+  renderServices();
+  renderStaffStep1();
+  renderDateOptions();
+  renderTimeOptions();
+  renderStaffStep2();
+  updateSummary();
+  showScreen("bookingStep1");
+}
+
 function goStep2() {
   if (!selectedService) {
     alert("サービスを選択してください");
@@ -483,20 +562,28 @@ function goStep2() {
   showScreen("bookingStep2");
 }
 
-function goConfirm() {
+async function goConfirm() {
   if (!selectedService || !selectedDate || !selectedTime || !selectedStaff) {
     alert("サービス・担当者・日付・時間を選択してください");
     return;
   }
 
-  document.getElementById("confirmService").textContent =
-    `${selectedService.name} ¥${selectedService.price}`;
-  document.getElementById("confirmStaff").textContent =
-    selectedStaff.name;
-  document.getElementById("confirmDate").textContent =
-    selectedDate;
-  document.getElementById("confirmTime").textContent =
-    selectedTime;
+  await ensureBookingsLoaded(false);
+
+  const duration = Number(selectedService.duration || 0);
+  if (!isStaffAvailable(selectedStaff, selectedDate, selectedTime, duration)) {
+    selectedTime = "";
+    renderTimeOptions();
+    renderStaffStep2();
+    updateSummary();
+    alert("選択した時間が埋まっていました。もう一度お選びください。");
+    return;
+  }
+
+  document.getElementById("confirmService").textContent = `${selectedService.name} ¥${selectedService.price}`;
+  document.getElementById("confirmStaff").textContent = selectedStaff.name;
+  document.getElementById("confirmDate").textContent = selectedDate;
+  document.getElementById("confirmTime").textContent = selectedTime;
 
   showScreen("confirm");
 }
@@ -516,12 +603,15 @@ async function submitForm() {
   }
 
   try {
-    const res = await fetch(WEBHOOK_URL, {
+    setLoading(true, "送信中...", "予約内容を確定しています");
+
+    const res = await fetch(CONFIG.WEBHOOK_URL, {
       method: "POST",
       headers: {
         "Content-Type": "text/plain;charset=utf-8"
       },
       body: JSON.stringify({
+        mode: "booking",
         name,
         phone,
         userId,
@@ -538,7 +628,7 @@ async function submitForm() {
     const result = await res.json();
 
     if (result.status === "error") {
-      await loadBookings();
+      await ensureBookingsLoaded(true);
       renderTimeOptions();
       renderStaffStep2();
       alert("この時間はすでに予約されています");
@@ -550,12 +640,100 @@ async function submitForm() {
     document.getElementById("successService").textContent = selectedService.name;
     document.getElementById("successStaff").textContent = selectedStaff.name;
 
-    await loadBookings();
+    await ensureBookingsLoaded(true);
     showScreen("success");
   } catch (err) {
     console.log("Submit error:", err);
     alert("送信エラー");
+  } finally {
+    setLoading(false);
   }
+}
+
+function showLeadScreen() {
+  previousScreen = getCurrentScreenId() || "welcome";
+
+  const ownerInput = document.getElementById("leadOwnerName");
+  if (ownerInput && !ownerInput.value) {
+    ownerInput.value = displayName || "";
+  }
+
+  showScreen("leadFormScreen");
+}
+
+function backFromLead() {
+  showScreen(previousScreen || "welcome");
+}
+
+async function submitLeadForm() {
+  const salonName = (document.getElementById("leadSalonName")?.value || "").trim();
+  const ownerName = (document.getElementById("leadOwnerName")?.value || "").trim();
+  const contact = (document.getElementById("leadContact")?.value || "").trim();
+  const businessType = (document.getElementById("leadBusinessType")?.value || "").trim();
+  const needs = (document.getElementById("leadNeeds")?.value || "").trim();
+
+  if (!salonName || !ownerName || !contact) {
+    alert("店舗名・ご担当者名・ご連絡先を入力してください");
+    return;
+  }
+
+  try {
+    setLoading(true, "送信中...", "ご相談内容を送信しています");
+
+    const payload = {
+      mode: "lead",
+      userId,
+      displayName,
+      salonName,
+      ownerName,
+      contact,
+      businessType,
+      needs,
+      source: getCurrentScreenId()
+    };
+
+    const res = await fetch(CONFIG.WEBHOOK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    let result = {};
+    try {
+      result = await res.json();
+    } catch (e) {
+      result = { status: "ok" };
+    }
+
+    if (result.status === "error") {
+      alert("送信に失敗しました");
+      return;
+    }
+
+    clearLeadForm();
+    showScreen("leadSuccess");
+  } catch (err) {
+    console.log("Lead submit error:", err);
+    alert("送信エラー");
+  } finally {
+    setLoading(false);
+  }
+}
+
+function clearLeadForm() {
+  const ids = ["leadSalonName", "leadOwnerName", "leadContact", "leadBusinessType", "leadNeeds"];
+  ids.forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+
+    if (id === "leadOwnerName") {
+      el.value = displayName || "";
+    } else {
+      el.value = "";
+    }
+  });
 }
 
 function clearSelectedStaff() {
@@ -565,17 +743,6 @@ function clearSelectedStaff() {
   renderTimeOptions();
   renderStaffStep2();
   updateSummary();
-}
-
-function goWelcomeLike() {
-  clearState();
-  renderServices();
-  renderStaffStep1();
-  renderDateOptions();
-  renderTimeOptions();
-  renderStaffStep2();
-  updateSummary();
-  showScreen("bookingStep1");
 }
 
 function resetAndGoStart() {
@@ -593,22 +760,7 @@ function resetAndGoStart() {
   renderTimeOptions();
   renderStaffStep2();
   updateSummary();
-  showScreen("bookingStep1");
-}
-
-function openInstallLead() {
-  const text = encodeURIComponent(
-    "こんにちは。LINE予約システムの導入について相談したいです。"
-  );
-
-  if (liff.isInClient()) {
-    liff.openWindow({
-      url: `https://line.me/R/oaMessage/@780rkqga/?${text}`,
-      external: false
-    });
-  } else {
-    window.open(`https://line.me/R/oaMessage/@780rkqga/?${text}`, "_blank");
-  }
+  showScreen("welcome");
 }
 
 function clearState() {
@@ -625,6 +777,11 @@ function showScreen(id) {
 
   const target = document.getElementById(id);
   if (target) target.classList.add("active");
+}
+
+function getCurrentScreenId() {
+  const current = document.querySelector(".screen.active");
+  return current ? current.id : "";
 }
 
 /* ---------- UTILS ---------- */
