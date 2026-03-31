@@ -81,7 +81,7 @@ async function loadBookings() {
   }
 }
 
-function renderServices() {
+function renderServices1() {
   const box = document.getElementById("serviceCategories");
   if (!box) return;
 
@@ -118,6 +118,35 @@ function renderServices() {
     };
 
     box.appendChild(btn);
+  });
+}
+function renderServices() {
+  const container = document.getElementById("servicesList");
+  container.innerHTML = "";
+
+  services.forEach(service => {
+    const div = document.createElement("div");
+    div.className = "service-card";
+
+    if (selectedService && selectedService.serviceId === service.serviceId) {
+      div.classList.add("active");
+    }
+
+    div.innerHTML = `
+      <div class="service-info">
+        <div class="service-name">${service.name}</div>
+        <div class="service-meta">${service.duration}分</div>
+      </div>
+      <div class="service-price">¥${service.price}</div>
+    `;
+
+    div.onclick = () => {
+      selectedService = service;
+      renderServices();
+      renderStaff(); // уже есть у тебя
+    };
+
+    container.appendChild(div);
   });
 }
 
