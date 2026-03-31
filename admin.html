@@ -8,18 +8,20 @@
     :root {
       --bg: #456b62;
       --bg-dark: #2f5b57;
+      --panel: rgba(255,255,255,0.08);
+      --panel-strong: rgba(255,255,255,0.12);
       --card: #f3f1ef;
       --text: #ffffff;
       --text-dark: #1b1f1e;
       --accent: #e3ad78;
+      --accent-soft: #f6e0c8;
       --muted: rgba(255,255,255,0.74);
       --line: rgba(255,255,255,0.12);
-      --empty: rgba(255,255,255,0.08);
+      --success: #cfe9d2;
+      --shadow: 0 18px 44px rgba(0,0,0,0.2);
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -36,7 +38,7 @@
 
     .topbar {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 18px;
@@ -56,42 +58,93 @@
       line-height: 1.5;
     }
 
-    .header-actions {
+    .mode-switch {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      background: rgba(255,255,255,0.1);
+      border-radius: 14px;
+      padding: 4px;
+      gap: 4px;
+      min-width: 120px;
+    }
+
+    .mode-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: transparent;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .mode-btn.active {
+      background: var(--accent);
+      color: #000;
+    }
+
+    .filters {
+      display: grid;
+      gap: 12px;
       margin-bottom: 18px;
     }
 
-    .date-picker {
+    .filter-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field,
+    .select {
       width: 100%;
       padding: 16px 14px;
       border-radius: 16px;
       border: none;
       background: #fff;
       color: #000;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 700;
     }
 
-    .summary-bar {
+    .summary-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 12px;
       margin-bottom: 18px;
     }
 
     .summary-card {
-      background: rgba(255,255,255,0.08);
+      background: var(--panel);
       border-radius: 18px;
       padding: 14px;
+      border: 1px solid var(--line);
     }
 
     .summary-label {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--muted);
       margin-bottom: 6px;
+      line-height: 1.3;
     }
 
     .summary-value {
       font-size: 24px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .section-day {
+      margin-bottom: 16px;
+    }
+
+    .day-title {
+      display: inline-block;
+      margin: 0 0 12px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.1);
+      font-size: 14px;
       font-weight: 800;
     }
 
@@ -156,6 +209,7 @@
       color: #000;
       border-radius: 18px;
       padding: 14px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.06);
     }
 
     .booking-top {
@@ -179,19 +233,23 @@
     }
 
     .booking-service {
-      background: #f6e0c8;
+      background: var(--accent-soft);
       color: #000;
       border-radius: 999px;
       padding: 8px 10px;
       font-size: 12px;
       font-weight: 800;
       white-space: nowrap;
+      max-width: 48%;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .booking-row {
       font-size: 15px;
       line-height: 1.5;
       margin-bottom: 6px;
+      word-break: break-word;
     }
 
     .booking-row:last-child {
@@ -202,9 +260,19 @@
       color: #666;
     }
 
+    .booking-status {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--success);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
     .empty-box {
       margin-top: 24px;
-      background: var(--empty);
+      background: rgba(255,255,255,0.08);
       border: 1px dashed var(--line);
       border-radius: 20px;
       padding: 24px 16px;
@@ -218,6 +286,41 @@
       text-align: center;
     }
 
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin: 0 0 18px;
+    }
+
+    .legend-chip {
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(255,255,255,0.08);
+      color: var(--text);
+    }
+
+    .legend-chip.accent {
+      background: var(--accent);
+      color: #000;
+    }
+
+    @media (max-width: 390px) {
+      .summary-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .filter-row {
+        grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        flex-direction: column;
+      }
+    }
+
     @media (min-width: 768px) {
       body {
         display: flex;
@@ -229,7 +332,7 @@
         width: 430px;
         min-height: 860px;
         border-radius: 28px;
-        box-shadow: 0 18px 44px rgba(0,0,0,0.2);
+        box-shadow: var(--shadow);
       }
     }
   </style>
@@ -241,21 +344,48 @@
         <h1 class="title">予約カレンダー</h1>
         <p class="subtitle">担当者ごとの予約状況を確認できます</p>
       </div>
+
+      <div class="mode-switch">
+        <button class="mode-btn active" id="modeDayBtn" type="button">日</button>
+        <button class="mode-btn" id="modeWeekBtn" type="button">週</button>
+      </div>
     </div>
 
-    <div class="header-actions">
-      <input type="date" id="selectedDate" class="date-picker" />
+    <div class="filters">
+      <input type="date" id="selectedDate" class="field" />
+
+      <div class="filter-row">
+        <select id="staffFilter" class="select">
+          <option value="">全スタッフ</option>
+        </select>
+
+        <select id="serviceFilter" class="select">
+          <option value="">全サービス</option>
+        </select>
+      </div>
     </div>
 
-    <div class="summary-bar">
+    <div class="summary-grid">
       <div class="summary-card">
         <div class="summary-label">予約件数</div>
         <div class="summary-value" id="bookingCount">0</div>
       </div>
+
       <div class="summary-card">
-        <div class="summary-label">担当者数</div>
+        <div class="summary-label">稼働スタッフ</div>
         <div class="summary-value" id="staffCount">0</div>
       </div>
+
+      <div class="summary-card">
+        <div class="summary-label">平均所要時間</div>
+        <div class="summary-value" id="avgDuration">0分</div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-chip accent">今日の表示</div>
+      <div class="legend-chip">スタッフ別</div>
+      <div class="legend-chip">サービス絞り込み</div>
     </div>
 
     <div id="loading" class="loading">読み込み中...</div>
@@ -266,22 +396,39 @@
     const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwrCIw-hvZus6PL5jU3iL5trzWYOjtv70H9D8fF5ppr80c4aFm--wD3ncE6MaR5sUc4/exec";
     const CALENDAR_URL = `${WEBHOOK_URL}?action=calendar`;
     const STAFF_URL = `${WEBHOOK_URL}?action=staff`;
+    const SERVICES_URL = `${WEBHOOK_URL}?action=services`;
 
     let calendarItems = [];
     let staff = [];
+    let services = [];
+    let currentMode = "day";
 
     async function init() {
       const dateInput = document.getElementById("selectedDate");
       dateInput.value = getToday();
 
-      dateInput.addEventListener("change", renderCalendarByDate);
+      document.getElementById("modeDayBtn").addEventListener("click", () => switchMode("day"));
+      document.getElementById("modeWeekBtn").addEventListener("click", () => switchMode("week"));
+
+      dateInput.addEventListener("change", renderCalendar);
+      document.getElementById("staffFilter").addEventListener("change", renderCalendar);
+      document.getElementById("serviceFilter").addEventListener("change", renderCalendar);
 
       await Promise.all([
         loadCalendar(),
-        loadStaff()
+        loadStaff(),
+        loadServices()
       ]);
 
-      renderCalendarByDate();
+      fillFilters();
+      renderCalendar();
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById("modeDayBtn").classList.toggle("active", mode === "day");
+      document.getElementById("modeWeekBtn").classList.toggle("active", mode === "week");
+      renderCalendar();
     }
 
     async function loadCalendar() {
@@ -294,57 +441,146 @@
       staff = await res.json();
     }
 
-    function renderCalendarByDate() {
-      const date = document.getElementById("selectedDate").value;
-      const container = document.getElementById("calendarContainer");
+    async function loadServices() {
+      const res = await fetch(SERVICES_URL);
+      services = await res.json();
+    }
+
+    function fillFilters() {
+      const staffFilter = document.getElementById("staffFilter");
+      const serviceFilter = document.getElementById("serviceFilter");
+
+      staffFilter.innerHTML = `<option value="">全スタッフ</option>`;
+      serviceFilter.innerHTML = `<option value="">全サービス</option>`;
+
+      [...staff]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(member => {
+          const option = document.createElement("option");
+          option.value = member.name;
+          option.textContent = member.name;
+          staffFilter.appendChild(option);
+        });
+
+      [...services]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach(service => {
+          const option = document.createElement("option");
+          option.value = service.name;
+          option.textContent = service.name;
+          serviceFilter.appendChild(option);
+        });
+    }
+
+    function renderCalendar() {
       const loading = document.getElementById("loading");
+      const container = document.getElementById("calendarContainer");
 
       loading.style.display = "none";
       container.innerHTML = "";
 
-      const filtered = calendarItems
-        .filter(item => item.date === date)
-        .sort((a, b) => a.time.localeCompare(b.time));
+      const selectedDate = document.getElementById("selectedDate").value;
+      const staffFilter = document.getElementById("staffFilter").value;
+      const serviceFilter = document.getElementById("serviceFilter").value;
 
-      const grouped = groupByStaff(filtered);
+      let filtered = [...calendarItems];
 
-      document.getElementById("bookingCount").textContent = filtered.length;
-      document.getElementById("staffCount").textContent = Object.keys(grouped).length;
+      if (currentMode === "day") {
+        filtered = filtered.filter(item => item.date === selectedDate);
+      } else {
+        const weekDates = getWeekDates(selectedDate);
+        filtered = filtered.filter(item => weekDates.includes(item.date));
+      }
+
+      if (staffFilter) {
+        filtered = filtered.filter(item => item.staffName === staffFilter);
+      }
+
+      if (serviceFilter) {
+        filtered = filtered.filter(item => item.serviceName === serviceFilter);
+      }
+
+      filtered.sort((a, b) => {
+        const aa = `${a.date} ${a.time}`;
+        const bb = `${b.date} ${b.time}`;
+        return aa.localeCompare(bb);
+      });
+
+      updateSummary(filtered);
 
       if (!filtered.length) {
         container.innerHTML = `
           <div class="empty-box">
-            この日の予約はありません
+            条件に一致する予約はありません
           </div>
         `;
         return;
       }
 
+      if (currentMode === "day") {
+        renderDayView(container, filtered);
+      } else {
+        renderWeekView(container, filtered, selectedDate);
+      }
+    }
+
+    function renderDayView(container, items) {
+      const grouped = groupByStaff(items);
       const sortedStaff = [...staff].sort((a, b) => a.name.localeCompare(b.name));
 
       sortedStaff.forEach(member => {
         const bookings = grouped[member.name] || [];
         if (!bookings.length) return;
+        container.appendChild(createMasterSection(member, bookings));
+      });
+    }
 
-        const section = document.createElement("section");
-        section.className = "master-section";
+    function renderWeekView(container, items, selectedDate) {
+      const weekDates = getWeekDates(selectedDate);
 
-        section.innerHTML = `
-          <div class="master-head">
-            <img src="${member.photoUrl}" alt="${member.name}" class="master-photo" />
-            <div>
-              <h2 class="master-name">${member.name}</h2>
-              <p class="master-sub">${member.startTime} - ${member.endTime}</p>
-            </div>
-            <div class="master-count">${bookings.length}件</div>
-          </div>
-          <div class="booking-list">
-            ${bookings.map(renderBookingCard).join("")}
-          </div>
+      weekDates.forEach(date => {
+        const itemsForDay = items.filter(item => item.date === date);
+        if (!itemsForDay.length) return;
+
+        const dayBlock = document.createElement("section");
+        dayBlock.className = "section-day";
+
+        dayBlock.innerHTML = `
+          <div class="day-title">${formatDayTitle(date)}</div>
         `;
 
-        container.appendChild(section);
+        const grouped = groupByStaff(itemsForDay);
+        const sortedStaff = [...staff].sort((a, b) => a.name.localeCompare(b.name));
+
+        sortedStaff.forEach(member => {
+          const bookings = grouped[member.name] || [];
+          if (!bookings.length) return;
+          dayBlock.appendChild(createMasterSection(member, bookings));
+        });
+
+        container.appendChild(dayBlock);
       });
+    }
+
+    function createMasterSection(member, bookings) {
+      const section = document.createElement("section");
+      section.className = "master-section";
+
+      section.innerHTML = `
+        <div class="master-head">
+          <img src="${member.photoUrl}" alt="${escapeHtml(member.name)}" class="master-photo" />
+          <div>
+            <h2 class="master-name">${escapeHtml(member.name)}</h2>
+            <p class="master-sub">${escapeHtml(member.startTime)} - ${escapeHtml(member.endTime)}</p>
+          </div>
+          <div class="master-count">${bookings.length}件</div>
+        </div>
+        <div class="booking-list">
+          ${bookings.map(renderBookingCard).join("")}
+        </div>
+      `;
+
+      return section;
     }
 
     function renderBookingCard(item) {
@@ -352,16 +588,29 @@
         <div class="booking-card">
           <div class="booking-top">
             <div>
-              <div class="booking-time">${item.time}</div>
-              <div class="booking-duration">${item.duration || "-"}分</div>
+              <div class="booking-time">${escapeHtml(item.time || "-")}</div>
+              <div class="booking-duration">${escapeHtml(String(item.duration || "-"))}分</div>
             </div>
             <div class="booking-service">${escapeHtml(item.serviceName || "-")}</div>
           </div>
 
           <div class="booking-row"><span>顧客:</span> ${escapeHtml(item.customerName || "-")}</div>
           <div class="booking-row"><span>電話:</span> ${escapeHtml(item.phone || "-")}</div>
+          <div class="booking-status">予約済み</div>
         </div>
       `;
+    }
+
+    function updateSummary(items) {
+      const bookingCount = items.length;
+      const uniqueStaff = new Set(items.map(item => item.staffName).filter(Boolean)).size;
+      const avg = bookingCount
+        ? Math.round(items.reduce((sum, item) => sum + Number(item.duration || 0), 0) / bookingCount)
+        : 0;
+
+      document.getElementById("bookingCount").textContent = bookingCount;
+      document.getElementById("staffCount").textContent = uniqueStaff;
+      document.getElementById("avgDuration").textContent = `${avg}分`;
     }
 
     function groupByStaff(items) {
@@ -379,6 +628,37 @@
       const mm = String(d.getMonth() + 1).padStart(2, "0");
       const dd = String(d.getDate()).padStart(2, "0");
       return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function getWeekDates(dateStr) {
+      const date = new Date(dateStr + "T00:00:00");
+      const day = date.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      const monday = new Date(date);
+      monday.setDate(date.getDate() + diff);
+
+      const result = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(monday.getDate() + i);
+        result.push(formatDate(d));
+      }
+      return result;
+    }
+
+    function formatDate(d) {
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function formatDayTitle(dateStr) {
+      const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
+      const d = new Date(dateStr + "T00:00:00");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${mm}/${dd}（${weekdays[d.getDay()]}）`;
     }
 
     function escapeHtml(value) {
