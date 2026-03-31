@@ -169,7 +169,7 @@ function renderStaffStep1() {
   }
 }
 
-/* ---------- DATES: 60 days, 2 rows ---------- */
+/* ---------- DATES ---------- */
 
 function renderDateOptions() {
   const box = document.getElementById("dateList");
@@ -230,18 +230,23 @@ function renderTimeOptions() {
 
   const duration = Number(selectedService.duration || 0);
 
-  let candidates = staff.filter(m =>
+  let candidates = staff.filter((m) =>
     staffCanDoService(m, selectedService.serviceId)
   );
 
   if (selectedStaff) {
-    candidates = candidates.filter(m =>
+    candidates = candidates.filter((m) =>
       String(m.staffId) === String(selectedStaff.staffId)
     );
   }
 
   const start = getEarliestStart(candidates);
   const end = getLatestEnd(candidates);
+
+  if (start === null || end === null) {
+    box.innerHTML = `<div class="screen-subtitle">対応可能な担当者がいません</div>`;
+    return;
+  }
 
   let current = start;
 
@@ -285,7 +290,6 @@ function renderTimeOptions() {
     };
 
     box.appendChild(item);
-
     current += 30;
   }
 }
@@ -331,7 +335,6 @@ function renderStaffStep2() {
 
     card.onclick = () => {
       selectedStaff = member;
-      // ВАЖНО: selectedTime НЕ сбрасываем
       renderStaffStep1();
       renderStaffStep2();
       updateSummary();
@@ -384,7 +387,6 @@ function isAnyStaffAvailableAtTime(time, duration) {
 
 function isStaffAvailable(member, date, time, duration) {
   if (!member || !date || !time || !duration) return false;
-
   if (!isStaffWorkingOnDate(member, date)) return false;
 
   const start = timeToMinutes(time);
@@ -438,7 +440,6 @@ function isTimeBlockedByNow(dateStr, timeStr) {
   );
 
   const diffMinutes = (selectedDateTime.getTime() - now.getTime()) / 60000;
-
   return diffMinutes < 20;
 }
 
@@ -488,16 +489,12 @@ function goConfirm() {
     return;
   }
 
-  // обновляем значения
   document.getElementById("confirmService").textContent =
     `${selectedService.name} ¥${selectedService.price}`;
-
   document.getElementById("confirmStaff").textContent =
     selectedStaff.name;
-
   document.getElementById("confirmDate").textContent =
     selectedDate;
-
   document.getElementById("confirmTime").textContent =
     selectedTime;
 
@@ -548,13 +545,10 @@ async function submitForm() {
       return;
     }
 
-    const successService = document.getElementById("successService");
-    const successStaff = document.getElementById("successStaff");
-    const successDateTime = document.getElementById("successDateTime");
-
-    if (successService) successService.textContent = selectedService.name;
-    if (successStaff) successStaff.textContent = selectedStaff.name;
-    if (successDateTime) successDateTime.textContent = `${selectedDate} / ${selectedTime}`;
+    document.getElementById("successDate").textContent = selectedDate;
+    document.getElementById("successTime").textContent = selectedTime;
+    document.getElementById("successService").textContent = selectedService.name;
+    document.getElementById("successStaff").textContent = selectedStaff.name;
 
     await loadBookings();
     showScreen("success");
@@ -600,6 +594,21 @@ function resetAndGoStart() {
   renderStaffStep2();
   updateSummary();
   showScreen("bookingStep1");
+}
+
+function openInstallLead() {
+  const text = encodeURIComponent(
+    "こんにちは。LINE予約システムの導入について相談したいです。"
+  );
+
+  if (liff.isInClient()) {
+    liff.openWindow({
+      url: `https://line.me/R/oaMessage/@780rkqga/?${text}`,
+      external: false
+    });
+  } else {
+    window.open(`https://line.me/R/oaMessage/@780rkqga/?${text}`, "_blank");
+  }
 }
 
 function clearState() {
@@ -657,6 +666,7 @@ function escapeHtml(value) {
 function escapeAttr(value) {
   return escapeHtml(value);
 }
+
 function getServiceVisual(name) {
   const n = String(name || "");
 
