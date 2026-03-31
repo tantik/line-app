@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Salon Admin Calendar</title>
+  <style>
+    :root {
+      --bg: #456b62;
+      --bg-dark: #2f5b57;
+      --card: #f3f1ef;
+      --text: #ffffff;
+      --text-dark: #1b1f1e;
+      --accent: #e3ad78;
+      --muted: rgba(255,255,255,0.74);
+      --line: rgba(255,255,255,0.12);
+      --empty: rgba(255,255,255,0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text);
+    }
+
+    .app {
+      min-height: 100vh;
+      padding: 20px 16px 32px;
+      background: var(--bg);
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 30px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .header-actions {
+      margin-bottom: 18px;
+    }
+
+    .date-picker {
+      width: 100%;
+      padding: 16px 14px;
+      border-radius: 16px;
+      border: none;
+      background: #fff;
+      color: #000;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .summary-bar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .summary-card {
+      background: rgba(255,255,255,0.08);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .summary-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .summary-value {
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .master-section {
+      margin-bottom: 18px;
+      border-radius: 22px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid var(--line);
+    }
+
+    .master-head {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .master-photo {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #ddd;
+      flex-shrink: 0;
+    }
+
+    .master-name {
+      font-size: 18px;
+      font-weight: 800;
+      margin: 0;
+    }
+
+    .master-sub {
+      margin: 4px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .master-count {
+      margin-left: auto;
+      background: var(--accent);
+      color: #000;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .booking-list {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .booking-card {
+      background: #fff;
+      color: #000;
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .booking-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: flex-start;
+    }
+
+    .booking-time {
+      font-size: 22px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .booking-duration {
+      font-size: 13px;
+      color: #666;
+      margin-top: 4px;
+    }
+
+    .booking-service {
+      background: #f6e0c8;
+      color: #000;
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .booking-row {
+      font-size: 15px;
+      line-height: 1.5;
+      margin-bottom: 6px;
+    }
+
+    .booking-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .booking-row span {
+      color: #666;
+    }
+
+    .empty-box {
+      margin-top: 24px;
+      background: var(--empty);
+      border: 1px dashed var(--line);
+      border-radius: 20px;
+      padding: 24px 16px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .loading {
+      margin-top: 24px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (min-width: 768px) {
+      body {
+        display: flex;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      .app {
+        width: 430px;
+        min-height: 860px;
+        border-radius: 28px;
+        box-shadow: 0 18px 44px rgba(0,0,0,0.2);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div>
+        <h1 class="title">予約カレンダー</h1>
+        <p class="subtitle">担当者ごとの予約状況を確認できます</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <input type="date" id="selectedDate" class="date-picker" />
+    </div>
+
+    <div class="summary-bar">
+      <div class="summary-card">
+        <div class="summary-label">予約件数</div>
+        <div class="summary-value" id="bookingCount">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">担当者数</div>
+        <div class="summary-value" id="staffCount">0</div>
+      </div>
+    </div>
+
+    <div id="loading" class="loading">読み込み中...</div>
+    <div id="calendarContainer"></div>
+  </div>
+
+  <script>
+    const WEBHOOK_URL = "https://script.google.com/macros/s/AKfycbwaJf527yoEzfRWX-YokM8Thux7LASeCeigB6eMWxg8F7lipNtbvGsMrHiwTJuRc1kD/exec";
+    const CALENDAR_URL = `${WEBHOOK_URL}?action=calendar`;
+    const STAFF_URL = `${WEBHOOK_URL}?action=staff`;
+
+    let calendarItems = [];
+    let staff = [];
+
+    async function init() {
+      const dateInput = document.getElementById("selectedDate");
+      dateInput.value = getToday();
+
+      dateInput.addEventListener("change", renderCalendarByDate);
+
+      await Promise.all([
+        loadCalendar(),
+        loadStaff()
+      ]);
+
+      renderCalendarByDate();
+    }
+
+    async function loadCalendar() {
+      const res = await fetch(CALENDAR_URL);
+      calendarItems = await res.json();
+    }
+
+    async function loadStaff() {
+      const res = await fetch(STAFF_URL);
+      staff = await res.json();
+    }
+
+    function renderCalendarByDate() {
+      const date = document.getElementById("selectedDate").value;
+      const container = document.getElementById("calendarContainer");
+      const loading = document.getElementById("loading");
+
+      loading.style.display = "none";
+      container.innerHTML = "";
+
+      const filtered = calendarItems
+        .filter(item => item.date === date)
+        .sort((a, b) => a.time.localeCompare(b.time));
+
+      const grouped = groupByStaff(filtered);
+
+      document.getElementById("bookingCount").textContent = filtered.length;
+      document.getElementById("staffCount").textContent = Object.keys(grouped).length;
+
+      if (!filtered.length) {
+        container.innerHTML = `
+          <div class="empty-box">
+            この日の予約はありません
+          </div>
+        `;
+        return;
+      }
+
+      const sortedStaff = [...staff].sort((a, b) => a.name.localeCompare(b.name));
+
+      sortedStaff.forEach(member => {
+        const bookings = grouped[member.name] || [];
+        if (!bookings.length) return;
+
+        const section = document.createElement("section");
+        section.className = "master-section";
+
+        section.innerHTML = `
+          <div class="master-head">
+            <img src="${member.photoUrl}" alt="${member.name}" class="master-photo" />
+            <div>
+              <h2 class="master-name">${member.name}</h2>
+              <p class="master-sub">${member.startTime} - ${member.endTime}</p>
+            </div>
+            <div class="master-count">${bookings.length}件</div>
+          </div>
+          <div class="booking-list">
+            ${bookings.map(renderBookingCard).join("")}
+          </div>
+        `;
+
+        container.appendChild(section);
+      });
+    }
+
+    function renderBookingCard(item) {
+      return `
+        <div class="booking-card">
+          <div class="booking-top">
+            <div>
+              <div class="booking-time">${item.time}</div>
+              <div class="booking-duration">${item.duration || "-"}分</div>
+            </div>
+            <div class="booking-service">${escapeHtml(item.serviceName || "-")}</div>
+          </div>
+
+          <div class="booking-row"><span>顧客:</span> ${escapeHtml(item.customerName || "-")}</div>
+          <div class="booking-row"><span>電話:</span> ${escapeHtml(item.phone || "-")}</div>
+        </div>
+      `;
+    }
+
+    function groupByStaff(items) {
+      return items.reduce((acc, item) => {
+        const key = item.staffName || "Unknown";
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(item);
+        return acc;
+      }, {});
+    }
+
+    function getToday() {
+      const d = new Date();
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const dd = String(d.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    init();
+  </script>
+</body>
+</html>
