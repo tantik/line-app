@@ -223,65 +223,58 @@ function renderTimeOptions() {
 
   box.innerHTML = "";
 
-  if (!selectedDate) {
-    box.innerHTML = `<div class="screen-subtitle">先に日付を選択してください</div>`;
-    return;
-  }
-
-  if (!selectedService) {
-    box.innerHTML = `<div class="screen-subtitle">先にサービスを選択してください</div>`;
+  if (!selectedDate || !selectedService) {
+    box.innerHTML = `<div class="screen-subtitle">先に選択してください</div>`;
     return;
   }
 
   const duration = Number(selectedService.duration || 0);
-  if (!duration) {
-    box.innerHTML = `<div class="screen-subtitle">サービス時間が未設定です</div>`;
-    return;
-  }
 
-  let candidates = staff.filter((member) =>
-    staffCanDoService(member, selectedService.serviceId)
+  let candidates = staff.filter(m =>
+    staffCanDoService(m, selectedService.serviceId)
   );
 
   if (selectedStaff) {
-    candidates = candidates.filter((member) =>
-      String(member.staffId) === String(selectedStaff.staffId)
+    candidates = candidates.filter(m =>
+      String(m.staffId) === String(selectedStaff.staffId)
     );
   }
 
-  const globalStart = getEarliestStart(candidates);
-  const globalEnd = getLatestEnd(candidates);
+  const start = getEarliestStart(candidates);
+  const end = getLatestEnd(candidates);
 
-  if (globalStart === null || globalEnd === null) {
-    box.innerHTML = `<div class="screen-subtitle">対応可能な担当者がいません</div>`;
-    return;
-  }
+  let current = start;
 
-  let current = globalStart;
-
-  while (current + duration <= globalEnd) {
+  while (current + duration <= end) {
     const time = minutesToTime(current);
 
     const item = document.createElement("div");
     item.className = "time-item";
-    item.textContent = time;
 
-    const isAvailable = isAnyStaffAvailableAtTime(time, duration);
-    const isBlockedByCurrentTime = isTimeBlockedByNow(selectedDate, time);
+    const available = isAnyStaffAvailableAtTime(time, duration);
+    const blocked = isTimeBlockedByNow(selectedDate, time);
 
-    if (!isAvailable || isBlockedByCurrentTime) {
+    let status = "空き";
+
+    if (!available || blocked) {
       item.classList.add("disabled");
-    } else if (time === selectedTime) {
+      status = "不可";
+    }
+
+    if (time === selectedTime) {
       item.classList.add("active");
     }
 
+    item.innerHTML = `
+      <div class="time-label">${time}</div>
+      <div class="time-status">${status}</div>
+    `;
+
     item.onclick = () => {
-      if (!isAvailable || isBlockedByCurrentTime) return;
+      if (!available || blocked) return;
 
       selectedTime = time;
 
-      // НЕ сбрасываем время при выборе мастера потом
-      // если уже был выбран мастер, но он не подходит — снимаем только мастера
       if (selectedStaff && !isStaffAvailable(selectedStaff, selectedDate, selectedTime, duration)) {
         selectedStaff = null;
       }
@@ -292,6 +285,7 @@ function renderTimeOptions() {
     };
 
     box.appendChild(item);
+
     current += 30;
   }
 }

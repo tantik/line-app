@@ -284,15 +284,26 @@ body::before {
 .time-item {
   background: #fff;
   color: #000;
-  border-radius: 14px;
-  min-height: 52px;
+  border-radius: 16px;
+  min-height: 58px;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   justify-content: center;
+  align-items: center;
   font-size: 15px;
   font-weight: 800;
   cursor: pointer;
   border: 2px solid transparent;
+  gap: 4px;
+}
+
+.time-label {
+  font-size: 15px;
+}
+
+.time-status {
+  font-size: 11px;
+  opacity: 0.6;
 }
 
 .time-item.active {
@@ -303,8 +314,6 @@ body::before {
 .time-item.disabled {
   background: var(--disabled-bg);
   color: var(--disabled-text);
-  cursor: not-allowed;
-  border-color: transparent;
 }
 
 /* SUMMARY */
@@ -586,4 +595,9 @@ input {
   font-size: 15px;
   color: #fff;
   opacity: 0.92;
+}
+.summary-row span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
