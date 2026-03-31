@@ -488,20 +488,18 @@ function goConfirm() {
     return;
   }
 
-  const confirmService = document.getElementById("confirmService");
-  const confirmStaff = document.getElementById("confirmStaff");
-  const confirmDate = document.getElementById("confirmDate");
-  const confirmTime = document.getElementById("confirmTime");
+  // обновляем значения
+  document.getElementById("confirmService").textContent =
+    `${selectedService.name} ¥${selectedService.price}`;
 
-  if (confirmService) confirmService.textContent = `${selectedService.name} ¥${selectedService.price}`;
-  if (confirmStaff) confirmStaff.textContent = selectedStaff.name;
-  if (confirmDate) confirmDate.textContent = selectedDate;
-  if (confirmTime) confirmTime.textContent = selectedTime;
+  document.getElementById("confirmStaff").textContent =
+    selectedStaff.name;
 
-  const nameInput = document.getElementById("name");
-  if (nameInput && !nameInput.value && displayName) {
-    nameInput.value = displayName;
-  }
+  document.getElementById("confirmDate").textContent =
+    selectedDate;
+
+  document.getElementById("confirmTime").textContent =
+    selectedTime;
 
   showScreen("confirm");
 }
