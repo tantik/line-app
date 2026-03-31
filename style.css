@@ -720,3 +720,7 @@ textarea {
     border-bottom-right-radius: 28px;
   }
 }
+.section-block input{
+  display: block;
+  margin-bottom: 10px;
+}
