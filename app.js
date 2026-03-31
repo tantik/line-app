@@ -689,7 +689,7 @@ async function submitLeadForm() {
       contact,
       businessType,
       needs,
-      source: getCurrentScreenId()
+      source: previousScreen || getCurrentScreenId()
     };
 
     const res = await fetch(CONFIG.WEBHOOK_URL, {

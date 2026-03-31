@@ -1,276 +1,722 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Salon Mini App</title>
-  <link rel="stylesheet" href="./style.css" />
-</head>
-<body>
-  <div id="loadingOverlay" class="loading-overlay active">
-    <div class="loading-card">
-      <div class="loading-spinner"></div>
-      <div class="loading-title">読み込み中...</div>
-      <div class="loading-text">予約情報を準備しています</div>
-    </div>
-  </div>
+:root {
+  --bg: #456b62;
+  --bg-dark: #2f5b57;
+  --card: #f3f1ef;
+  --text: #ffffff;
+  --text-dark: #1b1f1e;
+  --accent: #e3ad78;
+  --accent-soft: #fff7ef;
+  --muted: rgba(255, 255, 255, 0.75);
+  --line: rgba(255, 255, 255, 0.12);
+  --disabled-bg: rgba(255,255,255,0.16);
+  --disabled-text: rgba(255,255,255,0.42);
+}
 
-  <div id="app">
-    <!-- WELCOME -->
-    <section class="screen active" id="welcome">
-      <div class="hero-card">
-        <div class="hero-chip">LINE予約デモ</div>
-        <h1 class="hero-title">LINEで予約受付を<br />もっとかんたんに</h1>
-        <p class="hero-text">
-          24時間受付、空き時間の自動確認、予約通知、リマインドまで。
-          サロン向けの予約導線をそのまま体験できます。
-        </p>
+* {
+  box-sizing: border-box;
+}
 
-        <div class="hero-points">
-          <div class="hero-point">✓ 24時間予約受付</div>
-          <div class="hero-point">✓ 空き時間を自動表示</div>
-          <div class="hero-point">✓ LINE通知・リマインド対応</div>
-        </div>
+html, body {
+  min-height: 100%;
+}
 
-        <div class="hero-actions">
-          <button class="primary-btn" type="button" onclick="goDemoStart()">デモを体験する</button>
-          <button class="secondary-btn" type="button" onclick="showLeadScreen()">導入相談をする</button>
-        </div>
-      </div>
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: linear-gradient(180deg, #456b62 0%, #2f5b57 100%);
+  color: var(--text);
+  position: relative;
+}
 
-      <div class="trust-grid">
-        <div class="trust-card">
-          <div class="trust-label">受付</div>
-          <div class="trust-value">24時間</div>
-        </div>
-        <div class="trust-card">
-          <div class="trust-label">通知</div>
-          <div class="trust-value">LINE対応</div>
-        </div>
-        <div class="trust-card">
-          <div class="trust-label">確認</div>
-          <div class="trust-value">空き枠自動</div>
-        </div>
-      </div>
-    </section>
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(rgba(255,255,255,0.05) 1px, transparent 1px);
+  background-size: 22px 22px;
+  pointer-events: none;
+}
 
-    <!-- STEP 1 -->
-    <section class="screen" id="bookingStep1">
-      <div class="topbar">
-        <button class="icon-back" type="button" onclick="showScreen('welcome')">←</button>
-        <div class="step-badge">1/3</div>
-      </div>
+#app {
+  min-height: 100vh;
+  position: relative;
+  z-index: 1;
+}
 
-      <h1 class="screen-title">予約</h1>
-      <p class="screen-subtitle">サービスと担当者を選択してください</p>
+.screen {
+  display: none;
+  min-height: 100vh;
+  padding: 18px 16px 110px;
+  background: transparent;
+}
 
-      <div class="section-block">
-        <div class="section-header">
-          <h2 class="section-title">サービス選択</h2>
-        </div>
-        <div class="services-scroll" id="servicesList"></div>
-      </div>
+.screen.active {
+  display: block;
+}
 
-      <div class="section-block">
-        <div class="section-header">
-          <h2 class="section-title">担当者選択</h2>
-          <button class="text-link" type="button" onclick="clearSelectedStaff()">未選択にする</button>
-        </div>
-        <div id="staffListStep1" class="staff-grid"></div>
-      </div>
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(23, 35, 33, 0.58);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  padding: 20px;
+}
 
-      <div class="bottom-bar">
-        <button class="primary-btn" type="button" onclick="goStep2()">次へ</button>
-      </div>
-    </section>
+.loading-overlay.active {
+  display: flex;
+}
 
-    <!-- STEP 2 -->
-    <section class="screen" id="bookingStep2">
-      <div class="topbar">
-        <button class="icon-back" type="button" onclick="showScreen('bookingStep1')">←</button>
-        <div class="step-badge">2/3</div>
-      </div>
+.loading-card {
+  width: 100%;
+  max-width: 280px;
+  padding: 28px 22px;
+  border-radius: 24px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.15);
+  text-align: center;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.18);
+}
 
-      <h1 class="screen-title">日時を選択</h1>
-      <p class="screen-subtitle">日付・時間・担当者を確認してください</p>
+.loading-spinner {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.2);
+  border-top-color: var(--accent);
+  margin: 0 auto 14px;
+  animation: spin 0.8s linear infinite;
+}
 
-      <div class="section-block">
-        <div class="section-header">
-          <h2 class="section-title">日付選択</h2>
-        </div>
-        <div id="dateList" class="date-scroll-grid"></div>
-      </div>
+.loading-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
 
-      <div class="section-block">
-        <div class="section-header">
-          <h2 class="section-title">時間選択</h2>
-        </div>
-        <div id="timeList" class="time-scroll-grid"></div>
-      </div>
+.loading-text {
+  font-size: 13px;
+  color: var(--muted);
+}
 
-      <div class="section-block">
-        <div class="section-header">
-          <h2 class="section-title">対応可能な担当者</h2>
-        </div>
-        <div id="staffListStep2" class="staff-grid compact"></div>
-      </div>
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
 
-      <div class="summary-floating premium-summary">
-        <div class="summary-line"><span>サービス</span><strong id="liveSummaryService">-</strong></div>
-        <div class="summary-line"><span>担当者</span><strong id="liveSummaryStaff">-</strong></div>
-        <div class="summary-line"><span>日時</span><strong id="liveSummaryDateTime">-</strong></div>
-      </div>
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
 
-      <div class="bottom-bar">
-        <button class="primary-btn" type="button" onclick="goConfirm()">確認へ</button>
-      </div>
-    </section>
+.icon-back {
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+}
 
-    <!-- CONFIRM -->
-    <section class="screen" id="confirm">
-      <div class="topbar">
-        <button class="icon-back" type="button" onclick="showScreen('bookingStep2')">←</button>
-        <div class="step-badge">3/3</div>
-      </div>
+.step-badge {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  font-size: 14px;
+  font-weight: 700;
+}
 
-      <h1 class="screen-title">予約確認</h1>
-      <p class="screen-subtitle">内容をご確認ください</p>
+.screen-title {
+  margin: 0 0 8px;
+  font-size: 34px;
+  line-height: 1.1;
+  font-weight: 800;
+}
 
-      <div class="confirm-hero">
-        <div class="confirm-hero-title">ご予約内容</div>
-        <div class="confirm-hero-main" id="confirmService">-</div>
-        <div class="confirm-hero-sub" id="confirmStaff">-</div>
-        <div class="confirm-hero-note">この内容で予約を確定すると、LINEで通知が届きます。</div>
-      </div>
+.screen-subtitle {
+  margin: 0 0 22px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+}
 
-      <div class="summary-card premium-card">
-        <div class="summary-row">
-          <span>📅 日付</span>
-          <strong id="confirmDate">-</strong>
-        </div>
-        <div class="summary-row">
-          <span>⏰ 時間</span>
-          <strong id="confirmTime">-</strong>
-        </div>
-      </div>
+.hero-card,
+.lead-hero-card,
+.install-promo-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 28px;
+  padding: 22px 18px;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: linear-gradient(135deg, rgba(255,255,255,0.12), rgba(255,255,255,0.05));
+  box-shadow: 0 18px 40px rgba(0,0,0,0.14);
+}
 
-      <div class="section-block">
-        <h2 class="section-title">お客様情報</h2>
-        <input id="name" placeholder="名前" />
-        <input id="phone" placeholder="電話番号" />
-      </div>
+.hero-card::after,
+.install-promo-card::after {
+  content: "";
+  position: absolute;
+  right: -32px;
+  top: -32px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(227,173,120,0.45), rgba(227,173,120,0));
+}
 
-      <div class="bottom-bar dual-buttons">
-        <button class="secondary-btn" type="button" onclick="showScreen('bookingStep2')">戻る</button>
-        <button class="primary-btn" type="button" onclick="submitForm()">予約を確定</button>
-      </div>
-    </section>
+.hero-chip,
+.success-badge,
+.install-promo-kicker {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  background: rgba(255,255,255,0.12);
+  margin-bottom: 12px;
+}
 
-    <!-- SUCCESS -->
-    <section class="screen" id="success">
-      <div class="success-wrap">
-        <div class="success-badge">予約完了</div>
-        <div class="success-icon">✓</div>
-        <h1 class="screen-title">ありがとうございました</h1>
-        <p class="screen-subtitle">お客様にはLINEで予約内容が送信されます</p>
+.hero-title {
+  margin: 0 0 12px;
+  font-size: 34px;
+  line-height: 1.16;
+  font-weight: 900;
+}
 
-        <div class="summary-card premium-card">
-          <div class="summary-row">
-            <span>📅 日付</span>
-            <strong id="successDate">-</strong>
-          </div>
-          <div class="summary-row">
-            <span>⏰ 時間</span>
-            <strong id="successTime">-</strong>
-          </div>
-          <div class="summary-row">
-            <span>💇 サービス</span>
-            <strong id="successService">-</strong>
-          </div>
-          <div class="summary-row">
-            <span>👤 担当</span>
-            <strong id="successStaff">-</strong>
-          </div>
-        </div>
+.hero-text,
+.install-promo-text,
+.confirm-hero-note {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+}
 
-        <div class="install-promo-card">
-          <div class="install-promo-kicker">FOR SALON OWNERS</div>
-          <div class="install-promo-title">この仕組みを自分のお店にも導入しませんか？</div>
-          <div class="install-promo-text">
-            予約受付・空き枠確認・通知・リマインドをLINEで自動化できます。
-          </div>
-          <div class="install-promo-points">
-            <div>✓ 予約対応の手間を削減</div>
-            <div>✓ 営業時間外でも受付</div>
-            <div>✓ 他業種向けにもカスタマイズ可能</div>
-          </div>
-          <button class="primary-btn" type="button" onclick="showLeadScreen()">導入相談フォームへ</button>
-        </div>
+.hero-points,
+.install-promo-points,
+.lead-hero-list {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0;
+}
 
-        <div class="success-actions">
-          <button class="secondary-btn" type="button" onclick="resetAndGoStart()">もう一度デモを見る</button>
-        </div>
-      </div>
-    </section>
+.hero-point {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.08);
+  font-size: 14px;
+  font-weight: 700;
+}
 
-    <!-- LEAD FORM -->
-    <section class="screen" id="leadFormScreen">
-      <div class="topbar">
-        <button class="icon-back" type="button" onclick="backFromLead()">←</button>
-        <div class="step-badge">相談フォーム</div>
-      </div>
+.hero-actions,
+.success-actions {
+  display: grid;
+  gap: 10px;
+}
 
-      <h1 class="screen-title">導入相談</h1>
-      <p class="screen-subtitle">1分で送信できます。ご希望に合わせてご案内します。</p>
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+}
 
-      <div class="lead-hero-card">
-        <div class="lead-hero-title">こんな方におすすめ</div>
-        <div class="lead-hero-list">
-          <div>・電話やDM対応を減らしたい</div>
-          <div>・LINE予約を導入したい</div>
-          <div>・サロン以外の業種にも使いたい</div>
-        </div>
-      </div>
+.trust-card {
+  padding: 16px 12px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.08);
+  text-align: center;
+}
 
-      <div class="section-block form-stack">
-        <input id="leadSalonName" placeholder="店舗名 / 会社名" />
-        <input id="leadOwnerName" placeholder="ご担当者名" />
-        <input id="leadContact" placeholder="LINE ID / 電話番号 / メール" />
+.trust-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
 
-        <select id="leadBusinessType">
-          <option value="">業種を選択してください</option>
-          <option value="美容室">美容室</option>
-          <option value="ネイル">ネイル</option>
-          <option value="まつげ">まつげ</option>
-          <option value="マッサージ">マッサージ</option>
-          <option value="クリニック">クリニック</option>
-          <option value="その他">その他</option>
-        </select>
+.trust-value {
+  font-size: 15px;
+  font-weight: 800;
+}
 
-        <textarea id="leadNeeds" placeholder="相談したいこと（例：予約受付を自動化したい / LINE通知を入れたい / 自分の業種に合わせたい）"></textarea>
-      </div>
+.section-block {
+  margin-bottom: 22px;
+}
 
-      <div class="bottom-bar dual-buttons">
-        <button class="secondary-btn" type="button" onclick="backFromLead()">戻る</button>
-        <button class="primary-btn" type="button" onclick="submitLeadForm()">相談を送信</button>
-      </div>
-    </section>
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
 
-    <!-- LEAD SUCCESS -->
-    <section class="screen" id="leadSuccess">
-      <div class="success-wrap">
-        <div class="success-icon">✓</div>
-        <h1 class="screen-title">送信完了</h1>
-        <p class="screen-subtitle">ご相談内容を受け付けました。LINEまたはご連絡先へご案内します。</p>
+.section-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+}
 
-        <div class="success-actions">
-          <button class="primary-btn" type="button" onclick="showScreen('welcome')">トップへ戻る</button>
-        </div>
-      </div>
-    </section>
-  </div>
+.text-link {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
 
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="./app.js"></script>
-</body>
-</html>
+.services-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+}
+
+.services-scroll::-webkit-scrollbar,
+.date-scroll-grid::-webkit-scrollbar,
+.time-scroll-grid::-webkit-scrollbar {
+  height: 6px;
+}
+
+.services-scroll::-webkit-scrollbar-thumb,
+.date-scroll-grid::-webkit-scrollbar-thumb,
+.time-scroll-grid::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.18);
+  border-radius: 999px;
+}
+
+.service-card {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 44%;
+  min-width: 154px;
+  max-width: 176px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,244,240,0.97));
+  color: var(--text-dark);
+  border-radius: 22px;
+  padding: 16px 14px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  scroll-snap-align: start;
+  box-shadow: 0 14px 28px rgba(0,0,0,0.10);
+}
+
+.service-card::after {
+  content: attr(data-icon);
+  position: absolute;
+  right: 10px;
+  bottom: 4px;
+  font-size: 42px;
+  opacity: 0.10;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.service-card.active {
+  border-color: var(--accent);
+  background: linear-gradient(180deg, #fff8f1, #fff2e2);
+  box-shadow: 0 16px 30px rgba(0,0,0,0.12);
+}
+
+.service-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4f4f4f;
+  background: rgba(255,255,255,0.7);
+  padding: 6px 8px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.service-card-name {
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+  margin-bottom: 6px;
+  position: relative;
+  z-index: 1;
+}
+
+.service-card-meta {
+  font-size: 12px;
+  color: #666;
+  position: relative;
+  z-index: 1;
+}
+
+.service-card-price {
+  margin-top: 12px;
+  font-size: 15px;
+  font-weight: 800;
+  position: relative;
+  z-index: 1;
+}
+
+.staff-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.staff-grid.compact {
+  gap: 10px;
+}
+
+.staff-card {
+  background: #fff;
+  color: var(--text-dark);
+  border: none;
+  border-radius: 18px;
+  padding: 12px 10px;
+  min-height: 138px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.06);
+}
+
+.staff-card.active {
+  outline: 3px solid var(--accent);
+  background: var(--accent-soft);
+}
+
+.staff-photo {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #ddd;
+}
+
+.staff-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.staff-time {
+  font-size: 12px;
+  opacity: 0.72;
+  line-height: 1.35;
+  color: #555;
+}
+
+.date-scroll-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, 1fr);
+  grid-auto-columns: 72px;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.date-item {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  border-radius: 14px;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.date-item.active {
+  background: var(--accent);
+  color: #000;
+}
+
+.date-item-weekday {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.date-item-date {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.time-scroll-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(2, 1fr);
+  grid-auto-columns: 88px;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.time-item {
+  background: #fff;
+  color: #000;
+  border-radius: 16px;
+  min-height: 58px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 2px solid transparent;
+  gap: 4px;
+}
+
+.time-label {
+  font-size: 15px;
+}
+
+.time-status {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.time-item.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.time-item.disabled {
+  background: var(--disabled-bg);
+  color: var(--disabled-text);
+}
+
+.summary-floating {
+  background: rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 14px;
+  margin-top: 10px;
+}
+
+.premium-summary,
+.premium-card {
+  box-shadow: 0 10px 24px rgba(0,0,0,0.10);
+}
+
+.summary-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.summary-line:last-child {
+  margin-bottom: 0;
+}
+
+.summary-line span {
+  color: var(--muted);
+}
+
+.summary-line strong {
+  text-align: right;
+}
+
+.summary-card {
+  background: var(--card);
+  color: #000;
+  border-radius: 20px;
+  padding: 18px;
+  margin: 12px 0 22px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 15px;
+}
+
+.summary-row:last-child {
+  margin-bottom: 0;
+}
+
+.summary-row span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.summary-row strong {
+  font-weight: 800;
+  text-align: right;
+}
+
+.confirm-hero {
+  background: linear-gradient(135deg, rgba(227,173,120,0.30), rgba(255,255,255,0.14));
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 24px;
+  padding: 20px 18px;
+  margin-bottom: 18px;
+  box-shadow: 0 12px 24px rgba(0,0,0,0.08);
+}
+
+.confirm-hero-title {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.confirm-hero-main {
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.25;
+  margin-bottom: 8px;
+}
+
+.confirm-hero-sub {
+  font-size: 15px;
+  color: #fff;
+  opacity: 0.92;
+  margin-bottom: 8px;
+}
+
+.form-stack {
+  display: grid;
+  gap: 10px;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 16px 14px;
+  border-radius: 16px;
+  border: none;
+  background: #f3f1ef;
+  color: #000;
+  font-size: 16px;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.bottom-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 12px 16px 18px;
+  background: linear-gradient(to top, rgba(47,91,87,1), rgba(47,91,87,0.92));
+  z-index: 5;
+}
+
+.primary-btn,
+.secondary-btn {
+  width: 100%;
+  border: none;
+  border-radius: 18px;
+  padding: 18px 16px;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.primary-btn:active,
+.secondary-btn:active {
+  transform: scale(0.98);
+}
+
+.primary-btn {
+  background: var(--accent);
+  color: #000;
+}
+
+.secondary-btn {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+
+.dual-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.success-wrap {
+  min-height: calc(100vh - 36px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.success-icon {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 42px;
+  font-weight: 900;
+  margin-bottom: 22px;
+}
+
+.install-promo-title,
+.lead-hero-title {
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.3;
+  margin-bottom: 10px;
+}
+
+@media (min-width: 768px) {
+  body {
+    display: flex;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  #app {
+    width: 390px;
+    min-height: 844px;
+  }
+
+  .screen {
+    min-height: 844px;
+    border-radius: 28px;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+  }
+
+  .bottom-bar {
+    left: 50%;
+    transform: translateX(-50%);
+    width: 390px;
+    border-bottom-left-radius: 28px;
+    border-bottom-right-radius: 28px;
+  }
+}
