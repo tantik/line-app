@@ -1,6 +1,6 @@
 const CONFIG = {
   LIFF_ID: "2009586903-hyNXZaW7",
-  WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbzPSIIqe2d-71WM26nXY_TF7SwlT-1wKDR5_7dzmLCL0jSUM1v7_hbKFrPiegX45A/exec",
+  WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbxYdHYk8u3xDM-NrHNFKFrluV33Hw3ZUQNuyVPt6YJ3koGhPenO_l4fsujEwN-d0TDI/exec",
   BUSINESS_LABEL: "Salon",
   DATE_RANGE_DAYS: 60,
   INITIAL_VISIBLE_DAYS: 14,
