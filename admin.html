@@ -21,6 +21,9 @@
       --info: #d8e7ff;
       --shadow: 0 18px 44px rgba(0,0,0,0.2);
       --danger-soft: #ffe0e0;
+      --new: #ffd966;
+      --new-border: #e3ad78;
+      --new-bg: #fff8ef;
     }
 
     * { box-sizing: border-box; }
@@ -203,6 +206,7 @@
       margin-bottom: 14px;
       color: var(--muted);
       font-size: 13px;
+      flex-wrap: wrap;
     }
 
     .status-dot {
@@ -213,6 +217,34 @@
       display: inline-block;
       margin-right: 6px;
       vertical-align: middle;
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.10);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .live-badge::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #9cffb4;
+      box-shadow: 0 0 0 0 rgba(156,255,180,.5);
+      animation: pulseLive 1.8s infinite;
+    }
+
+    @keyframes pulseLive {
+      0% { box-shadow: 0 0 0 0 rgba(156,255,180,.5); }
+      70% { box-shadow: 0 0 0 10px rgba(156,255,180,0); }
+      100% { box-shadow: 0 0 0 0 rgba(156,255,180,0); }
     }
 
     .section-day {
@@ -292,6 +324,34 @@
       border-radius: 18px;
       padding: 14px;
       box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+      border: 2px solid transparent;
+    }
+
+    .booking-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+    }
+
+    .booking-card.new {
+      border-color: var(--new-border);
+      background: var(--new-bg);
+      animation: newPulse 1.2s ease;
+    }
+
+    @keyframes newPulse {
+      0% {
+        transform: scale(0.985);
+        box-shadow: 0 0 0 rgba(227,173,120,0);
+      }
+      40% {
+        transform: scale(1.01);
+        box-shadow: 0 0 0 8px rgba(227,173,120,0.16);
+      }
+      100% {
+        transform: scale(1);
+        box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+      }
     }
 
     .booking-top {
@@ -305,7 +365,11 @@
     .booking-time {
       font-size: 22px;
       font-weight: 800;
-      line-height: 1;
+      line-height: 1.1;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
     }
 
     .booking-duration {
@@ -325,6 +389,19 @@
       max-width: 52%;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .booking-badge-new {
+      background: var(--new);
+      color: #000;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 900;
+      line-height: 1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .booking-row {
@@ -378,6 +455,50 @@
       padding: 24px 16px;
       text-align: center;
       color: var(--muted);
+    }
+
+    .toast {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 1200;
+      background: rgba(255,255,255,0.96);
+      color: #000;
+      border-radius: 16px;
+      padding: 14px 16px;
+      box-shadow: 0 14px 34px rgba(0,0,0,0.18);
+      border-left: 5px solid var(--accent);
+      min-width: 220px;
+      max-width: 320px;
+      display: none;
+    }
+
+    .toast.show {
+      display: block;
+      animation: toastIn .25s ease;
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .toast-title {
+      font-size: 14px;
+      font-weight: 900;
+      margin-bottom: 4px;
+    }
+
+    .toast-text {
+      font-size: 13px;
+      color: #555;
+      line-height: 1.45;
     }
 
     .loading-overlay {
@@ -470,7 +591,7 @@
       100% { background-position: -200% 0; }
     }
 
-    @media (max-width: 390px) {
+    @media (max-width: 639px) {
       .summary-grid {
         grid-template-columns: 1fr;
       }
@@ -488,18 +609,50 @@
       }
     }
 
-    @media (min-width: 768px) {
+    @media (min-width: 640px) and (max-width: 1023px) {
       body {
-        display: flex;
-        justify-content: center;
+        padding: 18px;
+      }
+
+      .app {
+        max-width: 860px;
+        margin: 0 auto;
+        border-radius: 28px;
+        box-shadow: var(--shadow);
+      }
+
+      .summary-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .quick-actions {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    @media (min-width: 1024px) {
+      body {
         padding: 24px;
       }
 
       .app {
-        width: 430px;
-        min-height: 860px;
+        width: 100%;
+        max-width: 1400px;
+        margin: 0 auto;
         border-radius: 28px;
         box-shadow: var(--shadow);
+        padding: 24px;
+      }
+
+      #calendarContainer.grid-layout {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+        align-items: start;
+      }
+
+      .section-day {
+        margin-bottom: 0;
       }
     }
   </style>
@@ -511,6 +664,11 @@
       <div class="loading-title">読み込み中...</div>
       <div class="loading-text">予約データを準備しています</div>
     </div>
+  </div>
+
+  <div id="toast" class="toast" aria-live="polite">
+    <div class="toast-title">新しい予約</div>
+    <div class="toast-text" id="toastText">予約データが更新されました</div>
   </div>
 
   <div class="app">
@@ -569,6 +727,7 @@
       <div class="legend-chip">スタッフ別</div>
       <div class="legend-chip">サービス絞り込み</div>
       <div class="legend-chip info" id="modeLabel">日表示</div>
+      <div class="live-badge">AUTO更新</div>
     </div>
 
     <div class="status-bar">
@@ -595,7 +754,10 @@
   <script>
     const CONFIG = {
       WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbxThHxrZ3Fifn4EzyHED9kZ9KBMIQMDDRVwvdG5S89QO1B255eYjeCBGaElMFWdnwzj/exec",
-      CACHE_TTL_MS: 3 * 60 * 1000
+      CACHE_TTL_MS: 3 * 60 * 1000,
+      AUTO_REFRESH_MS: 15000,
+      NEW_BADGE_MS: 120000,
+      SOUND_ENABLED: false
     };
 
     const CALENDAR_URL = `${CONFIG.WEBHOOK_URL}?action=calendar`;
@@ -607,11 +769,19 @@
     let services = [];
     let currentMode = "day";
 
+    let lastCalendarHash = "";
+    let knownBookingIds = new Set();
+    let firstAutoLoadDone = false;
+
     const cacheStore = {
       calendar: { data: null, ts: 0 },
       staff: { data: null, ts: 0 },
       services: { data: null, ts: 0 }
     };
+
+    const audio = CONFIG.SOUND_ENABLED
+      ? new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg")
+      : null;
 
     async function init() {
       const dateInput = document.getElementById("selectedDate");
@@ -646,7 +816,7 @@
       });
 
       document.getElementById("refreshBtn").addEventListener("click", async () => {
-        await refreshAllData();
+        await refreshAllData(true);
       });
 
       setLoading(true, "読み込み中...", "予約データを準備しています");
@@ -659,8 +829,15 @@
         ]);
 
         fillFilters();
+        initializeKnownBookings(calendarItems);
+        lastCalendarHash = generateHash(calendarItems);
+
         renderCalendar();
         updateLastUpdated();
+        syncModeButtons();
+        firstAutoLoadDone = true;
+
+        startAutoRefresh();
       } catch (err) {
         console.log("init error:", err);
         renderErrorState("データの読み込みに失敗しました");
@@ -691,13 +868,14 @@
 
     function setCache(key, data) {
       cacheStore[key] = {
-        data: Array.isArray(data) ? [...data] : data,
+        data: Array.isArray(data) ? deepClone(data) : data,
         ts: Date.now()
       };
     }
 
     async function fetchJson(url) {
-      const res = await fetch(url, { cache: "no-store" });
+      const sep = url.includes("?") ? "&" : "?";
+      const res = await fetch(`${url}${sep}_ts=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     }
@@ -705,7 +883,7 @@
     async function loadCalendar(useCache = true) {
       const cached = useCache ? getCache("calendar") : null;
       if (cached) {
-        calendarItems = cached;
+        calendarItems = deepClone(cached);
         return;
       }
 
@@ -716,7 +894,7 @@
     async function loadStaff(useCache = true) {
       const cached = useCache ? getCache("staff") : null;
       if (cached) {
-        staff = cached;
+        staff = deepClone(cached);
         return;
       }
 
@@ -727,7 +905,7 @@
     async function loadServices(useCache = true) {
       const cached = useCache ? getCache("services") : null;
       if (cached) {
-        services = cached;
+        services = deepClone(cached);
         return;
       }
 
@@ -735,8 +913,10 @@
       setCache("services", services);
     }
 
-    async function refreshAllData() {
-      setLoading(true, "更新中...", "最新の予約データを取得しています");
+    async function refreshAllData(showOverlay = false) {
+      if (showOverlay) {
+        setLoading(true, "更新中...", "最新の予約データを取得しています");
+      }
 
       try {
         await Promise.all([
@@ -746,14 +926,42 @@
         ]);
 
         fillFilters(true);
+        detectNewBookings(calendarItems);
         renderCalendar();
         updateLastUpdated();
+
+        lastCalendarHash = generateHash(calendarItems);
       } catch (err) {
         console.log("refresh error:", err);
-        alert("更新に失敗しました");
+        if (showOverlay) alert("更新に失敗しました");
       } finally {
-        setLoading(false);
+        if (showOverlay) setLoading(false);
       }
+    }
+
+    function startAutoRefresh() {
+      setInterval(async () => {
+        try {
+          await loadCalendar(false);
+
+          const newHash = generateHash(calendarItems);
+          if (newHash === lastCalendarHash) return;
+
+          const newCount = detectNewBookings(calendarItems);
+
+          renderCalendar();
+          updateLastUpdated(true);
+
+          if (newCount > 0 && firstAutoLoadDone) {
+            showToast(`新しい予約が ${newCount} 件追加されました`);
+            playNotificationSound();
+          }
+
+          lastCalendarHash = newHash;
+        } catch (e) {
+          console.log("auto refresh error", e);
+        }
+      }, CONFIG.AUTO_REFRESH_MS);
     }
 
     function switchMode(mode) {
@@ -779,7 +987,7 @@
       serviceFilter.innerHTML = `<option value="">全サービス</option>`;
 
       [...staff]
-        .sort((a, b) => a.name.localeCompare(b.name))
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
         .forEach(member => {
           const option = document.createElement("option");
           option.value = member.name;
@@ -788,7 +996,7 @@
         });
 
       [...services]
-        .sort((a, b) => a.name.localeCompare(b.name))
+        .sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")))
         .forEach(service => {
           const option = document.createElement("option");
           option.value = service.name;
@@ -805,6 +1013,7 @@
     function renderCalendar() {
       const container = document.getElementById("calendarContainer");
       container.innerHTML = "";
+      container.classList.remove("grid-layout");
 
       const selectedDate = document.getElementById("selectedDate").value;
       const staffFilter = document.getElementById("staffFilter").value;
@@ -847,6 +1056,10 @@
         return;
       }
 
+      if (window.innerWidth >= 1024 && currentMode === "day") {
+        container.classList.add("grid-layout");
+      }
+
       if (currentMode === "day") {
         renderDayView(container, filtered);
       } else {
@@ -856,7 +1069,7 @@
 
     function renderDayView(container, items) {
       const grouped = groupByStaff(items);
-      const sortedStaff = [...staff].sort((a, b) => a.name.localeCompare(b.name));
+      const sortedStaff = [...staff].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
       sortedStaff.forEach(member => {
         const bookings = grouped[member.name] || [];
@@ -878,7 +1091,7 @@
         dayBlock.innerHTML = `<div class="day-title">${formatDayTitle(date)}</div>`;
 
         const grouped = groupByStaff(itemsForDay);
-        const sortedStaff = [...staff].sort((a, b) => a.name.localeCompare(b.name));
+        const sortedStaff = [...staff].sort((a, b) => String(a.name || "").localeCompare(String(b.name || "")));
 
         sortedStaff.forEach(member => {
           const bookings = grouped[member.name] || [];
@@ -912,11 +1125,16 @@
     }
 
     function renderBookingCard(item, showDateChip) {
+      const isNew = isNewBooking(item);
+
       return `
-        <div class="booking-card">
+        <div class="booking-card ${isNew ? "new" : ""}">
           <div class="booking-top">
             <div>
-              <div class="booking-time">${escapeHtml(item.time || "-")}</div>
+              <div class="booking-time">
+                ${escapeHtml(item.time || "-")}
+                ${isNew ? `<span class="booking-badge-new">NEW</span>` : ""}
+              </div>
               <div class="booking-duration">${escapeHtml(String(item.duration || "-"))}分</div>
             </div>
             <div class="booking-service">${escapeHtml(item.serviceName || "-")}</div>
@@ -954,10 +1172,18 @@
       }, {});
     }
 
-    function updateLastUpdated() {
+    function updateLastUpdated(isAuto = false) {
       const now = new Date();
-      document.getElementById("lastUpdated").textContent =
-        `最終更新: ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      const el = document.getElementById("lastUpdated");
+      el.textContent = `最終更新: ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+      if (isAuto) {
+        el.style.color = "#ffffff";
+        el.style.opacity = "1";
+        setTimeout(() => {
+          el.style.opacity = "0.75";
+        }, 1800);
+      }
     }
 
     function renderErrorState(text) {
@@ -1022,6 +1248,78 @@
 
     function escapeAttr(value) {
       return escapeHtml(value);
+    }
+
+    function deepClone(data) {
+      return JSON.parse(JSON.stringify(data));
+    }
+
+    function generateHash(data) {
+      return JSON.stringify(
+        [...data].sort((a, b) => getBookingId(a).localeCompare(getBookingId(b)))
+      );
+    }
+
+    function getBookingId(item) {
+      return [
+        item.date || "",
+        item.time || "",
+        item.staffName || "",
+        item.customerName || "",
+        item.serviceName || ""
+      ].join("|");
+    }
+
+    function initializeKnownBookings(items) {
+      knownBookingIds = new Set(items.map(getBookingId));
+    }
+
+    function detectNewBookings(items) {
+      const nextKnown = new Set();
+      let newCount = 0;
+
+      items.forEach(item => {
+        const id = getBookingId(item);
+        nextKnown.add(id);
+
+        if (!knownBookingIds.has(id)) {
+          item.__newUntil = Date.now() + CONFIG.NEW_BADGE_MS;
+          newCount++;
+        }
+      });
+
+      items.forEach(item => {
+        const existing = calendarItems.find(x => getBookingId(x) === getBookingId(item) && x.__newUntil);
+        if (existing && !item.__newUntil) {
+          item.__newUntil = existing.__newUntil;
+        }
+      });
+
+      knownBookingIds = nextKnown;
+      return newCount;
+    }
+
+    function isNewBooking(item) {
+      return !!item.__newUntil && Date.now() < item.__newUntil;
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      const text = document.getElementById("toastText");
+
+      text.textContent = message;
+      toast.classList.add("show");
+
+      clearTimeout(showToast._timer);
+      showToast._timer = setTimeout(() => {
+        toast.classList.remove("show");
+      }, 3200);
+    }
+
+    function playNotificationSound() {
+      if (!audio) return;
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
     }
 
     init();
