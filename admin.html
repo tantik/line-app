@@ -24,6 +24,10 @@
       --new: #ffd966;
       --new-border: #e3ad78;
       --new-bg: #fff8ef;
+      --done-bg: #e8f6ea;
+      --done-border: #79b88a;
+      --cancel-bg: #fff0f0;
+      --cancel-border: #d98d8d;
     }
 
     * { box-sizing: border-box; }
@@ -198,6 +202,16 @@
       background: rgba(255,255,255,0.14);
     }
 
+    .legend-chip.done {
+      background: #dff3e3;
+      color: #1f4a2b;
+    }
+
+    .legend-chip.cancel {
+      background: #ffe4e4;
+      color: #7f2f2f;
+    }
+
     .status-bar {
       display: flex;
       align-items: center;
@@ -324,7 +338,7 @@
       border-radius: 18px;
       padding: 14px;
       box-shadow: 0 6px 18px rgba(0,0,0,0.06);
-      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease, opacity 0.2s ease;
       border: 2px solid transparent;
     }
 
@@ -337,6 +351,17 @@
       border-color: var(--new-border);
       background: var(--new-bg);
       animation: newPulse 1.2s ease;
+    }
+
+    .booking-card.status-completed {
+      background: var(--done-bg);
+      border-color: var(--done-border);
+    }
+
+    .booking-card.status-cancelled {
+      background: var(--cancel-bg);
+      border-color: var(--cancel-border);
+      opacity: 0.92;
     }
 
     @keyframes newPulse {
@@ -437,6 +462,21 @@
       font-weight: 800;
     }
 
+    .booking-status.completed {
+      background: #cfe9d2;
+      color: #214a2b;
+    }
+
+    .booking-status.cancelled {
+      background: #ffdede;
+      color: #7d2a2a;
+    }
+
+    .booking-status.booked {
+      background: var(--success);
+      color: #16342e;
+    }
+
     .booking-date-chip {
       display: inline-block;
       padding: 6px 10px;
@@ -445,6 +485,48 @@
       font-size: 12px;
       font-weight: 800;
       color: #000;
+    }
+
+    .booking-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .action-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .action-btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .action-btn.complete {
+      background: #dff3e3;
+      color: #1f4a2b;
+    }
+
+    .action-btn.cancel {
+      background: #ffe4e4;
+      color: #7f2f2f;
+    }
+
+    .action-btn.restore {
+      background: #d8e7ff;
+      color: #1b3f78;
     }
 
     .empty-box {
@@ -667,7 +749,7 @@
   </div>
 
   <div id="toast" class="toast" aria-live="polite">
-    <div class="toast-title">新しい予約</div>
+    <div class="toast-title">通知</div>
     <div class="toast-text" id="toastText">予約データが更新されました</div>
   </div>
 
@@ -727,6 +809,8 @@
       <div class="legend-chip">スタッフ別</div>
       <div class="legend-chip">サービス絞り込み</div>
       <div class="legend-chip info" id="modeLabel">日表示</div>
+      <div class="legend-chip done">完了</div>
+      <div class="legend-chip cancel">キャンセル</div>
       <div class="live-badge">AUTO更新</div>
     </div>
 
@@ -753,7 +837,7 @@
 
   <script>
     const CONFIG = {
-      WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbxThHxrZ3Fifn4EzyHED9kZ9KBMIQMDDRVwvdG5S89QO1B255eYjeCBGaElMFWdnwzj/exec",
+      WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbx6lGm1eXiT3Fvue5E10BJXcArGhQnLyqx7SgzYAbJDtSCGkg_BjcDprd64-i0Ig-Dl/exec",
       CACHE_TTL_MS: 3 * 60 * 1000,
       AUTO_REFRESH_MS: 15000,
       NEW_BADGE_MS: 120000,
@@ -772,6 +856,7 @@
     let lastCalendarHash = "";
     let knownBookingIds = new Set();
     let firstAutoLoadDone = false;
+    let isUpdatingStatus = false;
 
     const cacheStore = {
       calendar: { data: null, ts: 0 },
@@ -873,9 +958,15 @@
       };
     }
 
-    async function fetchJson(url) {
+    async function fetchJson(url, options = {}) {
       const sep = url.includes("?") ? "&" : "?";
-      const res = await fetch(`${url}${sep}_ts=${Date.now()}`, { cache: "no-store" });
+      const finalUrl = `${url}${sep}_ts=${Date.now()}`;
+
+      const res = await fetch(finalUrl, {
+        cache: "no-store",
+        ...options
+      });
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return res.json();
     }
@@ -941,6 +1032,8 @@
 
     function startAutoRefresh() {
       setInterval(async () => {
+        if (isUpdatingStatus) return;
+
         try {
           await loadCalendar(false);
 
@@ -1121,14 +1214,23 @@
         </div>
       `;
 
+      bindActionButtons(section, bookings);
       return section;
     }
 
     function renderBookingCard(item, showDateChip) {
       const isNew = isNewBooking(item);
+      const status = normalizeStatus(item.status);
+      const statusClass = status === "completed" ? "completed" : status === "cancelled" ? "cancelled" : "booked";
+      const cardClass = status === "completed"
+        ? "status-completed"
+        : status === "cancelled"
+          ? "status-cancelled"
+          : "";
+      const bookingId = getBookingId(item);
 
       return `
-        <div class="booking-card ${isNew ? "new" : ""}">
+        <div class="booking-card ${isNew ? "new" : ""} ${cardClass}">
           <div class="booking-top">
             <div>
               <div class="booking-time">
@@ -1144,11 +1246,113 @@
           <div class="booking-row"><span>電話:</span> ${escapeHtml(item.phone || "-")}</div>
 
           <div class="booking-footer">
-            <div class="booking-status">予約済み</div>
+            <div class="booking-status ${statusClass}">${getStatusLabel(status)}</div>
             ${showDateChip ? `<div class="booking-date-chip">${escapeHtml(formatDayTitle(item.date))}</div>` : ``}
+          </div>
+
+          <div class="booking-actions">
+            ${status !== "completed" ? `
+              <button class="action-btn complete"
+                type="button"
+                data-action="completed"
+                data-booking-id="${escapeAttr(bookingId)}">
+                完了
+              </button>
+            ` : ""}
+
+            ${status !== "cancelled" ? `
+              <button class="action-btn cancel"
+                type="button"
+                data-action="cancelled"
+                data-booking-id="${escapeAttr(bookingId)}">
+                キャンセル
+              </button>
+            ` : ""}
+
+            ${status !== "booked" ? `
+              <button class="action-btn restore"
+                type="button"
+                data-action="booked"
+                data-booking-id="${escapeAttr(bookingId)}">
+                予約済みに戻す
+              </button>
+            ` : ""}
           </div>
         </div>
       `;
+    }
+
+    function bindActionButtons(section, bookings) {
+      const buttons = section.querySelectorAll(".action-btn");
+      buttons.forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const bookingId = btn.dataset.bookingId;
+          const nextStatus = btn.dataset.action;
+
+          const targetBooking = bookings.find(item => getBookingId(item) === bookingId);
+          if (!targetBooking) return;
+
+          const confirmText = nextStatus === "completed"
+            ? "この予約を完了にしますか？"
+            : nextStatus === "cancelled"
+              ? "この予約をキャンセルにしますか？"
+              : "この予約を予約済みに戻しますか？";
+
+          if (!confirm(confirmText)) return;
+
+          await updateBookingStatus(targetBooking, nextStatus, btn);
+        });
+      });
+    }
+
+    async function updateBookingStatus(booking, nextStatus, clickedButton) {
+      if (isUpdatingStatus) return;
+
+      try {
+        isUpdatingStatus = true;
+        disableActionButtons(true);
+
+        setLoading(true, "更新中...", "予約ステータスを更新しています");
+
+        const payload = {
+          mode: "update_status",
+          bookingId: getBookingId(booking),
+          date: booking.date || "",
+          time: booking.time || "",
+          customerName: booking.customerName || "",
+          staffName: booking.staffName || "",
+          serviceName: booking.serviceName || "",
+          nextStatus: nextStatus
+        };
+
+        const result = await fetchJson(CONFIG.WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        if (result.status !== "success") {
+          throw new Error(result.message || "status update failed");
+        }
+
+        await refreshAllData(false);
+        showToast(getStatusToastText(nextStatus));
+      } catch (err) {
+        console.log("updateBookingStatus error", err);
+        alert("ステータス更新に失敗しました");
+      } finally {
+        disableActionButtons(false);
+        setLoading(false);
+        isUpdatingStatus = false;
+      }
+    }
+
+    function disableActionButtons(disabled) {
+      document.querySelectorAll(".action-btn").forEach(btn => {
+        btn.disabled = disabled;
+      });
     }
 
     function updateSummary(items) {
@@ -1303,10 +1507,31 @@
       return !!item.__newUntil && Date.now() < item.__newUntil;
     }
 
+    function normalizeStatus(status) {
+      const s = String(status || "").trim().toLowerCase();
+      if (s === "completed") return "completed";
+      if (s === "cancelled") return "cancelled";
+      return "booked";
+    }
+
+    function getStatusLabel(status) {
+      if (status === "completed") return "完了";
+      if (status === "cancelled") return "キャンセル";
+      return "予約済み";
+    }
+
+    function getStatusToastText(status) {
+      if (status === "completed") return "予約を完了にしました";
+      if (status === "cancelled") return "予約をキャンセルにしました";
+      return "予約を予約済みに戻しました";
+    }
+
     function showToast(message) {
       const toast = document.getElementById("toast");
       const text = document.getElementById("toastText");
+      const title = toast.querySelector(".toast-title");
 
+      title.textContent = "通知";
       text.textContent = message;
       toast.classList.add("show");
 
