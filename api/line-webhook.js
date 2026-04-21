@@ -60,7 +60,7 @@ function buildHowItWorksFlex() {
               },
               {
                 type: "text",
-                text: "LINEから簡単に予約",
+                text: "お客様はLINEから簡単に予約",
                 wrap: true,
                 color: "#333333",
                 size: "md"
@@ -82,7 +82,7 @@ function buildHowItWorksFlex() {
               },
               {
                 type: "text",
-                text: "予約確認メッセージを自動送信",
+                text: "予約確認は自動で送信",
                 wrap: true,
                 color: "#333333",
                 size: "md"
@@ -104,7 +104,7 @@ function buildHowItWorksFlex() {
               },
               {
                 type: "text",
-                text: "来店前日にリマインド通知",
+                text: "前日にリマインド通知",
                 wrap: true,
                 color: "#333333",
                 size: "md"
@@ -117,10 +117,18 @@ function buildHowItWorksFlex() {
           },
           {
             type: "text",
-            text: "予約対応の手間を減らし、よりスムーズな運営につなげられます。",
+            text: "やり取りの手間を減らし、スムーズなサロン運営を実現します。",
             wrap: true,
             color: "#555555",
             size: "sm"
+          },
+          {
+            type: "text",
+            text: "※現在、サロン様向けにデモ公開中",
+            wrap: true,
+            color: "#8A8A8A",
+            size: "xs",
+            margin: "md"
           }
         ]
       },
@@ -137,7 +145,7 @@ function buildHowItWorksFlex() {
             color: "#2F4F3E",
             action: {
               type: "uri",
-              label: "デモを試す",
+              label: "実際に体験する",
               uri: "https://line-app-xi.vercel.app/"
             }
           }
@@ -190,14 +198,14 @@ function buildBenefitsFlex() {
             contents: [
               {
                 type: "text",
-                text: "✓ 営業時間外でも予約受付が可能",
+                text: "✓ 予約対応の手間を削減",
                 wrap: true,
                 color: "#333333",
                 size: "md"
               },
               {
                 type: "text",
-                text: "✓ 予約対応の手間を削減",
+                text: "✓ 営業時間外でも受付可能",
                 wrap: true,
                 color: "#333333",
                 size: "md"
@@ -211,14 +219,7 @@ function buildBenefitsFlex() {
               },
               {
                 type: "text",
-                text: "✓ スタッフ共有をスムーズに",
-                wrap: true,
-                color: "#333333",
-                size: "md"
-              },
-              {
-                type: "text",
-                text: "✓ 無断キャンセル対策の基盤づくり",
+                text: "✓ 無断キャンセル対策にも対応",
                 wrap: true,
                 color: "#333333",
                 size: "md"
@@ -231,10 +232,18 @@ function buildBenefitsFlex() {
           },
           {
             type: "text",
-            text: "サロン側の負担を減らし、接客に集中しやすくなります。",
+            text: "スタッフの負担を減らし、接客に集中できる環境をつくります。",
             wrap: true,
             color: "#555555",
             size: "sm"
+          },
+          {
+            type: "text",
+            text: "※現在、サロン様向けにデモ公開中",
+            wrap: true,
+            color: "#8A8A8A",
+            size: "xs",
+            margin: "md"
           }
         ]
       },
@@ -251,7 +260,7 @@ function buildBenefitsFlex() {
             color: "#2F4F3E",
             action: {
               type: "uri",
-              label: "相談する",
+              label: "導入について相談する",
               uri: "https://line-app-xi.vercel.app/?screen=lead"
             }
           }
@@ -276,8 +285,10 @@ function getMenuReplyMessage(text) {
         type: "text",
         text:
           "ご相談ありがとうございます😊\n\n" +
-          "下のリンクからそのままご相談フォームを開けます。\n" +
-          "必要事項を入力いただければ、確認後にご案内します。"
+          "LINEからそのまま導入相談が可能です。\n\n" +
+          "下のリンクからフォームを開き、\n" +
+          "必要事項をご入力ください。\n\n" +
+          "内容を確認後、個別にご案内いたします。"
       },
       {
         type: "text",
