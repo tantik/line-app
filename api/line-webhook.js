@@ -1,5 +1,9 @@
 import crypto from "crypto";
 
+const APPS_SCRIPT_WEB_APP_URL =
+  process.env.APPS_SCRIPT_WEB_APP_URL ||
+  "https://script.google.com/macros/s/AKfycbz8zBVqcxOQE-fRYh3Cc44DWPBb_vVNTnaQoQ4vgQNyYsPbKAEmhsiBHJC_VMbZVP0P/exec";
+
 function verifyLineSignature(body, signature, channelSecret) {
   const hash = crypto
     .createHmac("SHA256", channelSecret)
@@ -104,7 +108,29 @@ function buildHowItWorksFlex() {
               },
               {
                 type: "text",
-                text: "前日にリマインド通知",
+                text: "前日 / 3時間前リマインド送信",
+                wrap: true,
+                color: "#333333",
+                size: "md"
+              }
+            ]
+          },
+          {
+            type: "box",
+            layout: "baseline",
+            spacing: "md",
+            contents: [
+              {
+                type: "text",
+                text: "4",
+                flex: 0,
+                weight: "bold",
+                color: "#2F4F3E",
+                size: "lg"
+              },
+              {
+                type: "text",
+                text: "確認・キャンセルをLINE上で完結",
                 wrap: true,
                 color: "#333333",
                 size: "md"
@@ -371,6 +397,32 @@ async function replyMessage(replyToken, messages, channelAccessToken) {
   }
 }
 
+function parsePostbackData(data) {
+  const params = new URLSearchParams(String(data || ""));
+  return {
+    action: params.get("action") || "",
+    bookingId: params.get("bookingId") || ""
+  };
+}
+
+async function callAppsScript(payload) {
+  const res = await fetch(APPS_SCRIPT_WEB_APP_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const text = await res.text();
+
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    throw new Error(`Apps Script returned invalid JSON: ${text}`);
+  }
+}
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(200).json({ ok: true, message: "line webhook endpoint" });
@@ -406,6 +458,34 @@ export default async function handler(req, res) {
     }
 
     for (const event of events) {
+      // POSTBACK: подтверждение / отмена
+      if (event.type === "postback" && event.postback?.data && event.replyToken) {
+        const { action, bookingId } = parsePostbackData(event.postback.data);
+
+        if (action && bookingId) {
+          const appResult = await callAppsScript({
+            mode: "line_action",
+            action,
+            bookingId,
+            userId: event.source?.userId || "",
+            source: "vercel_line_webhook"
+          });
+
+          const lineMessages =
+            Array.isArray(appResult?.lineMessages) && appResult.lineMessages.length
+              ? appResult.lineMessages
+              : [{
+                  type: "text",
+                  text: appResult?.message || "処理が完了しました。"
+                }];
+
+          await replyMessage(event.replyToken, lineMessages, channelAccessToken);
+        }
+
+        continue;
+      }
+
+      // обычные menu message reply
       if (event.type !== "message") continue;
       if (!event.message || event.message.type !== "text") continue;
       if (!event.replyToken) continue;
