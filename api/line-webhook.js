@@ -272,11 +272,63 @@ function buildBenefitsFlex() {
 
 function getMenuReplyMessage(text) {
   if (text === "仕組みを見る") {
-    return [buildHowItWorksFlex()];
+    return [
+      buildHowItWorksFlex(),
+      {
+        type: "text",
+        text: "次に何をしますか？",
+        quickReply: {
+          items: [
+            {
+              type: "action",
+              action: {
+                type: "uri",
+                label: "実際に体験する",
+                uri: "https://line-app-xi.vercel.app/"
+              }
+            },
+            {
+              type: "action",
+              action: {
+                type: "message",
+                label: "導入メリットを見る",
+                text: "導入メリット"
+              }
+            }
+          ]
+        }
+      }
+    ];
   }
 
   if (text === "導入メリット") {
-    return [buildBenefitsFlex()];
+    return [
+      buildBenefitsFlex(),
+      {
+        type: "text",
+        text: "ご希望の内容を選択してください👇",
+        quickReply: {
+          items: [
+            {
+              type: "action",
+              action: {
+                type: "uri",
+                label: "相談する （約30秒で入力できます）",
+                uri: "https://line-app-xi.vercel.app/?screen=lead"
+              }
+            },
+            {
+              type: "action",
+              action: {
+                type: "uri",
+                label: "デモを見る",
+                uri: "https://line-app-xi.vercel.app/"
+              }
+            }
+          ]
+        }
+      }
+    ];
   }
 
   if (text === "相談する" || text === "お問い合わせ") {
