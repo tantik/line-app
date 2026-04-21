@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     headerScrolledClass: "is-scrolled",
     revealClass: "is-visible",
     activeClass: "is-active",
-    formEndpoint: "https://script.google.com/macros/s/AKfycbxyez8t9ni93cJrqdJxuyOYzUezCKEFr9Pr2cG9bQlZWsqnJInmJDPIake7Z1Esxx7z/exec",
+    formEndpoint: "https://script.google.com/macros/s/AKfycbz8zBVqcxOQE-fRYh3Cc44DWPBb_vVNTnaQoQ4vgQNyYsPbKAEmhsiBHJC_VMbZVP0P/exec",
   };
 
   const $ = (selector, parent = document) => parent.querySelector(selector);

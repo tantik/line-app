@@ -2,7 +2,7 @@ const CONFIG = {
   demoUrl: "https://line-app-xi.vercel.app/",
   demoLeadUrl: "https://line-app-xi.vercel.app/?screen=lead",
   webhookUrl:
-    "https://script.google.com/macros/s/AKfycbxyez8t9ni93cJrqdJxuyOYzUezCKEFr9Pr2cG9bQlZWsqnJInmJDPIake7Z1Esxx7z/exec",
+    "https://script.google.com/macros/s/AKfycbz8zBVqcxOQE-fRYh3Cc44DWPBb_vVNTnaQoQ4vgQNyYsPbKAEmhsiBHJC_VMbZVP0P/exec",
   source: "line-booking-v3-site",
 };
 
