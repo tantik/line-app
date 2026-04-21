@@ -1,6 +1,6 @@
 const CONFIG = {
   LIFF_ID: "2009586903-hyNXZaW7",
-  WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbz8zBVqcxOQE-fRYh3Cc44DWPBb_vVNTnaQoQ4vgQNyYsPbKAEmhsiBHJC_VMbZVP0P/exec",
+  WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbwJ6JgQWqmhp9Y7gWPKvr5l5IixbWuNRAsbJ0km6AQIGuUBlniZeDfOpqtkGds-pxzB/exec",
   BUSINESS_LABEL: "Salon",
   DATE_RANGE_DAYS: 60,
   INITIAL_VISIBLE_DAYS: 14,
@@ -82,6 +82,8 @@ async function init() {
     if (nameInput && !nameInput.value) {
       nameInput.value = displayName;
     }
+
+    bindPhoneInput();
 
     await Promise.all([
       loadServices(true),
@@ -216,7 +218,33 @@ function startBookingsPrefetch() {
     }
   }, 400);
 }
+function normalizePhone(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
 
+  let cleaned = raw.replace(/[^\d+]/g, "");
+
+  if (cleaned.includes("+")) {
+    cleaned = (cleaned.startsWith("+") ? "+" : "") + cleaned.replace(/\+/g, "");
+  }
+
+  return cleaned;
+}
+
+function isValidPhone(value) {
+  const normalized = normalizePhone(value);
+  const digitsOnly = normalized.replace(/\D/g, "");
+  return digitsOnly.length >= 10 && digitsOnly.length <= 15;
+}
+
+function bindPhoneInput() {
+  const phoneInput = document.getElementById("phone");
+  if (!phoneInput) return;
+
+  phoneInput.addEventListener("input", () => {
+    phoneInput.value = normalizePhone(phoneInput.value);
+  });
+}
 /* ---------- SERVICES ---------- */
 
 function renderServices() {
@@ -741,16 +769,33 @@ async function goConfirm() {
 
 async function submitForm() {
   const name = (document.getElementById("name")?.value || "").trim();
-  const phone = (document.getElementById("phone")?.value || "").trim();
+  const phoneInput = document.getElementById("phone");
+  const phone = normalizePhone(phoneInput?.value || "");
 
   if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) {
     alert("先に予約内容を選択してください");
     return;
   }
 
+  if (!name) {
+    alert("お名前を入力してください");
+    return;
+  }
+
   if (!phone) {
     alert("電話番号を入力してください");
+    if (phoneInput) phoneInput.focus();
     return;
+  }
+
+  if (!isValidPhone(phone)) {
+    alert("電話番号を正しく入力してください");
+    if (phoneInput) phoneInput.focus();
+    return;
+  }
+
+  if (phoneInput) {
+    phoneInput.value = phone;
   }
 
   try {

@@ -74,14 +74,6 @@
       line-height: 1.5;
     }
 
-    .topbar-right {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      align-items: flex-end;
-      flex-shrink: 0;
-    }
-
     .mode-switch {
       display: inline-grid;
       grid-template-columns: 1fr 1fr;
@@ -106,68 +98,6 @@
     .mode-btn.active {
       background: var(--accent);
       color: #000;
-    }
-
-    .auto-refresh-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-    }
-
-    .toggle-wrap {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-size: 12px;
-      font-weight: 800;
-      color: #fff;
-    }
-
-    .toggle-switch {
-      position: relative;
-      width: 48px;
-      height: 28px;
-      display: inline-block;
-      flex: 0 0 auto;
-    }
-
-    .toggle-switch input {
-      display: none;
-    }
-
-    .toggle-slider {
-      position: absolute;
-      inset: 0;
-      border-radius: 999px;
-      background: rgba(255,255,255,0.22);
-      cursor: pointer;
-      transition: 0.2s ease;
-    }
-
-    .toggle-slider::before {
-      content: "";
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      background: #fff;
-      transition: 0.2s ease;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    }
-
-    .toggle-switch input:checked + .toggle-slider {
-      background: var(--accent);
-    }
-
-    .toggle-switch input:checked + .toggle-slider::before {
-      transform: translateX(20px);
     }
 
     .quick-actions {
@@ -323,16 +253,6 @@
       background: #9cffb4;
       box-shadow: 0 0 0 0 rgba(156,255,180,.5);
       animation: pulseLive 1.8s infinite;
-    }
-
-    .live-badge.off {
-      opacity: 0.75;
-    }
-
-    .live-badge.off::before {
-      background: #d6d6d6;
-      animation: none;
-      box-shadow: none;
     }
 
     @keyframes pulseLive {
@@ -766,15 +686,6 @@
         flex-direction: column;
       }
 
-      .topbar-right {
-        width: 100%;
-        align-items: stretch;
-      }
-
-      .auto-refresh-row {
-        justify-content: flex-start;
-      }
-
       .quick-actions {
         grid-template-columns: 1fr 1fr;
       }
@@ -849,21 +760,9 @@
         <p class="subtitle">担当者ごとの予約状況を確認できます</p>
       </div>
 
-      <div class="topbar-right">
-        <div class="mode-switch">
-          <button class="mode-btn active" id="modeDayBtn" type="button">日</button>
-          <button class="mode-btn" id="modeWeekBtn" type="button">週</button>
-        </div>
-
-        <div class="auto-refresh-row">
-          <div class="toggle-wrap">
-            <span>AUTO更新</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="autoRefreshToggle" checked />
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-        </div>
+      <div class="mode-switch">
+        <button class="mode-btn active" id="modeDayBtn" type="button">日</button>
+        <button class="mode-btn" id="modeWeekBtn" type="button">週</button>
       </div>
     </div>
 
@@ -912,7 +811,7 @@
       <div class="legend-chip info" id="modeLabel">日表示</div>
       <div class="legend-chip done">完了</div>
       <div class="legend-chip cancel">キャンセル</div>
-      <div class="live-badge" id="liveBadge">AUTO更新</div>
+      <div class="live-badge">AUTO更新</div>
     </div>
 
     <div class="status-bar">
@@ -938,7 +837,7 @@
 
   <script>
     const CONFIG = {
-      WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbwJ6JgQWqmhp9Y7gWPKvr5l5IixbWuNRAsbJ0km6AQIGuUBlniZeDfOpqtkGds-pxzB/exec",
+      WEBHOOK_URL: "https://script.google.com/macros/s/AKfycbz8zBVqcxOQE-fRYh3Cc44DWPBb_vVNTnaQoQ4vgQNyYsPbKAEmhsiBHJC_VMbZVP0P/exec",
       CACHE_TTL_MS: 3 * 60 * 1000,
       AUTO_REFRESH_MS: 15000,
       NEW_BADGE_MS: 120000,
@@ -958,8 +857,6 @@
     let knownBookingIds = new Set();
     let firstAutoLoadDone = false;
     let isUpdatingStatus = false;
-    let autoRefreshEnabled = true;
-    let autoRefreshTimer = null;
 
     const cacheStore = {
       calendar: { data: null, ts: 0 },
@@ -973,10 +870,7 @@
 
     async function init() {
       const dateInput = document.getElementById("selectedDate");
-      const autoRefreshToggle = document.getElementById("autoRefreshToggle");
-
       dateInput.value = getToday();
-      autoRefreshToggle.checked = autoRefreshEnabled;
 
       document.getElementById("modeDayBtn").addEventListener("click", () => switchMode("day"));
       document.getElementById("modeWeekBtn").addEventListener("click", () => switchMode("week"));
@@ -984,25 +878,6 @@
       dateInput.addEventListener("change", renderCalendar);
       document.getElementById("staffFilter").addEventListener("change", renderCalendar);
       document.getElementById("serviceFilter").addEventListener("change", renderCalendar);
-
-      autoRefreshToggle.addEventListener("change", () => {
-        autoRefreshEnabled = autoRefreshToggle.checked;
-        updateLiveBadge();
-        restartAutoRefresh();
-
-        if (autoRefreshEnabled) {
-          showToast("AUTO更新をONにしました");
-        } else {
-          showToast("AUTO更新をOFFにしました");
-        }
-      });
-
-      document.addEventListener("visibilitychange", async () => {
-        if (document.hidden) return;
-        if (autoRefreshEnabled && !isUpdatingStatus) {
-          await silentAutoRefresh(true);
-        }
-      });
 
       document.getElementById("todayBtn").addEventListener("click", () => {
         dateInput.value = getToday();
@@ -1045,10 +920,9 @@
         renderCalendar();
         updateLastUpdated();
         syncModeButtons();
-        updateLiveBadge();
-
         firstAutoLoadDone = true;
-        restartAutoRefresh();
+
+        startAutoRefresh();
       } catch (err) {
         console.log("init error:", err);
         renderErrorState("データの読み込みに失敗しました");
@@ -1085,14 +959,10 @@
     }
 
     async function fetchJson(url, options = {}) {
-      const method = (options.method || "GET").toUpperCase();
+      const sep = url.includes("?") ? "&" : "?";
+      const finalUrl = `${url}${sep}_ts=${Date.now()}`;
 
-      if (method === "GET") {
-        const sep = url.includes("?") ? "&" : "?";
-        url = `${url}${sep}_ts=${Date.now()}`;
-      }
-
-      const res = await fetch(url, {
+      const res = await fetch(finalUrl, {
         cache: "no-store",
         ...options
       });
@@ -1140,8 +1010,6 @@
       }
 
       try {
-        const oldItems = deepClone(calendarItems);
-
         await Promise.all([
           loadCalendar(false),
           loadStaff(false),
@@ -1149,12 +1017,11 @@
         ]);
 
         fillFilters(true);
-        detectNewBookings(oldItems, calendarItems);
+        detectNewBookings(calendarItems);
         renderCalendar();
         updateLastUpdated();
 
         lastCalendarHash = generateHash(calendarItems);
-        setCache("calendar", calendarItems);
       } catch (err) {
         console.log("refresh error:", err);
         if (showOverlay) alert("更新に失敗しました");
@@ -1163,58 +1030,31 @@
       }
     }
 
-    async function silentAutoRefresh(fromVisibility = false) {
-      if (!autoRefreshEnabled) return;
-      if (document.hidden) return;
-      if (isUpdatingStatus) return;
+    function startAutoRefresh() {
+      setInterval(async () => {
+        if (isUpdatingStatus) return;
 
-      try {
-        const oldItems = deepClone(calendarItems);
-        await loadCalendar(false);
+        try {
+          await loadCalendar(false);
 
-        const newHash = generateHash(calendarItems);
-        if (newHash === lastCalendarHash) return;
+          const newHash = generateHash(calendarItems);
+          if (newHash === lastCalendarHash) return;
 
-        const newCount = detectNewBookings(oldItems, calendarItems);
-        renderCalendar();
-        updateLastUpdated(true);
+          const newCount = detectNewBookings(calendarItems);
 
-        if (newCount > 0 && firstAutoLoadDone && !fromVisibility) {
-          showToast(`新しい予約が ${newCount} 件追加されました`);
-          playNotificationSound();
+          renderCalendar();
+          updateLastUpdated(true);
+
+          if (newCount > 0 && firstAutoLoadDone) {
+            showToast(`新しい予約が ${newCount} 件追加されました`);
+            playNotificationSound();
+          }
+
+          lastCalendarHash = newHash;
+        } catch (e) {
+          console.log("auto refresh error", e);
         }
-
-        lastCalendarHash = newHash;
-        setCache("calendar", calendarItems);
-      } catch (e) {
-        console.log("auto refresh error", e);
-      }
-    }
-
-    function restartAutoRefresh() {
-      if (autoRefreshTimer) {
-        clearInterval(autoRefreshTimer);
-        autoRefreshTimer = null;
-      }
-
-      if (!autoRefreshEnabled) return;
-
-      autoRefreshTimer = setInterval(async () => {
-        await silentAutoRefresh(false);
       }, CONFIG.AUTO_REFRESH_MS);
-    }
-
-    function updateLiveBadge() {
-      const badge = document.getElementById("liveBadge");
-      if (!badge) return;
-
-      if (autoRefreshEnabled) {
-        badge.textContent = "AUTO更新";
-        badge.classList.remove("off");
-      } else {
-        badge.textContent = "AUTO更新 OFF";
-        badge.classList.add("off");
-      }
     }
 
     function switchMode(mode) {
@@ -1460,12 +1300,12 @@
 
           if (!confirm(confirmText)) return;
 
-          await updateBookingStatus(targetBooking, nextStatus);
+          await updateBookingStatus(targetBooking, nextStatus, btn);
         });
       });
     }
 
-    async function updateBookingStatus(booking, nextStatus) {
+    async function updateBookingStatus(booking, nextStatus, clickedButton) {
       if (isUpdatingStatus) return;
 
       try {
@@ -1638,22 +1478,24 @@
       knownBookingIds = new Set(items.map(getBookingId));
     }
 
-    function detectNewBookings(oldItems, newItems) {
-      const oldMap = new Map(oldItems.map(item => [getBookingId(item), item]));
+    function detectNewBookings(items) {
       const nextKnown = new Set();
       let newCount = 0;
 
-      newItems.forEach(item => {
+      items.forEach(item => {
         const id = getBookingId(item);
-        const oldItem = oldMap.get(id);
-
         nextKnown.add(id);
 
         if (!knownBookingIds.has(id)) {
           item.__newUntil = Date.now() + CONFIG.NEW_BADGE_MS;
           newCount++;
-        } else if (oldItem && oldItem.__newUntil && Date.now() < oldItem.__newUntil) {
-          item.__newUntil = oldItem.__newUntil;
+        }
+      });
+
+      items.forEach(item => {
+        const existing = calendarItems.find(x => getBookingId(x) === getBookingId(item) && x.__newUntil);
+        if (existing && !item.__newUntil) {
+          item.__newUntil = existing.__newUntil;
         }
       });
 

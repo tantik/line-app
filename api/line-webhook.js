@@ -2,7 +2,7 @@ import crypto from "crypto";
 
 const APPS_SCRIPT_WEB_APP_URL =
   process.env.APPS_SCRIPT_WEB_APP_URL ||
-  "https://script.google.com/macros/s/AKfycbz8zBVqcxOQE-fRYh3Cc44DWPBb_vVNTnaQoQ4vgQNyYsPbKAEmhsiBHJC_VMbZVP0P/exec";
+  "https://script.google.com/macros/s/AKfycbwJ6JgQWqmhp9Y7gWPKvr5l5IixbWuNRAsbJ0km6AQIGuUBlniZeDfOpqtkGds-pxzB/exec";
 
 function verifyLineSignature(body, signature, channelSecret) {
   const hash = crypto
