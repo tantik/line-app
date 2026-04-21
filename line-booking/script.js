@@ -1,519 +1,309 @@
+const CONFIG = {
+  demoUrl: "https://line-app-xi.vercel.app/",
+  demoLeadUrl: "https://line-app-xi.vercel.app/?screen=lead",
+  webhookUrl:
+    "https://script.google.com/macros/s/AKfycbxyez8t9ni93cJrqdJxuyOYzUezCKEFr9Pr2cG9bQlZWsqnJInmJDPIake7Z1Esxx7z/exec",
+  source: "line-booking-v3-site",
+};
+
 document.addEventListener("DOMContentLoaded", () => {
-  const CONFIG = {
-    demoUrl: "https://liff.line.me/2009586903-hyNXZaW7",
-    consultationUrl: "#contact",
-    headerScrolledClass: "is-scrolled",
-    revealClass: "is-visible",
-    activeClass: "is-active",
-    formEndpoint: "https://script.google.com/macros/s/AKfycbx6lGm1eXiT3Fvue5E10BJXcArGhQnLyqx7SgzYAbJDtSCGkg_BjcDprd64-i0Ig-Dl/exec",
-  };
+  initMobileNav();
+  initReveal();
+  initCounters();
+  initFaq();
+  initModal();
+  initTilt();
+  initContactForm();
+  initYear();
+  initSmoothCloseMobileNav();
+});
 
-  const $ = (selector, parent = document) => parent.querySelector(selector);
-  const $$ = (selector, parent = document) => Array.from(parent.querySelectorAll(selector));
+function initMobileNav() {
+  const body = document.body;
+  const toggle = document.querySelector(".nav-toggle");
+  const mobileNav = document.querySelector(".mobile-nav");
 
-  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!toggle || !mobileNav) return;
 
-  const smoothScrollTo = (target) => {
-    if (!target) return;
-    target.scrollIntoView({
-      behavior: prefersReducedMotion ? "auto" : "smooth",
-      block: "start",
-    });
-  };
+  toggle.addEventListener("click", () => {
+    const isOpen = body.classList.toggle("menu-open");
+    toggle.setAttribute("aria-expanded", String(isOpen));
+  });
+}
 
-  const lockMenuBody = () => document.body.classList.add("menu-open");
-  const unlockMenuBody = () => document.body.classList.remove("menu-open");
+function initSmoothCloseMobileNav() {
+  const body = document.body;
+  const mobileLinks = document.querySelectorAll(".mobile-nav a");
 
-  const openBodyModalState = () => document.body.classList.add("modal-open");
-  const closeBodyModalState = () => document.body.classList.remove("modal-open");
-
-  const header = $(".site-header");
-  const navToggle = $(".nav-toggle");
-  const mobileNav = $(".mobile-nav");
-  const mobileNavLinks = $$(".mobile-nav a");
-
-  const updateHeaderState = () => {
-    if (!header) return;
-    header.classList.toggle(CONFIG.headerScrolledClass, window.scrollY > 10);
-  };
-
-  updateHeaderState();
-  window.addEventListener("scroll", updateHeaderState);
-
-  if (navToggle && mobileNav) {
-    navToggle.addEventListener("click", () => {
-      const expanded = navToggle.getAttribute("aria-expanded") === "true";
-      navToggle.setAttribute("aria-expanded", String(!expanded));
-      mobileNav.classList.toggle(CONFIG.activeClass, !expanded);
-
-      if (!expanded) {
-        lockMenuBody();
-      } else {
-        unlockMenuBody();
-      }
-    });
-
-    mobileNavLinks.forEach((link) => {
-      link.addEventListener("click", () => {
-        mobileNav.classList.remove(CONFIG.activeClass);
-        navToggle.setAttribute("aria-expanded", "false");
-        unlockMenuBody();
-      });
-    });
-  }
-
-  $$('a[href^="#"]').forEach((anchor) => {
-    anchor.addEventListener("click", (e) => {
-      const href = anchor.getAttribute("href");
-      if (!href || href === "#") return;
-
-      const target = $(href);
-      if (!target) return;
-
-      e.preventDefault();
-      smoothScrollTo(target);
+  mobileLinks.forEach((link) => {
+    link.addEventListener("click", () => {
+      body.classList.remove("menu-open");
+      const toggle = document.querySelector(".nav-toggle");
+      if (toggle) toggle.setAttribute("aria-expanded", "false");
     });
   });
+}
 
-  const modal = $(".modal");
-  const modalCloseButtons = $$(".js-close-modal");
-  const modalBackdrop = $(".modal-backdrop");
-  const demoButtons = $$(".js-open-demo");
-  const directDemoButtons = $$(".js-open-demo-direct");
-  const consultationButtons = $$(".js-open-consultation");
+function initReveal() {
+  const items = document.querySelectorAll(".reveal");
+  if (!items.length) return;
 
-  const openModal = () => {
-    if (!modal) {
-      window.open(CONFIG.demoUrl, "_blank", "noopener,noreferrer");
-      return;
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    },
+    {
+      threshold: 0.14,
+      rootMargin: "0px 0px -8% 0px",
     }
+  );
 
-    modal.classList.add(CONFIG.activeClass);
-    modal.setAttribute("aria-hidden", "false");
-    openBodyModalState();
-  };
+  items.forEach((item) => observer.observe(item));
+}
 
-  const closeModal = () => {
-    if (!modal) return;
-    modal.classList.remove(CONFIG.activeClass);
-    modal.setAttribute("aria-hidden", "true");
-    closeBodyModalState();
-  };
+function initCounters() {
+  const counters = document.querySelectorAll(".js-counter");
+  if (!counters.length) return;
 
-  demoButtons.forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      openModal();
-    });
-  });
-
-  directDemoButtons.forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      window.open(CONFIG.demoUrl, "_blank", "noopener,noreferrer");
-    });
-  });
-
-  consultationButtons.forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      closeModal();
-      const target = $(CONFIG.consultationUrl);
-      if (target) smoothScrollTo(target);
-    });
-  });
-
-  modalCloseButtons.forEach((btn) => {
-    btn.addEventListener("click", closeModal);
-  });
-
-  if (modalBackdrop) {
-    modalBackdrop.addEventListener("click", closeModal);
-  }
-
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeModal();
-  });
-
-  const revealElements = $$(".js-reveal");
-  const staggerGroups = $$(".js-stagger");
-
-  if ("IntersectionObserver" in window) {
-    const revealObserver = new IntersectionObserver(
-      (entries, observer) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          entry.target.classList.add(CONFIG.revealClass);
-          observer.unobserve(entry.target);
-        });
-      },
-      {
-        threshold: 0.12,
-        rootMargin: "0px 0px -5% 0px",
-      }
-    );
-
-    revealElements.forEach((el) => revealObserver.observe(el));
-
-    const staggerObserver = new IntersectionObserver(
-      (entries, observer) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-
-          const items = $$(".js-stagger-item", entry.target);
-          items.forEach((item, index) => {
-            if (prefersReducedMotion) {
-              item.classList.add(CONFIG.revealClass);
-              return;
-            }
-
-            setTimeout(() => {
-              item.classList.add(CONFIG.revealClass);
-            }, index * 90);
-          });
-
-          observer.unobserve(entry.target);
-        });
-      },
-      { threshold: 0.15 }
-    );
-
-    staggerGroups.forEach((group) => staggerObserver.observe(group));
-  } else {
-    revealElements.forEach((el) => el.classList.add(CONFIG.revealClass));
-    staggerGroups.forEach((group) => {
-      $$(".js-stagger-item", group).forEach((item) => item.classList.add(CONFIG.revealClass));
-    });
-  }
-
-  const hero = $(".hero");
-  const heroGlows = $$(".hero-glow");
-
-  if (hero && heroGlows.length && !prefersReducedMotion) {
-    hero.addEventListener("mousemove", (e) => {
-      const rect = hero.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-
-      heroGlows.forEach((glow, index) => {
-        const factor = index === 0 ? 12 : 18;
-        glow.style.transform = `translate(${(x - 50) / factor}px, ${(y - 50) / factor}px)`;
-      });
-    });
-
-    hero.addEventListener("mouseleave", () => {
-      heroGlows.forEach((glow) => {
-        glow.style.transform = "translate(0, 0)";
-      });
-    });
-  }
-
-  const tiltCards = $$(".js-tilt-card");
-  const isDesktopPointer = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-
-  if (isDesktopPointer && !prefersReducedMotion) {
-    tiltCards.forEach((card) => {
-      card.addEventListener("mousemove", (e) => {
-        const rect = card.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        const rotateX = ((y - rect.height / 2) / rect.height) * -5;
-        const rotateY = ((x - rect.width / 2) / rect.width) * 5;
-
-        card.style.transform = `perspective(900px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-2px)`;
-      });
-
-      card.addEventListener("mouseleave", () => {
-        card.style.transform = "";
-      });
-    });
-  }
-
-  const faqItems = $$(".faq-item");
-
-  faqItems.forEach((item) => {
-    const button = $(".faq-question", item);
-    const answer = $(".faq-answer", item);
-
-    if (!button || !answer) return;
-
-    button.addEventListener("click", () => {
-      const isOpen = item.classList.contains(CONFIG.activeClass);
-
-      faqItems.forEach((faq) => {
-        faq.classList.remove(CONFIG.activeClass);
-        const btn = $(".faq-question", faq);
-        const panel = $(".faq-answer", faq);
-        if (btn) btn.setAttribute("aria-expanded", "false");
-        if (panel) panel.style.maxHeight = null;
-      });
-
-      if (!isOpen) {
-        item.classList.add(CONFIG.activeClass);
-        button.setAttribute("aria-expanded", "true");
-        answer.style.maxHeight = answer.scrollHeight + "px";
-      }
-    });
-  });
-
-  const counters = $$(".js-counter");
+  const started = new WeakSet();
 
   const animateCounter = (el) => {
-    const target = Number(el.dataset.target || "0");
-    const duration = Number(el.dataset.duration || "1200");
+    if (started.has(el)) return;
+    started.add(el);
+
+    const target = Number(el.dataset.target || 0);
+    const duration = 1200;
     const startTime = performance.now();
 
-    const step = (currentTime) => {
-      const progress = Math.min((currentTime - startTime) / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const value = Math.floor(target * eased);
+    const formatter =
+      target >= 1000
+        ? (value) => Math.floor(value).toLocaleString("ja-JP")
+        : (value) => Math.floor(value).toString();
 
-      el.textContent = value.toLocaleString("ja-JP");
+    const tick = (now) => {
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      el.textContent = formatter(target * eased);
 
       if (progress < 1) {
-        requestAnimationFrame(step);
+        requestAnimationFrame(tick);
       } else {
-        el.textContent = target.toLocaleString("ja-JP");
+        el.textContent = formatter(target);
       }
     };
 
-    requestAnimationFrame(step);
+    requestAnimationFrame(tick);
   };
 
-  if ("IntersectionObserver" in window && counters.length) {
-    const counterObserver = new IntersectionObserver(
-      (entries, observer) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
+  const observer = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) {
           animateCounter(entry.target);
           observer.unobserve(entry.target);
-        });
-      },
-      { threshold: 0.5 }
-    );
-
-    counters.forEach((counter) => counterObserver.observe(counter));
-  }
-
-  const filterButtons = $$(".js-filter-btn");
-  const filterCards = $$(".js-filter-card");
-
-  if (filterButtons.length && filterCards.length) {
-    filterButtons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const category = btn.dataset.filter;
-
-        filterButtons.forEach((b) => b.classList.remove(CONFIG.activeClass));
-        btn.classList.add(CONFIG.activeClass);
-
-        filterCards.forEach((card) => {
-          const tags = (card.dataset.category || "").split(" ");
-          const show = category === "all" || tags.includes(category);
-
-          card.hidden = !show;
-          card.classList.toggle("is-hidden", !show);
-        });
+        }
       });
-    });
-  }
-
-  const form = $(".contact-form");
-  const formMessage = $(".form-message");
-
-  const validators = {
-    name: (value) => value.trim().length >= 2,
-    business: (value) => value.trim().length >= 2,
-    line: (value) => value.trim().length >= 2,
-    email: (value) => {
-      if (!value.trim()) return true;
-      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
     },
-    message: (value) => value.trim().length >= 8,
+    { threshold: 0.5 }
+  );
+
+  counters.forEach((counter) => observer.observe(counter));
+}
+
+function initFaq() {
+  const items = document.querySelectorAll(".faq-item");
+
+  items.forEach((item) => {
+    const button = item.querySelector(".faq-question");
+    if (!button) return;
+
+    button.addEventListener("click", () => {
+      const isOpen = item.classList.contains("is-open");
+
+      items.forEach((other) => {
+        other.classList.remove("is-open");
+        const otherButton = other.querySelector(".faq-question");
+        if (otherButton) otherButton.setAttribute("aria-expanded", "false");
+      });
+
+      if (!isOpen) {
+        item.classList.add("is-open");
+        button.setAttribute("aria-expanded", "true");
+      }
+    });
+  });
+}
+
+function initModal() {
+  const modal = document.getElementById("demoModal");
+  const openers = document.querySelectorAll(".js-open-demo");
+  const closeBtn = modal?.querySelector(".modal-close");
+  const backdrop = modal?.querySelector(".modal-backdrop");
+
+  if (!modal) return;
+
+  const openModal = (e) => {
+    if (e) e.preventDefault();
+    modal.classList.add("is-open");
+    modal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
   };
 
-  const setFieldState = (field, isValid) => {
-    const wrapper = field.closest(".field");
-    if (!wrapper) return;
-    wrapper.classList.toggle("is-error", !isValid);
-    wrapper.classList.toggle("is-valid", isValid);
+  const closeModal = () => {
+    modal.classList.remove("is-open");
+    modal.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
   };
 
-  const validateField = (field) => {
-    const validator = validators[field.name];
-    if (!validator) return true;
-    const valid = validator(field.value);
-    setFieldState(field, valid);
-    return valid;
-  };
+  openers.forEach((btn) => btn.addEventListener("click", openModal));
+  closeBtn?.addEventListener("click", closeModal);
+  backdrop?.addEventListener("click", closeModal);
 
-  async function submitLead(payload) {
-    if (!CONFIG.formEndpoint || CONFIG.formEndpoint.includes("YOUR_WEBAPP_ID")) {
-      throw new Error("FORM_ENDPOINT_NOT_SET");
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.classList.contains("is-open")) {
+      closeModal();
     }
+  });
+}
 
-    const response = await fetch(CONFIG.formEndpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8",
-      },
-      body: JSON.stringify(payload),
+function initTilt() {
+  const cards = document.querySelectorAll(".tilt-card");
+  if (!cards.length) return;
+
+  const isTouch = window.matchMedia("(pointer: coarse)").matches;
+  if (isTouch) return;
+
+  cards.forEach((card) => {
+    card.addEventListener("mousemove", (e) => {
+      const rect = card.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width;
+      const py = (e.clientY - rect.top) / rect.height;
+
+      const rotateY = (px - 0.5) * 10;
+      const rotateX = (0.5 - py) * 10;
+
+      card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) translateY(-2px)`;
     });
 
-    const text = await response.text();
+    card.addEventListener("mouseleave", () => {
+      card.style.transform = "";
+    });
+  });
+}
 
-    let data = {};
+function initContactForm() {
+  const form = document.getElementById("contactForm");
+  const messageEl = document.getElementById("formMessage");
+  const submitBtn = document.getElementById("submitBtn");
+
+  if (!form || !messageEl || !submitBtn) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const honeypot = document.getElementById("website");
+    if (honeypot && honeypot.value.trim() !== "") {
+      return;
+    }
+
+    const name = (document.getElementById("name")?.value || "").trim();
+    const business = (document.getElementById("business")?.value || "").trim();
+    const line = (document.getElementById("line")?.value || "").trim();
+    const email = (document.getElementById("email")?.value || "").trim();
+    const message = (document.getElementById("message")?.value || "").trim();
+
+    if (!name || !business || !line || !message) {
+      setFormMessage("必須項目を入力してください。", "error");
+      return;
+    }
+
+    const businessType = guessBusinessType(business, message);
+    const contact = email ? `${line} / ${email}` : line;
+
+    const payload = {
+      mode: "lead",
+      userId: "",
+      displayName: "",
+      salonName: business,
+      ownerName: name,
+      contact,
+      businessType,
+      needs: buildNeedsText({ line, email, message }),
+      source: CONFIG.source,
+    };
+
     try {
-      data = JSON.parse(text);
+      submitBtn.disabled = true;
+      submitBtn.textContent = "送信中...";
+      setFormMessage("送信しています...", "");
+
+      const response = await fetch(CONFIG.webhookUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      let result = {};
+      try {
+        result = await response.json();
+      } catch (jsonError) {
+        result = { status: "ok" };
+      }
+
+      if (result.status === "error") {
+        throw new Error("submit failed");
+      }
+
+      form.reset();
+      setFormMessage("送信完了しました。内容を確認後、ご案内いたします。", "success");
     } catch (error) {
-      data = { status: response.ok ? "success" : "error" };
+      console.error("Lead form submit error:", error);
+      setFormMessage("送信に失敗しました。時間をおいて再度お試しください。", "error");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "無料で相談する";
     }
-
-    if (!response.ok || (data.status && data.status !== "success") || data.ok === false) {
-      throw new Error(data.error || data.message || "SUBMIT_FAILED");
-    }
-
-    return data;
-  }
-
-  if (form) {
-    const fields = $$("input, textarea, select", form);
-
-    fields.forEach((field) => {
-      field.addEventListener("blur", () => validateField(field));
-      field.addEventListener("input", () => {
-        const wrapper = field.closest(".field");
-        if (wrapper && wrapper.classList.contains("is-error")) {
-          validateField(field);
-        }
-      });
-    });
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-
-      let isFormValid = true;
-
-      fields.forEach((field) => {
-        const valid = validateField(field);
-        if (!valid) isFormValid = false;
-      });
-
-      if (!isFormValid) {
-        if (formMessage) {
-          formMessage.textContent = "入力内容をご確認ください。";
-          formMessage.classList.add("is-error");
-          formMessage.classList.remove("is-success");
-        }
-        return;
-      }
-
-      const submitBtn = $('button[type="submit"]', form);
-
-      if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.dataset.originalText = submitBtn.textContent;
-        submitBtn.textContent = "送信中...";
-      }
-
-      try {
-        const payload = {
-          mode: "lead",
-          name: form.querySelector('[name="name"]').value.trim(),
-          business: form.querySelector('[name="business"]').value.trim(),
-          line: form.querySelector('[name="line"]').value.trim(),
-          email: form.querySelector('[name="email"]').value.trim(),
-          message: form.querySelector('[name="message"]').value.trim(),
-          source: form.dataset.source || "line-booking-v5-final",
-          page: window.location.href,
-          userAgent: navigator.userAgent,
-          submittedAt: new Date().toISOString(),
-        };
-
-        await submitLead(payload);
-
-        form.reset();
-
-        fields.forEach((field) => {
-          const wrapper = field.closest(".field");
-          if (wrapper) wrapper.classList.remove("is-valid", "is-error");
-        });
-
-        if (formMessage) {
-          formMessage.textContent = "送信しました。ありがとうございます。";
-          formMessage.classList.add("is-success");
-          formMessage.classList.remove("is-error");
-        }
-      } catch (error) {
-        if (formMessage) {
-          if (String(error.message) === "FORM_ENDPOINT_NOT_SET") {
-            formMessage.textContent = "フォーム送信先URLがまだ設定されていません。";
-          } else {
-            formMessage.textContent = "送信に失敗しました。時間をおいて再度お試しください。";
-          }
-
-          formMessage.classList.add("is-error");
-          formMessage.classList.remove("is-success");
-        }
-      } finally {
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = submitBtn.dataset.originalText || "送信";
-        }
-      }
-    });
-  }
-
-  const copyButtons = $$(".js-copy-demo-url");
-
-  copyButtons.forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(CONFIG.demoUrl);
-        const original = btn.textContent;
-        btn.textContent = "コピーしました";
-        setTimeout(() => {
-          btn.textContent = original;
-        }, 1400);
-      } catch (error) {
-        alert("コピーできませんでした");
-      }
-    });
   });
 
-  const sections = $$("section[id]");
-  const navLinks = $$('.site-nav a[href^="#"], .mobile-nav a[href^="#"]');
-
-  if ("IntersectionObserver" in window && sections.length && navLinks.length) {
-    const sectionObserver = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (!entry.isIntersecting) return;
-          const id = entry.target.getAttribute("id");
-
-          navLinks.forEach((link) => {
-            const href = link.getAttribute("href");
-            link.classList.toggle(CONFIG.activeClass, href === `#${id}`);
-          });
-        });
-      },
-      {
-        rootMargin: "-40% 0px -45% 0px",
-        threshold: 0.01,
-      }
-    );
-
-    sections.forEach((section) => sectionObserver.observe(section));
+  function setFormMessage(text, type) {
+    messageEl.textContent = text;
+    messageEl.classList.remove("is-success", "is-error");
+    if (type === "success") messageEl.classList.add("is-success");
+    if (type === "error") messageEl.classList.add("is-error");
   }
+}
 
-  const yearEl = $(".js-year");
-  if (yearEl) yearEl.textContent = new Date().getFullYear();
+function buildNeedsText({ line, email, message }) {
+  const parts = [
+    "Landing page lead",
+    `LINE or contact: ${line || "-"}`,
+    `Email: ${email || "-"}`,
+    `Message: ${message || "-"}`,
+  ];
+  return parts.join("\n");
+}
 
-  window.addEventListener("load", () => {
-    $$(".js-reveal, .js-stagger-item").forEach((el) => {
-      if (!el.classList.contains(CONFIG.revealClass)) {
-        el.classList.add(CONFIG.revealClass);
-      }
-    });
-  });
-});
+function guessBusinessType(business, message) {
+  const text = `${business} ${message}`.toLowerCase();
+
+  if (text.includes("ネイル")) return "ネイル";
+  if (text.includes("まつげ") || text.includes("眉")) return "まつげ";
+  if (text.includes("美容室") || text.includes("ヘア") || text.includes("バーバー")) return "美容室";
+  if (text.includes("マッサージ") || text.includes("整体")) return "マッサージ";
+  if (text.includes("spa") || text.includes("スパ")) return "SPA";
+  if (text.includes("エステ") || text.includes("脱毛")) return "エステ";
+  if (text.includes("クリニック") || text.includes("医院")) return "クリニック";
+
+  return "その他";
+}
+
+function initYear() {
+  const year = document.getElementById("year");
+  if (year) year.textContent = new Date().getFullYear().toString();
+}

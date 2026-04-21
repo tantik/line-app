@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>LINE予約自動化システム | サロン向け LINE Booking Solution | IZUMI IT COMPANY</title>
+  <meta
+    name="description"
+    content="サロン向けLINE予約自動化ソリューション。手動のやり取りを減らし、予約導線を整理し、見込み客を逃しにくい受付体験へ。美容室、ネイル、まつげ、SPA、マッサージ、バーバー向け。"
+  />
+  <meta
+    name="keywords"
+    content="LINE予約, サロン予約, LINE予約システム, 美容室予約, ネイルサロン予約, LINE自動化, サロンDX, LIFF"
+  />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="LINE予約自動化システム | IZUMI IT COMPANY" />
+  <meta
+    property="og:description"
+    content="LINEでの予約受付を、もっとわかりやすく、もっと取りこぼしにくく。サロン向け予約導線改善ソリューション。"
+  />
+  <meta property="og:url" content="https://www.izumi-it-company.com/line-booking/" />
+
+  <link rel="shortcut icon" href="https://www.izumi-it-company.com/assets/images/app/favicon.ico" type="image/x-icon">
+  <link rel="icon" type="image/png" sizes="16x16" href="https://www.izumi-it-company.com/assets/images/app/icon-16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="https://www.izumi-it-company.com/assets/images/app/icon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="https://www.izumi-it-company.com/assets/images/app/apple-touch-icon.png">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="site-bg"></div>
+
+  <header class="header site-header">
+    <div class="container header-inner">
+      <a href="#hero" class="brand">
+        <div class="brand-mark"></div>
+        <div class="brand-text">
+          <strong>IZUMI IT COMPANY</strong>
+          <span>LINE Booking Solution</span>
+        </div>
+      </a>
+
+      <nav class="desktop-nav site-nav">
+        <a href="#problems">課題</a>
+        <a href="#benefits">メリット</a>
+        <a href="#flow">流れ</a>
+        <a href="#implementation">導入</a>
+        <a href="#pricing">料金</a>
+        <a href="#cases">活用例</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+
+      <div class="header-actions">
+        <a href="#" class="btn btn-primary js-open-demo">デモを見る</a>
+
+        <button
+          class="nav-toggle"
+          aria-label="メニューを開く"
+          aria-expanded="false"
+          type="button"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+
+    <nav class="mobile-nav">
+      <a href="#problems">課題</a>
+      <a href="#benefits">メリット</a>
+      <a href="#flow">流れ</a>
+      <a href="#implementation">導入</a>
+      <a href="#pricing">料金</a>
+      <a href="#cases">活用例</a>
+      <a href="#faq">FAQ</a>
+      <a href="#contact" class="js-open-consultation">無料相談</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="hero section" id="hero">
+      <div class="hero-glow hero-glow-a"></div>
+      <div class="hero-glow hero-glow-b"></div>
+
+      <div class="container hero-grid">
+        <div class="hero-copy reveal js-reveal">
+          <span class="section-label">LINE BOOKING FOR JAPANESE SALONS</span>
+
+          <h1>
+            LINE予約を、<br />
+            <span>“売上につながる受付導線”へ。</span>
+          </h1>
+
+          <p class="hero-lead">
+            手動のやり取りを減らし、予約をもっとスムーズに。<br />
+            美容室・ネイル・まつげ・バーバー・SPA・マッサージ向けに、
+            <strong>LINEからの予約受付を整理し、取りこぼしにくい導線</strong>を作ります。
+          </p>
+
+          <div class="hero-actions">
+            <a href="#" class="btn btn-primary js-open-demo">LINEデモを見る</a>
+            <a href="#contact" class="btn btn-secondary js-open-consultation">無料で相談する</a>
+          </div>
+
+          <ul class="hero-points">
+            <li>手動の確認メッセージを減らしやすい</li>
+            <li>お客様が迷いにくい予約導線を設計</li>
+            <li>営業時間外の受付にも強い導線を構築</li>
+            <li>単店舗から複数スタッフ運用まで相談可能</li>
+          </ul>
+
+          <div class="hero-proof">
+            <div class="proof-pill">
+              <span class="proof-dot"></span>
+              動くデモあり
+            </div>
+            <div class="proof-pill">サロン向け特化</div>
+            <div class="proof-pill">店舗ごとに調整可能</div>
+            <div class="proof-pill">導入相談対応</div>
+          </div>
+        </div>
+
+        <div class="hero-visual reveal js-reveal">
+          <div class="floating-badge badge-top">
+            <span>LINE予約</span>
+            <strong>迷わない受付導線</strong>
+          </div>
+
+          <div class="floating-badge badge-right">
+            <span>運用改善</span>
+            <strong>返信負担を軽減</strong>
+          </div>
+
+          <div class="phone-mockup premium-phone js-tilt-card">
+            <div class="phone-top"></div>
+            <div class="phone-screen">
+              <div class="mini-app-card">
+                <div class="mini-app-top">
+                  <div class="mini-app-badge">LINE Demo</div>
+                  <div class="mini-app-status">予約フロー</div>
+                </div>
+
+                <h3>サロン予約デモ</h3>
+
+                <div class="flow-steps">
+                  <span>サービス</span>
+                  <span>スタッフ</span>
+                  <span>日付</span>
+                  <span>時間</span>
+                  <span>確認</span>
+                  <span>完了</span>
+                </div>
+
+                <div class="option-stack">
+                  <div class="option-card active">
+                    <div class="option-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M4 20l7-7"></path>
+                        <path d="M14 4l6 6"></path>
+                        <path d="M13 5l6 6"></path>
+                        <path d="M3 21l5-1 11-11-4-4L4 16l-1 5z"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <strong>カット + カラー</strong>
+                      <span>人気メニュー</span>
+                    </div>
+                  </div>
+
+                  <div class="option-card">
+                    <div class="option-icon">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <path d="M12 3v18"></path>
+                        <path d="M5 8c0-2 2.2-3 4-3h6c1.8 0 4 1 4 3s-2.2 3-4 3H9C7.2 11 5 12 5 14s2.2 3 4 3h6c1.8 0 4-1 4-3"></path>
+                      </svg>
+                    </div>
+                    <div>
+                      <strong>ネイルケア</strong>
+                      <span>短時間メニュー</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="phone-panel">
+                  <div class="phone-row">
+                    <strong>担当: Sato</strong>
+                    <span>指名可</span>
+                  </div>
+                  <div class="phone-row">
+                    <strong>2026/04/03</strong>
+                    <span>14:00</span>
+                  </div>
+                  <div class="phone-row">
+                    <strong>月額目安</strong>
+                    <span>9,800円〜</span>
+                  </div>
+                </div>
+
+                <button class="phone-cta" type="button">予約内容を確認する</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TRUST -->
+    <section class="trust-strip">
+      <div class="container trust-strip-inner reveal js-reveal">
+        <span>美容室</span>
+        <span>ネイルサロン</span>
+        <span>まつげ / 眉サロン</span>
+        <span>バーバー</span>
+        <span>SPA</span>
+        <span>マッサージ</span>
+        <span>エステ / 脱毛</span>
+        <span>小規模チェーン</span>
+      </div>
+    </section>
+
+    <!-- PROBLEMS -->
+    <section class="section" id="problems">
+      <div class="container">
+        <div class="section-head reveal js-reveal">
+          <span class="section-label">PROBLEMS</span>
+          <h2>LINE予約は便利。でも、手動運用のままだと機会損失が起きやすくなります。</h2>
+          <p>
+            予約がメッセージ中心だと、毎回の確認、返信待ち、見落とし、確認ミスが起きやすくなります。
+            とくに忙しい時間帯や営業時間外では、<strong>本来取れたはずの予約</strong>を逃すことがあります。
+          </p>
+        </div>
+
+        <div class="problem-grid js-stagger">
+          <article class="card feature-card problem-card js-stagger-item js-tilt-card">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </div>
+            <h3>同じ確認が何度も発生</h3>
+            <p>メニュー、担当者、日時、空き状況のやり取りが毎回発生し、スタッフの時間を使います。</p>
+          </article>
+
+          <article class="card feature-card problem-card js-stagger-item js-tilt-card">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="3" y="4" width="18" height="18" rx="2"></rect>
+                <path d="M16 2v4"></path>
+                <path d="M8 2v4"></path>
+                <path d="M3 10h18"></path>
+              </svg>
+            </div>
+            <h3>確認ミスや行き違いが起きやすい</h3>
+            <p>やり取りが長くなるほど、日時やメニューの誤認、見落とし、確認漏れにつながります。</p>
+          </article>
+
+          <article class="card feature-card problem-card js-stagger-item js-tilt-card">
+            <div class="feature-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 20V10"></path>
+                <path d="M18 20V4"></path>
+                <path d="M6 20v-6"></path>
+              </svg>
+            </div>
+            <h3>返信待ちの間に予約を逃す</h3>
+            <p>返信が遅れると、お客様は他店へ流れる可能性があります。導線の整理は機会損失対策にもなります。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- BENEFITS -->
+    <section class="section selling-section" id="benefits">
+      <div class="container">
+        <div class="section-head reveal js-reveal">
+          <span class="section-label">BENEFITS</span>
+          <h2>この仕組みが目指すのは、ただの“予約画面”ではありません。</h2>
+          <p>
+            目的は、LINEからの予約をもっと取りやすくし、店舗側の負担を減らし、
+            お客様にとっても使いやすい受付体験を作ることです。
+          </p>
+        </div>
+
+        <div class="benefits-grid js-stagger">
+          <article class="card benefit-card js-stagger-item">
+            <h3>予約までが速くなる</h3>
+            <p>お客様は順番に選ぶだけ。何を送ればいいか迷いにくく、予約まで進みやすくなります。</p>
+          </article>
+
+          <article class="card benefit-card js-stagger-item">
+            <h3>返信負担を減らしやすい</h3>
+            <p>基本情報を先に整理できるので、スタッフが毎回ゼロから確認する負担を減らせます。</p>
+          </article>
+
+          <article class="card benefit-card js-stagger-item">
+            <h3>営業時間外も受付しやすい</h3>
+            <p>夜間や接客中でも入口を整えておくことで、見込み客を逃しにくくなります。</p>
+          </article>
+
+          <article class="card benefit-card js-stagger-item">
+            <h3>店舗の印象が整う</h3>
+            <p>“LINEで予約できる”だけでなく、“わかりやすく予約できる”ことが信頼感につながります。</p>
+          </article>
+
+          <article class="card benefit-card js-stagger-item">
+            <h3>今の運用に寄せやすい</h3>
+            <p>いきなり大きな仕組み変更ではなく、今の受付導線を整理しながら始めやすい形です。</p>
+          </article>
+
+          <article class="card benefit-card js-stagger-item">
+            <h3>将来の自動化にもつながる</h3>
+            <p>まずは予約導線を整え、その先に自動返信、確認通知、管理画面強化などへ広げやすくなります。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- FLOW -->
+    <section class="section section-dark" id="flow">
+      <div class="container">
+        <div class="section-head reveal js-reveal">
+          <span class="section-label">BOOKING FLOW</span>
+          <h2>お客様は、スマホで順番に選ぶだけ。</h2>
+          <p>
+            予約の流れをシンプルにすることで、
+            “何を送ればいいかわからない”を減らし、完了まで進みやすくします。
+          </p>
+        </div>
+
+        <div class="flow-grid js-stagger">
+          <article class="flow-step js-stagger-item">
+            <span class="flow-number">01</span>
+            <h3>サービスを選ぶ</h3>
+            <p>メニューを選択</p>
+          </article>
+
+          <article class="flow-step js-stagger-item">
+            <span class="flow-number">02</span>
+            <h3>スタッフを選ぶ</h3>
+            <p>担当者や指名を選択</p>
+          </article>
+
+          <article class="flow-step js-stagger-item">
+            <span class="flow-number">03</span>
+            <h3>日付を選ぶ</h3>
+            <p>来店希望日を選択</p>
+          </article>
+
+          <article class="flow-step js-stagger-item">
+            <span class="flow-number">04</span>
+            <h3>時間を選ぶ</h3>
+            <p>空き枠から選択</p>
+          </article>
+
+          <article class="flow-step js-stagger-item">
+            <span class="flow-number">05</span>
+            <h3>内容を確認</h3>
+            <p>予約情報を最終確認</p>
+          </article>
+
+          <article class="flow-step js-stagger-item">
+            <span class="flow-number">06</span>
+            <h3>送信・完了</h3>
+            <p>そのまま送信して予約完了へ</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEGMENTS -->
+    <section class="section" id="segments">
+      <div class="container">
+        <div class="section-head reveal js-reveal">
+          <span class="section-label">FOR WHO</span>
+          <h2>予約導線が大事な業種にフィットします。</h2>
+          <p>
+            LINEでの問い合わせや予約受付が多い業種ほど、
+            導線を整えるメリットが出やすいです。
+          </p>
+        </div>
+
+        <div class="segment-filters reveal js-reveal">
+          <button class="filter-btn js-filter-btn is-active" type="button" data-filter="all">すべて</button>
+          <button class="filter-btn js-filter-btn" type="button" data-filter="beauty">美容</button>
+          <button class="filter-btn js-filter-btn" type="button" data-filter="care">ケア</button>
+          <button class="filter-btn js-filter-btn" type="button" data-filter="clinic">施術</button>
+          <button class="filter-btn js-filter-btn" type="button" data-filter="multi">多店舗</button>
+        </div>
+
+        <div class="segments-grid js-stagger">
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="beauty">
+            <h3>美容室</h3>
+            <p>カット、カラー、指名予約などの流れを整理しやすいです。</p>
+          </article>
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="beauty">
+            <h3>ネイルサロン</h3>
+            <p>メニュー選択と日時選択をスムーズにつなげやすい構成です。</p>
+          </article>
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="beauty">
+            <h3>まつげ / 眉サロン</h3>
+            <p>施術内容ごとの分岐や確認項目をわかりやすく整理できます。</p>
+          </article>
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="care">
+            <h3>マッサージ</h3>
+            <p>コース選択や所要時間の案内と相性が良いです。</p>
+          </article>
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="care">
+            <h3>SPAサロン</h3>
+            <p>高単価サービスでも上品な導線で予約体験を整えやすいです。</p>
+          </article>
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="beauty">
+            <h3>バーバー</h3>
+            <p>シンプルなメニューでも、予約の流れを見やすく整理できます。</p>
+          </article>
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="clinic">
+            <h3>脱毛 / エステ</h3>
+            <p>確認項目が多いサービスでも、順番に案内しやすい形にできます。</p>
+          </article>
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="clinic">
+            <h3>タトゥースタジオ</h3>
+            <p>相談導線と予約導線を分けて見せる設計も可能です。</p>
+          </article>
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="clinic">
+            <h3>コスメ / 美容施術</h3>
+            <p>導入前の相談が必要なサービスでも入口設計を整えられます。</p>
+          </article>
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="multi">
+            <h3>小規模チェーン</h3>
+            <p>店舗ごとの受付ルール整理やスタッフ別対応を考えやすくなります。</p>
+          </article>
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="multi">
+            <h3>フランチャイズ</h3>
+            <p>複数拠点に広げる前提の相談もしやすい設計です。</p>
+          </article>
+          <article class="card segment-card js-filter-card js-stagger-item" data-category="beauty care">
+            <h3>その他予約制サービス</h3>
+            <p>LINE受付が中心の業種であれば、応用しやすい構成です。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- IMPLEMENTATION -->
+    <section class="section process-section" id="implementation">
+      <div class="container">
+        <div class="section-head reveal js-reveal">
+          <span class="section-label">IMPLEMENTATION</span>
+          <h2>導入は、いきなり大がかりにしません。</h2>
+          <p>
+            まずは今の受付方法を整理し、必要な範囲から始めます。
+            “全部を変える”のではなく、<strong>予約導線の改善から始める</strong>のが現実的です。
+          </p>
+        </div>
+
+        <div class="process-grid js-stagger">
+          <article class="card process-card js-stagger-item">
+            <span class="case-tag">STEP 01</span>
+            <h3>ヒアリング</h3>
+            <p>現在の予約方法、メニュー数、スタッフ数、困りごとを整理します。</p>
+          </article>
+
+          <article class="card process-card js-stagger-item">
+            <span class="case-tag">STEP 02</span>
+            <h3>デモ確認</h3>
+            <p>実際の動きを見ながら、あなたの店舗に合う方向性を確認します。</p>
+          </article>
+
+          <article class="card process-card js-stagger-item">
+            <span class="case-tag">STEP 03</span>
+            <h3>初期設計</h3>
+            <p>サービス、スタッフ、時間枠、案内文などを店舗に合わせて整理します。</p>
+          </article>
+
+          <article class="card process-card js-stagger-item">
+            <span class="case-tag">STEP 04</span>
+            <h3>スタート</h3>
+            <p>まずは必要最小限から開始し、反応を見ながら改善していきます。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- PRICING -->
+<section class="section pricing-section" id="pricing">
+  <div class="container">
+    <div class="section-head reveal js-reveal">
+      <span class="section-label">PRICE / PLAN</span>
+      <h2>始めやすい形で導入し、必要に応じて調整できます。</h2>
+      <p>
+        完成済みの一律SaaSではなく、
+        サロン様の運用に合わせて導入内容をご提案する形です。<br />
+        まずは無理なく始められる価格帯でご案内しています。
+      </p>
+    </div>
+
+    <div class="pricing-soft-card card reveal js-reveal">
+      <div class="pricing-soft-head">
+        <span class="pricing-badge">Starter Price</span>
+        <h3>導入しやすいスタート価格</h3>
+      </div>
+
+      <div class="pricing-soft-grid">
+        <div class="pricing-soft-item">
+          <span class="pricing-soft-label">初期費用</span>
+          <strong class="pricing-soft-value">3万円〜</strong>
+          <p>初期設定・基本導線の整理・導入準備を含みます</p>
+        </div>
+
+        <div class="pricing-soft-item">
+          <span class="pricing-soft-label">月額</span>
+          <strong class="pricing-soft-value">9,800円〜</strong>
+          <p>運用サポート・軽微修正・更新対応を含みます</p>
+        </div>
+      </div>
+
+      <div class="pricing-soft-note">
+        ※店舗規模・内容によりご提案いたします
+      </div>
+
+      <div class="pricing-soft-actions">
+        <a href="#contact" class="btn btn-primary js-open-consultation">無料で相談する</a>
+        <a href="#" class="btn btn-secondary js-open-demo">デモを見る</a>
+      </div>
+    </div>
+
+    <div class="pricing-grid js-stagger pricing-subgrid">
+      <article class="card pricing-card js-stagger-item">
+        <div class="pricing-top">
+          <span class="pricing-badge">For Small Salon</span>
+          <h3>シンプル導入</h3>
+        </div>
+        <p class="pricing-lead">まずは予約導線を整えたい単店舗・小規模サロン向け</p>
+        <ul class="pricing-list">
+          <li>予約導線の基本設計</li>
+          <li>サービス / スタッフ / 時間枠の整理</li>
+          <li>無理のない範囲でスタート</li>
+        </ul>
+      </article>
+
+      <article class="card pricing-card pricing-card-featured js-stagger-item">
+        <div class="pricing-top">
+          <span class="pricing-badge">Recommended</span>
+          <h3>標準的なご提案</h3>
+        </div>
+        <p class="pricing-lead">現在の運用を見ながら、必要な内容を一緒に整理する形です</p>
+        <ul class="pricing-list">
+          <li>デモ確認</li>
+          <li>ヒアリング</li>
+          <li>店舗に合わせた初期提案</li>
+        </ul>
+      </article>
+
+      <article class="card pricing-card js-stagger-item">
+        <div class="pricing-top">
+          <span class="pricing-badge">Custom</span>
+          <h3>カスタム対応</h3>
+        </div>
+        <p class="pricing-lead">複数スタッフ・多店舗・複雑な運用に合わせた相談向け</p>
+        <ul class="pricing-list">
+          <li>複数運用パターンの検討</li>
+          <li>導線や管理方法の調整</li>
+          <li>将来拡張を見据えた設計</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+    <!-- CASES -->
+    <section class="section cases-section" id="cases">
+      <div class="container">
+        <div class="section-head reveal js-reveal">
+          <span class="section-label">USE CASES</span>
+          <h2>こういう店舗に、特に相性があります。</h2>
+          <p>
+            “全部を一気に変える”必要はありません。
+            まずは予約受付だけを整えたい店舗に向いています。
+          </p>
+        </div>
+
+        <div class="cases-grid js-stagger">
+          <article class="card case-card js-stagger-item">
+            <span class="case-tag">Case 01</span>
+            <h3>個人サロン</h3>
+            <p class="case-problem">
+              接客中や営業時間外にLINEが来ても、すぐ返信できず機会損失が出やすい。
+            </p>
+            <p class="case-result">
+              予約入口を整えることで、見込み客が予約完了まで進みやすくなります。
+            </p>
+          </article>
+
+          <article class="card case-card js-stagger-item">
+            <span class="case-tag">Case 02</span>
+            <h3>複数スタッフのサロン</h3>
+            <p class="case-problem">
+              担当者確認、空き時間、指名の有無など、やり取りが増えて煩雑になりやすい。
+            </p>
+            <p class="case-result">
+              サービス → スタッフ → 日時 の順で案内し、確認負担を減らしやすくします。
+            </p>
+          </article>
+
+          <article class="card case-card js-stagger-item">
+            <span class="case-tag">Case 03</span>
+            <h3>小規模チェーン / 多店舗</h3>
+            <p class="case-problem">
+              店舗ごとに受付方法がバラつき、オペレーションが見えにくい。
+            </p>
+            <p class="case-result">
+              受付導線の土台を整理することで、運用ルールを整えやすくなります。
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- DEMO -->
+    <section class="section demo-section" id="demo">
+      <div class="container demo-grid">
+        <div class="demo-copy reveal js-reveal">
+          <span class="section-label">WORKING DEMO</span>
+          <h2>これはアイデアではなく、すでに動くデモです。</h2>
+          <p>
+            実際に体験できる予約導線として、
+            サービス → スタッフ → 日付 → 時間 → 確認 → 完了まで用意しています。
+            まずは触ってみるのが一番早いです。
+          </p>
+
+          <ul class="demo-list">
+            <li>予約フローの実デモ</li>
+            <li>お問い合わせフォーム</li>
+            <li>オーナー / 管理者向け画面</li>
+            <li>カレンダー確認イメージ</li>
+          </ul>
+
+          <div class="hero-actions">
+            <a href="#" class="btn btn-primary js-open-demo">LINEデモを開く</a>
+            <a href="#contact" class="btn btn-secondary js-open-consultation">導入相談をする</a>
+          </div>
+        </div>
+
+        <div class="demo-visual reveal js-reveal">
+          <div class="dashboard-card js-tilt-card">
+            <div class="dashboard-top">
+              <span></span><span></span><span></span>
+            </div>
+
+            <div class="dashboard-content">
+              <div class="dashboard-calendar">
+                <div class="calendar-title">Admin Demo</div>
+                <div class="calendar-grid">
+                  <span>1</span><span>2</span><span class="active">3</span><span>4</span><span>5</span><span>6</span><span>7</span>
+                  <span>8</span><span>9</span><span>10</span><span class="active">11</span><span>12</span><span>13</span><span>14</span>
+                </div>
+              </div>
+
+              <div class="dashboard-side">
+                <div class="booking-item">
+                  <strong>14:00 / Sato</strong>
+                  <span>カット + カラー</span>
+                </div>
+                <div class="booking-item">
+                  <strong>16:00 / Yamada</strong>
+                  <span>ネイルケア</span>
+                </div>
+                <div class="booking-item">
+                  <strong>18:00 / Kato</strong>
+                  <span>まつげパーマ</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REASONS -->
+    <section class="section reasons-section">
+      <div class="container">
+        <div class="section-head reveal js-reveal">
+          <span class="section-label">WHY IZUMI IT COMPANY</span>
+          <h2>売っているのは、ただの“画面”ではありません。</h2>
+          <p>
+            大事なのは、見た目だけでなく、
+            実際の店舗運用に合う予約導線として使いやすいことです。
+          </p>
+        </div>
+
+        <div class="reasons-grid js-stagger">
+          <article class="card reason-card js-stagger-item">
+            <div class="reason-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 20h9"></path>
+                <path d="M12 4h9"></path>
+                <path d="M4 9h16"></path>
+                <path d="M4 15h16"></path>
+              </svg>
+            </div>
+            <h3>サロン目線で考えやすい</h3>
+            <p>難しいIT説明ではなく、予約受付の改善として話を進めやすい構成です。</p>
+          </article>
+
+          <article class="card reason-card js-stagger-item">
+            <div class="reason-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M12 2l7 4v6c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-4z"></path>
+                <path d="M9.5 12l1.7 1.7L15 10"></path>
+              </svg>
+            </div>
+            <h3>相談しながら調整できる</h3>
+            <p>メニュー、スタッフ数、指名有無、時間枠などに合わせて方向性を整理できます。</p>
+          </article>
+
+          <article class="card reason-card js-stagger-item">
+            <div class="reason-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <path d="M3 12h18"></path>
+                <path d="M12 3v18"></path>
+                <circle cx="12" cy="12" r="9"></circle>
+              </svg>
+            </div>
+            <h3>拡張の土台になる</h3>
+            <p>まずは予約導線の改善から始め、その先の自動化や管理改善にも広げやすくなります。</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="section final-cta-section">
+      <div class="container">
+        <div class="final-cta card reveal js-reveal">
+          <span class="section-label">NEXT STEP</span>
+          <h2>まずは、あなたの店舗で使える形かどうかを確認しましょう。</h2>
+          <p>
+            デモを見て終わりではなく、
+            今の受付方法に合わせて導入できるかを一緒に整理します。
+            小さく始めて、必要に応じて育てる進め方ができます。
+          </p>
+
+          <div class="hero-actions final-cta-actions">
+            <a href="#" class="btn btn-primary js-open-demo">デモを見る</a>
+            <a href="#contact" class="btn btn-secondary js-open-consultation">無料相談する</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTACT -->
+    <section class="section consult-section" id="contact">
+      <div class="container consult-grid">
+        <div class="consult-copy reveal js-reveal">
+          <span class="section-label">LEAD FORM</span>
+          <h2>まずは、あなたの店舗の予約導線を見直してみませんか。</h2>
+          <p>
+            デモを見たあとに、
+            今の予約方法・困っていること・理想の流れをヒアリングしながら、
+            どこから改善するのが良いかを一緒に整理します。
+          </p>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <strong class="js-counter" data-target="6" data-duration="1000">0</strong>
+              <span>予約ステップ</span>
+            </div>
+            <div class="stat-card">
+              <strong class="js-counter" data-target="12" data-duration="1200">0</strong>
+              <span>対応しやすい業種例</span>
+            </div>
+            <div class="stat-card">
+              <strong class="js-counter" data-target="1" data-duration="900">0</strong>
+              <span>今すぐ試せるデモ</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="consult-form-wrap reveal js-reveal">
+          <form class="contact-form" data-source="line-booking-v5-final">
+            <div class="field">
+              <label for="name">お名前</label>
+              <input id="name" name="name" type="text" placeholder="山田 太郎" required />
+            </div>
+
+            <div class="field">
+              <label for="business">店舗名 / 業種</label>
+              <input id="business" name="business" type="text" placeholder="〇〇ネイル / ネイルサロン" required />
+            </div>
+
+            <div class="field">
+              <label for="line">LINE ID または連絡先</label>
+              <input id="line" name="line" type="text" placeholder="@yourlineid" required />
+            </div>
+
+            <div class="field">
+              <label for="email">メールアドレス（任意）</label>
+              <input id="email" name="email" type="email" placeholder="example@email.com" />
+            </div>
+
+            <div class="field">
+              <label for="message">ご相談内容</label>
+              <textarea
+                id="message"
+                name="message"
+                rows="5"
+                placeholder="現在の予約方法、困っていること、改善したいことをご記入ください。"
+                required
+              ></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-full">無料で相談する</button>
+            <p class="form-message"></p>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section faq-section" id="faq">
+      <div class="container">
+        <div class="section-head reveal js-reveal">
+          <span class="section-label">FAQ</span>
+          <h2>よくあるご質問</h2>
+        </div>
+
+        <div class="faq-list">
+          <article class="faq-item">
+            <button class="faq-question" type="button" aria-expanded="false">
+              小さいサロンでも使えますか？
+            </button>
+            <div class="faq-answer">
+              <p>はい。個人店、小規模サロン、少人数運営でもご相談しやすい形を想定しています。</p>
+            </div>
+          </article>
+
+          <article class="faq-item">
+            <button class="faq-question" type="button" aria-expanded="false">
+              これは完成済みのSaaSですか？
+            </button>
+            <div class="faq-answer">
+              <p>現時点では、動くデモをベースに店舗ごとに合う形を提案するソリューション型です。</p>
+            </div>
+          </article>
+
+          <article class="faq-item">
+            <button class="faq-question" type="button" aria-expanded="false">
+              自分のメニューやスタッフに合わせられますか？
+            </button>
+            <div class="faq-answer">
+              <p>はい。サービス内容、スタッフ、予約の流れに応じて調整しやすい設計です。</p>
+            </div>
+          </article>
+
+          <article class="faq-item">
+            <button class="faq-question" type="button" aria-expanded="false">
+              まずは何をすればいいですか？
+            </button>
+            <div class="faq-answer">
+              <p>まずはデモをご確認いただき、その後ご相談フォームからご連絡ください。</p>
+            </div>
+          </article>
+
+          <article class="faq-item">
+            <button class="faq-question" type="button" aria-expanded="false">
+              費用はすぐに決まりますか？
+            </button>
+            <div class="faq-answer">
+              <p>店舗規模、スタッフ数、必要な機能によって変わるため、まずはヒアリング後に方向性をご案内します。</p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" aria-hidden="true">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <button class="modal-close js-close-modal" type="button" aria-label="閉じる">×</button>
+      <div class="modal-content">
+        <h3>LINEデモを見る</h3>
+        <p>
+          実際に動く予約デモを確認できます。<br />
+          まずは体験して、あなたの店舗で使えそうか見てみてください。
+        </p>
+        <div class="hero-actions">
+          <a href="#" class="btn btn-primary js-open-demo-direct">LINEデモを開く</a>
+          <button type="button" class="btn btn-secondary js-copy-demo-url">URLをコピー</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <strong>IZUMI IT COMPANY</strong>
+        <p>LINE Booking Solution for Salons</p>
+      </div>
+
+      <div class="footer-links">
+        <a href="#hero">Top</a>
+        <a href="#pricing">Plans</a>
+        <a href="#contact">Contact</a>
+      </div>
+
+      <div class="footer-copy">
+        © <span class="js-year"></span> IZUMI IT COMPANY
+      </div>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
