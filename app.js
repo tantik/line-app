@@ -31,6 +31,29 @@ let initDone = false;
 let visibleDaysCount = CONFIG.INITIAL_VISIBLE_DAYS;
 let bookingsPrefetchStarted = false;
 
+function getQueryParam(name) {
+  const params = new URLSearchParams(window.location.search);
+  return params.get(name) || "";
+}
+
+function openInitialScreenFromUrl() {
+  const screen = getQueryParam("screen");
+
+  if (screen === "lead") {
+    previousScreen = "welcome";
+
+    const ownerInput = document.getElementById("leadOwnerName");
+    if (ownerInput && !ownerInput.value) {
+      ownerInput.value = displayName || "";
+    }
+
+    showScreen("leadFormScreen");
+    return true;
+  }
+
+  return false;
+}
+
 const cacheStore = {
   services: { data: null, ts: 0 },
   staff: { data: null, ts: 0 },
@@ -70,6 +93,11 @@ async function init() {
     renderDateOptions();
     renderStep2IdleState();
     updateSummary();
+
+    const openedFromUrl = openInitialScreenFromUrl();
+    if (!openedFromUrl) {
+      showScreen("welcome");
+    }
 
     startBookingsPrefetch();
   } catch (e) {

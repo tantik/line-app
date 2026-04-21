@@ -9,48 +9,287 @@ function verifyLineSignature(body, signature, channelSecret) {
   return hash === signature;
 }
 
-function getMenuReplyText(text) {
+function buildHowItWorksFlex() {
+  return {
+    type: "flex",
+    altText: "仕組みを見る",
+    contents: {
+      type: "bubble",
+      size: "giga",
+      hero: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "20px",
+        backgroundColor: "#2F4F3E",
+        contents: [
+          {
+            type: "text",
+            text: "LINE予約の流れ",
+            color: "#FFFFFF",
+            weight: "bold",
+            size: "xl"
+          },
+          {
+            type: "text",
+            text: "サロン向け予約自動化デモ",
+            color: "#E8EFEA",
+            size: "sm",
+            margin: "md"
+          }
+        ]
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "lg",
+        paddingAll: "20px",
+        backgroundColor: "#F8F5EF",
+        contents: [
+          {
+            type: "box",
+            layout: "baseline",
+            spacing: "md",
+            contents: [
+              {
+                type: "text",
+                text: "1",
+                flex: 0,
+                weight: "bold",
+                color: "#2F4F3E",
+                size: "lg"
+              },
+              {
+                type: "text",
+                text: "LINEから簡単に予約",
+                wrap: true,
+                color: "#333333",
+                size: "md"
+              }
+            ]
+          },
+          {
+            type: "box",
+            layout: "baseline",
+            spacing: "md",
+            contents: [
+              {
+                type: "text",
+                text: "2",
+                flex: 0,
+                weight: "bold",
+                color: "#2F4F3E",
+                size: "lg"
+              },
+              {
+                type: "text",
+                text: "予約確認メッセージを自動送信",
+                wrap: true,
+                color: "#333333",
+                size: "md"
+              }
+            ]
+          },
+          {
+            type: "box",
+            layout: "baseline",
+            spacing: "md",
+            contents: [
+              {
+                type: "text",
+                text: "3",
+                flex: 0,
+                weight: "bold",
+                color: "#2F4F3E",
+                size: "lg"
+              },
+              {
+                type: "text",
+                text: "来店前日にリマインド通知",
+                wrap: true,
+                color: "#333333",
+                size: "md"
+              }
+            ]
+          },
+          {
+            type: "separator",
+            margin: "md"
+          },
+          {
+            type: "text",
+            text: "予約対応の手間を減らし、よりスムーズな運営につなげられます。",
+            wrap: true,
+            color: "#555555",
+            size: "sm"
+          }
+        ]
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "16px",
+        backgroundColor: "#F8F5EF",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            height: "sm",
+            color: "#2F4F3E",
+            action: {
+              type: "uri",
+              label: "デモを試す",
+              uri: "https://line-app-xi.vercel.app/"
+            }
+          }
+        ]
+      }
+    }
+  };
+}
+
+function buildBenefitsFlex() {
+  return {
+    type: "flex",
+    altText: "導入メリット",
+    contents: {
+      type: "bubble",
+      size: "giga",
+      hero: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "20px",
+        backgroundColor: "#2F4F3E",
+        contents: [
+          {
+            type: "text",
+            text: "導入メリット",
+            color: "#FFFFFF",
+            weight: "bold",
+            size: "xl"
+          },
+          {
+            type: "text",
+            text: "サロン運営をもっとシンプルに",
+            color: "#E8EFEA",
+            size: "sm",
+            margin: "md"
+          }
+        ]
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "lg",
+        paddingAll: "20px",
+        backgroundColor: "#F8F5EF",
+        contents: [
+          {
+            type: "box",
+            layout: "vertical",
+            spacing: "sm",
+            contents: [
+              {
+                type: "text",
+                text: "✓ 営業時間外でも予約受付が可能",
+                wrap: true,
+                color: "#333333",
+                size: "md"
+              },
+              {
+                type: "text",
+                text: "✓ 予約対応の手間を削減",
+                wrap: true,
+                color: "#333333",
+                size: "md"
+              },
+              {
+                type: "text",
+                text: "✓ 確認やリマインドを自動化",
+                wrap: true,
+                color: "#333333",
+                size: "md"
+              },
+              {
+                type: "text",
+                text: "✓ スタッフ共有をスムーズに",
+                wrap: true,
+                color: "#333333",
+                size: "md"
+              },
+              {
+                type: "text",
+                text: "✓ 無断キャンセル対策の基盤づくり",
+                wrap: true,
+                color: "#333333",
+                size: "md"
+              }
+            ]
+          },
+          {
+            type: "separator",
+            margin: "md"
+          },
+          {
+            type: "text",
+            text: "サロン側の負担を減らし、接客に集中しやすくなります。",
+            wrap: true,
+            color: "#555555",
+            size: "sm"
+          }
+        ]
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "16px",
+        backgroundColor: "#F8F5EF",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            height: "sm",
+            color: "#2F4F3E",
+            action: {
+              type: "uri",
+              label: "相談する",
+              uri: "https://line-app-xi.vercel.app/?screen=lead"
+            }
+          }
+        ]
+      }
+    }
+  };
+}
+
+function getMenuReplyMessage(text) {
   if (text === "仕組みを見る") {
-    return (
-      "LINEで予約受付を自動化できます✨\n\n" +
-      "このデモでできること\n" +
-      "・LINEから予約受付\n" +
-      "・予約確認メッセージ送信\n" +
-      "・前日リマインド送信\n" +
-      "・店舗側への通知\n\n" +
-      "予約対応の手間を減らし、\n" +
-      "よりスムーズな運営につなげられます。"
-    );
+    return [buildHowItWorksFlex()];
   }
 
   if (text === "導入メリット") {
-    return (
-      "導入メリットはこちらです📈\n\n" +
-      "・営業時間外でも予約受付が可能\n" +
-      "・予約対応の手間を削減\n" +
-      "・確認やリマインドを自動化\n" +
-      "・スタッフ共有をスムーズに\n" +
-      "・無断キャンセル対策の基盤づくり\n\n" +
-      "サロン側の負担を減らし、\n" +
-      "接客に集中しやすくなります。"
-    );
+    return [buildBenefitsFlex()];
   }
 
   if (text === "相談する" || text === "お問い合わせ") {
-    return (
-      "ご相談ありがとうございます😊\n\n" +
-      "このままLINEでお気軽にご連絡ください。\n\n" +
-      "例えば：\n" +
-      "・料金について\n" +
-      "・導入について\n" +
-      "・デモ説明"
-    );
+    return [
+      {
+        type: "text",
+        text:
+          "ご相談ありがとうございます😊\n\n" +
+          "下のリンクからそのままご相談フォームを開けます。\n" +
+          "必要事項を入力いただければ、確認後にご案内します。"
+      },
+      {
+        type: "text",
+        text: "https://line-app-xi.vercel.app/?screen=lead"
+      }
+    ];
   }
 
   return null;
 }
 
-async function replyMessage(replyToken, text, channelAccessToken) {
+async function replyMessage(replyToken, messages, channelAccessToken) {
   const res = await fetch("https://api.line.me/v2/bot/message/reply", {
     method: "POST",
     headers: {
@@ -59,12 +298,7 @@ async function replyMessage(replyToken, text, channelAccessToken) {
     },
     body: JSON.stringify({
       replyToken,
-      messages: [
-        {
-          type: "text",
-          text,
-        },
-      ],
+      messages
     }),
   });
 
@@ -95,11 +329,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ ok: false, error: "Missing x-line-signature" });
     }
 
-    const isValidSignature = verifyLineSignature(
-      rawBody,
-      signature,
-      channelSecret
-    );
+    const isValidSignature = verifyLineSignature(rawBody, signature, channelSecret);
 
     if (!isValidSignature) {
       return res.status(401).json({ ok: false, error: "Invalid signature" });
@@ -108,7 +338,6 @@ export default async function handler(req, res) {
     const data = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
     const events = Array.isArray(data.events) ? data.events : [];
 
-    // ВАЖНО: на verify LINE может прислать events: []
     if (events.length === 0) {
       return res.status(200).json({ ok: true });
     }
@@ -119,11 +348,11 @@ export default async function handler(req, res) {
       if (!event.replyToken) continue;
 
       const userText = String(event.message.text || "").trim();
-      const replyText = getMenuReplyText(userText);
+      const replyMessages = getMenuReplyMessage(userText);
 
-      if (!replyText) continue;
+      if (!replyMessages) continue;
 
-      await replyMessage(event.replyToken, replyText, channelAccessToken);
+      await replyMessage(event.replyToken, replyMessages, channelAccessToken);
     }
 
     return res.status(200).json({ ok: true });
