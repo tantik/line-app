@@ -2,114 +2,442 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Mirawi Demo</title>
-  <link rel="stylesheet" href="style.css"/>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <title>Mirawi Salon Demo</title>
+  <meta
+    name="description"
+    content="LINE予約デモ。予約体験、仕組み紹介、導入相談、管理画面デモをミニアプリ形式で確認できます。"
+  />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="./style.css" />
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
+  <div class="page-bg">
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+    <div class="bg-orb orb-c"></div>
+    <div class="bg-grid"></div>
+  </div>
 
-<div id="app">
-
-  <!-- HOME -->
-  <section class="screen active" id="home">
-    <div class="card">
-      <h1>LINE予約デモ</h1>
-      <p>サロン予約をもっと簡単に</p>
-
-      <div class="menu">
-        <button onclick="goTo('booking')">予約デモ</button>
-        <button onclick="goTo('info')">仕組みを見る</button>
-        <button onclick="goTo('lead')">相談する</button>
-        <button onclick="openAdmin()">管理画面</button>
+  <div id="loadingOverlay" class="loading-overlay active" aria-hidden="true">
+    <div class="loading-card">
+      <div class="spinner"></div>
+      <div class="loading-copy">
+        <div class="loading-title">読み込み中...</div>
+        <div class="loading-text">予約情報を準備しています</div>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- INFO -->
-  <section class="screen" id="info">
-    <div class="card">
-      <h2>この仕組み</h2>
-      <ul>
-        <li>24時間予約</li>
-        <li>LINE確認</li>
-        <li>自動リマインド</li>
-      </ul>
-      <button onclick="goTo('home')">戻る</button>
+  <main class="app-shell">
+    <div class="device-frame">
+      <div class="screen-stack">
+
+        <!-- 0. WELCOME -->
+        <section id="screenWelcome" class="screen active">
+          <div class="hero-glow"></div>
+
+          <div class="welcome-top">
+            <span class="hero-badge">LINE予約デモ</span>
+          </div>
+
+          <div class="welcome-copy">
+            <h1>LINEで予約受付を<br />もっとかんたんに</h1>
+            <p id="heroDescription">
+              24時間受付、空き時間の自動確認、予約通知、リマインドまで。
+              サロン向けの予約導線をそのまま体験できます。
+            </p>
+          </div>
+
+          <div class="hero-points">
+            <div class="hero-point">✓ 24時間予約受付</div>
+            <div class="hero-point">✓ 空き時間を自動表示</div>
+            <div class="hero-point">✓ LINE通知・リマインド対応</div>
+          </div>
+
+          <div class="hero-actions">
+            <button class="btn btn-primary btn-lg" id="btnStartDemo" type="button">
+              デモを体験する
+            </button>
+            <button class="btn btn-secondary btn-lg" id="btnOpenInfo" type="button">
+              仕組みを見る
+            </button>
+            <button class="btn btn-secondary btn-lg" id="btnOpenLead" type="button">
+              導入相談をする
+            </button>
+            <button class="btn btn-secondary btn-lg" id="btnOpenAdmin" type="button">
+              管理画面を見る
+            </button>
+          </div>
+
+          <div class="welcome-stats">
+            <div class="stat-card">
+              <span>受付</span>
+              <strong>24時間</strong>
+            </div>
+            <div class="stat-card">
+              <span>通知</span>
+              <strong>LINE対応</strong>
+            </div>
+            <div class="stat-card">
+              <span>確認</span>
+              <strong>空き枠自動</strong>
+            </div>
+          </div>
+        </section>
+
+        <!-- INFO -->
+        <section id="screenInfo" class="screen">
+          <div class="screen-top">
+            <button class="icon-back" data-back="screenWelcome" type="button">←</button>
+            <div class="screen-chip">仕組み紹介</div>
+          </div>
+
+          <div class="section-head">
+            <h2>この仕組みでできること</h2>
+            <p>
+              単なる予約フォームではなく、LINE上で予約・確認・導入相談まで
+              つながるサロン向け導線です。
+            </p>
+          </div>
+
+          <div class="info-cards">
+            <article class="soft-card">
+              <span class="soft-kicker">01</span>
+              <h3>予約受付の自動化</h3>
+              <p>営業時間外でも予約を受け付けやすく、手動対応を減らしやすいです。</p>
+            </article>
+
+            <article class="soft-card">
+              <span class="soft-kicker">02</span>
+              <h3>LINE確認フロー</h3>
+              <p>予約後にLINEで確認・キャンセル導線を送れるので、no-show対策にもつながります。</p>
+            </article>
+
+            <article class="soft-card">
+              <span class="soft-kicker">03</span>
+              <h3>サロン別に調整可能</h3>
+              <p>スタッフ、営業時間、価格、メニューなどを店舗ごとに合わせて構成できます。</p>
+            </article>
+
+            <article class="soft-card">
+              <span class="soft-kicker">04</span>
+              <h3>管理画面で運用</h3>
+              <p>将来的には予約一覧、スタッフ、料金、時間設定をサロン側で更新できる設計です。</p>
+            </article>
+          </div>
+
+          <div class="bottom-actions single">
+            <button class="btn btn-primary" id="btnInfoStartDemo" type="button">
+              デモ予約へ進む
+            </button>
+          </div>
+        </section>
+
+        <!-- LEAD -->
+        <section id="screenLead" class="screen">
+          <div class="screen-top">
+            <button class="icon-back" data-back="screenWelcome" type="button">←</button>
+            <div class="screen-chip">相談フォーム</div>
+          </div>
+
+          <div class="section-head compact">
+            <h2>導入相談</h2>
+            <p>1分ほどで送信できます。内容を確認後、導入案をご案内します。</p>
+          </div>
+
+          <div class="soft-card recommend-card">
+            <h3>こんな方におすすめ</h3>
+            <ul class="plain-list">
+              <li>電話やDM対応を減らしたい</li>
+              <li>LINE予約をもっと整理したい</li>
+              <li>自分の店舗に合う形で導入したい</li>
+            </ul>
+          </div>
+
+          <div class="form-stack">
+            <div class="field">
+              <label for="leadSalonName">店舗名 / 会社名</label>
+              <input id="leadSalonName" type="text" placeholder="Mirawi Salon" />
+            </div>
+
+            <div class="field">
+              <label for="leadOwnerName">ご担当者名</label>
+              <input id="leadOwnerName" type="text" placeholder="山田 花子" />
+            </div>
+
+            <div class="field">
+              <label for="leadContact">LINE ID / 電話番号 / メール</label>
+              <input id="leadContact" type="text" placeholder="@mirawi / 09012345678 / sample@mail.com" />
+            </div>
+
+            <div class="field">
+              <label for="leadBusinessType">業種</label>
+              <select id="leadBusinessType">
+                <option value="">業種を選択してください</option>
+                <option>美容室</option>
+                <option>ネイル</option>
+                <option>まつげ</option>
+                <option>マッサージ</option>
+                <option>クリニック</option>
+                <option>その他</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="leadNeeds">相談したいこと</label>
+              <textarea
+                id="leadNeeds"
+                rows="5"
+                placeholder="例：予約受付を自動化したい / LINE通知を入れたい / 自分の業種に合わせたい"
+              ></textarea>
+            </div>
+          </div>
+
+          <div class="bottom-actions">
+            <button class="btn btn-ghost" data-back="screenWelcome" type="button">戻る</button>
+            <button class="btn btn-primary" id="btnSubmitLead" type="button">相談を送信</button>
+          </div>
+        </section>
+
+        <!-- LEAD SUCCESS -->
+        <section id="screenLeadSuccess" class="screen">
+          <div class="success-icon small">✓</div>
+          <div class="section-head center">
+            <h2>送信完了</h2>
+            <p>ご相談内容を受け付けました。LINEまたはご連絡先へご案内します。</p>
+          </div>
+          <div class="bottom-actions single">
+            <button class="btn btn-primary" data-back="screenWelcome" type="button">トップへ戻る</button>
+          </div>
+        </section>
+
+        <!-- STEP 1 SERVICE -->
+        <section id="screenService" class="screen">
+          <div class="screen-top">
+            <button class="icon-back" data-back="screenWelcome" type="button">←</button>
+            <div class="step-chip">1/4</div>
+          </div>
+
+          <div class="section-head compact">
+            <h2>サービスを選択</h2>
+            <p>ご希望のメニューを選択してください</p>
+          </div>
+
+          <div id="servicesList" class="service-gallery"></div>
+
+          <div class="bottom-actions single sticky-cta">
+            <button class="btn btn-primary" id="btnGoStaff" type="button">次へ</button>
+          </div>
+        </section>
+
+        <!-- STEP 2 STAFF -->
+        <section id="screenStaff" class="screen">
+          <div class="screen-top">
+            <button class="icon-back" data-back="screenService" type="button">←</button>
+            <div class="step-chip">2/4</div>
+          </div>
+
+          <div class="section-head compact">
+            <h2>担当者を選択</h2>
+            <p>選択したサービスに対応できる担当者のみ表示されます</p>
+          </div>
+
+          <div class="selection-summary mini">
+            <span>サービス</span>
+            <strong id="staffStepSelectedService">-</strong>
+          </div>
+
+          <div id="staffList" class="staff-grid"></div>
+
+          <div class="bottom-actions">
+            <button class="btn btn-ghost" id="btnStaffSkip" type="button">未選択で進む</button>
+            <button class="btn btn-primary" id="btnGoDateTime" type="button">次へ</button>
+          </div>
+        </section>
+
+        <!-- STEP 3 DATE/TIME -->
+        <section id="screenDateTime" class="screen">
+          <div class="screen-top">
+            <button class="icon-back" data-back="screenStaff" type="button">←</button>
+            <div class="step-chip">3/4</div>
+          </div>
+
+          <div class="section-head compact">
+            <h2>日時を選択</h2>
+            <p>日付・時間・担当者を確認してください</p>
+          </div>
+
+          <div class="block-head">
+            <h3>日付選択</h3>
+            <span id="dateCountLabel">14日表示</span>
+          </div>
+          <div id="dateList" class="date-grid"></div>
+
+          <button class="btn btn-secondary load-more-btn" id="loadMoreDatesBtn" type="button">
+            もっと見る
+          </button>
+
+          <div class="block-head time-head">
+            <h3>時間選択</h3>
+            <span id="slotHint">日付を選択してください</span>
+          </div>
+
+          <div id="inlineTimeLoading" class="inline-loading" style="display:none;">
+            <div class="spinner mini"></div>
+            <div>空き状況を確認中...</div>
+          </div>
+
+          <div id="timeList" class="time-grid empty-state">
+            先に日付を選択してください
+          </div>
+
+          <div class="block-head">
+            <h3>対応可能な担当者</h3>
+          </div>
+
+          <div id="staffListStep2" class="staff-grid compact-grid empty-state">
+            時間を選ぶと表示されます
+          </div>
+
+          <div class="selection-summary">
+            <div>
+              <span>サービス</span>
+              <strong id="liveSummaryService">-</strong>
+            </div>
+            <div>
+              <span>担当者</span>
+              <strong id="liveSummaryStaff">-</strong>
+            </div>
+            <div>
+              <span>日時</span>
+              <strong id="liveSummaryDateTime">-</strong>
+            </div>
+          </div>
+
+          <div class="bottom-actions single sticky-cta">
+            <button class="btn btn-primary" id="btnGoConfirm" type="button">確認へ</button>
+          </div>
+        </section>
+
+        <!-- STEP 4 CONFIRM -->
+        <section id="screenConfirm" class="screen">
+          <div class="screen-top">
+            <button class="icon-back" data-back="screenDateTime" type="button">←</button>
+            <div class="step-chip">4/4</div>
+          </div>
+
+          <div class="section-head compact">
+            <h2>予約確認</h2>
+            <p>内容をご確認ください</p>
+          </div>
+
+          <div class="confirm-hero">
+            <div class="confirm-kicker">ご予約内容</div>
+            <div class="confirm-title" id="confirmService">-</div>
+            <div class="confirm-staff" id="confirmStaff">-</div>
+            <p>この内容で予約を確定すると、LINEで確認メッセージが届きます。</p>
+          </div>
+
+          <div class="confirm-meta">
+            <div class="meta-row">
+              <span>📅 日付</span>
+              <strong id="confirmDate">-</strong>
+            </div>
+            <div class="meta-row">
+              <span>⏰ 時間</span>
+              <strong id="confirmTime">-</strong>
+            </div>
+          </div>
+
+          <div class="section-head compact tighter">
+            <h3>お客様情報</h3>
+          </div>
+
+          <div class="form-stack">
+            <div class="field">
+              <label for="name">お名前</label>
+              <input id="name" type="text" placeholder="LINEから取得または入力" />
+            </div>
+
+            <div class="field">
+              <label for="phone">電話番号</label>
+              <input id="phone" type="tel" placeholder="09012345678" inputmode="tel" />
+              <small>サロン側から連絡できるように、電話番号は必須です</small>
+            </div>
+          </div>
+
+          <div class="bottom-actions">
+            <button class="btn btn-ghost" data-back="screenDateTime" type="button">戻る</button>
+            <button class="btn btn-primary" id="btnSubmitBooking" type="button">予約を確定</button>
+          </div>
+        </section>
+
+        <!-- SUCCESS -->
+        <section id="screenSuccess" class="screen">
+          <div class="success-icon">✓</div>
+
+          <div class="section-head center">
+            <h2>ありがとうございました</h2>
+            <p>お客様にはLINEで予約内容が送信されます</p>
+          </div>
+
+          <div class="confirm-meta">
+            <div class="meta-row">
+              <span>📅 日付</span>
+              <strong id="successDate">-</strong>
+            </div>
+            <div class="meta-row">
+              <span>⏰ 時間</span>
+              <strong id="successTime">-</strong>
+            </div>
+            <div class="meta-row">
+              <span>サービス</span>
+              <strong id="successService">-</strong>
+            </div>
+            <div class="meta-row">
+              <span>担当</span>
+              <strong id="successStaff">-</strong>
+            </div>
+          </div>
+
+          <div class="owner-card">
+            <span class="owner-chip">FOR SALON OWNERS</span>
+            <h3>この予約導線を、あなたの店舗向けに導入できます</h3>
+            <p>
+              今の予約方法に合わせて、LINE予約・通知・リマインドの流れを
+              店舗ごとに調整してご提案できます。
+            </p>
+            <ul class="plain-list">
+              <li>✓ 電話・DM対応の負担を減らしやすい</li>
+              <li>✓ 営業時間外でも予約受付しやすい</li>
+              <li>✓ 業種や運用に合わせて調整可能</li>
+            </ul>
+            <button class="btn btn-primary btn-full" id="btnSuccessLead" type="button">
+              無料で導入相談する
+            </button>
+          </div>
+
+          <div class="bottom-actions single">
+            <button class="btn btn-secondary" id="btnSuccessRestart" type="button">
+              もう一度デモを見る
+            </button>
+          </div>
+        </section>
+
+      </div>
     </div>
-  </section>
+  </main>
 
-  <!-- BOOKING STEP 1 -->
-  <section class="screen" id="booking">
-    <div class="card">
-      <h2>サービス選択</h2>
-      <div id="services"></div>
-
-      <h2>担当者</h2>
-      <div id="staff"></div>
-
-      <button onclick="nextStep()">次へ</button>
-      <button onclick="goTo('home')">戻る</button>
-    </div>
-  </section>
-
-  <!-- STEP 2 -->
-  <section class="screen" id="datetime">
-    <div class="card">
-      <h2>日時選択</h2>
-
-      <input type="date" id="date"/>
-
-      <div id="times"></div>
-
-      <button onclick="nextStep2()">確認へ</button>
-      <button onclick="goTo('booking')">戻る</button>
-    </div>
-  </section>
-
-  <!-- STEP 3 -->
-  <section class="screen" id="confirm">
-    <div class="card">
-      <h2>確認</h2>
-
-      <div id="summary"></div>
-
-      <input id="name" placeholder="名前"/>
-      <input id="phone" placeholder="電話番号"/>
-
-      <button onclick="confirmBooking()">予約する</button>
-      <button onclick="goTo('datetime')">戻る</button>
-    </div>
-  </section>
-
-  <!-- DONE -->
-  <section class="screen" id="done">
-    <div class="card">
-      <h2>予約完了</h2>
-      <p>LINEに確認メッセージを送ります</p>
-
-      <div id="doneSummary"></div>
-
-      <button onclick="goTo('home')">ホームへ</button>
-      <button onclick="goTo('lead')">相談する</button>
-    </div>
-  </section>
-
-  <!-- LEAD -->
-  <section class="screen" id="lead">
-    <div class="card">
-      <h2>相談</h2>
-
-      <input id="leadName" placeholder="名前"/>
-      <input id="leadSalon" placeholder="店舗名"/>
-      <textarea id="leadMsg"></textarea>
-
-      <button onclick="sendLead()">送信</button>
-      <button onclick="goTo('home')">戻る</button>
-    </div>
-  </section>
-
-</div>
-
-<script src="script.js"></script>
+  <script src="./script.js"></script>
 </body>
 </html>
