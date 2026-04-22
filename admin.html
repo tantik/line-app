@@ -3,108 +3,81 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Salon Admin Calendar</title>
+  <title>Salon Admin | Supabase</title>
+  <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="./admin.css" />
 </head>
 <body>
   <div id="loadingOverlay" class="loading-overlay active">
     <div class="loading-card">
-      <div class="loading-spinner"></div>
-      <div class="loading-title">読み込み中...</div>
-      <div class="loading-text">予約データを準備しています</div>
+      <div class="spinner"></div>
+      <h2>読み込み中...</h2>
+      <p>予約データを準備しています</p>
     </div>
   </div>
 
-  <div id="toast" class="toast" aria-live="polite">
-    <div class="toast-title">通知</div>
-    <div class="toast-text" id="toastText">予約データが更新されました</div>
-  </div>
-
-  <div class="app">
-    <div class="topbar">
-      <div>
-        <h1 class="title">予約カレンダー</h1>
-        <p class="subtitle">担当者ごとの予約状況を確認できます</p>
-      </div>
-
-      <div class="mode-switch">
-        <button class="mode-btn active" id="modeDayBtn" type="button">日</button>
-        <button class="mode-btn" id="modeWeekBtn" type="button">週</button>
-      </div>
-    </div>
-
-    <div class="quick-actions">
-      <button class="quick-btn primary" type="button" id="todayBtn">今日</button>
-      <button class="quick-btn" type="button" id="tomorrowBtn">明日</button>
-      <button class="quick-btn" type="button" id="thisWeekBtn">今週</button>
-      <button class="quick-btn" type="button" id="refreshBtn">更新</button>
-    </div>
-
-    <div class="filters">
-      <input type="date" id="selectedDate" class="field" />
-
-      <div class="filter-row">
-        <select id="staffFilter" class="select">
-          <option value="">全スタッフ</option>
-        </select>
-
-        <select id="serviceFilter" class="select">
-          <option value="">全サービス</option>
-        </select>
-      </div>
-    </div>
-
-    <div class="summary-grid">
-      <div class="summary-card">
-        <div class="summary-label">予約件数</div>
-        <div class="summary-value" id="bookingCount">0</div>
-      </div>
-
-      <div class="summary-card">
-        <div class="summary-label">稼働スタッフ</div>
-        <div class="summary-value" id="staffCount">0</div>
-      </div>
-
-      <div class="summary-card">
-        <div class="summary-label">平均所要時間</div>
-        <div class="summary-value" id="avgDuration">0分</div>
-      </div>
-    </div>
-
-    <div class="legend">
-      <div class="legend-chip accent">今日の表示</div>
-      <div class="legend-chip">スタッフ別</div>
-      <div class="legend-chip">サービス絞り込み</div>
-      <div class="legend-chip info" id="modeLabel">日表示</div>
-      <div class="legend-chip done">完了</div>
-      <div class="legend-chip cancel">キャンセル</div>
-      <div class="legend-chip confirm-pending">未確認</div>
-      <div class="legend-chip confirm-ok">確認済み</div>
-      <div class="legend-chip confirm-risk">要確認</div>
-      <div class="live-badge">AUTO更新</div>
-    </div>
-
-    <div class="status-bar">
-      <div><span class="status-dot"></span><span id="lastUpdated">最終更新: --</span></div>
-      <div id="rangeLabel">表示範囲: --</div>
-    </div>
-
-    <div id="calendarContainer">
-      <div class="skeleton-section" id="skeletonBlock">
-        <div class="skeleton-card">
-          <div class="skeleton-line w-40"></div>
-          <div class="skeleton-line w-100"></div>
-          <div class="skeleton-line w-80"></div>
+  <main class="admin-wrap">
+    <section class="card auth-card">
+      <div class="auth-header">
+        <div>
+          <span class="pill">Admin</span>
+          <h1>予約カレンダー</h1>
+          <p class="muted">担当者ごとの予約状況を確認できます</p>
         </div>
-        <div class="skeleton-card">
-          <div class="skeleton-line w-30"></div>
-          <div class="skeleton-line w-100"></div>
-          <div class="skeleton-line w-60"></div>
+        <button id="signOutBtn" class="ghost-btn" type="button">ログアウト</button>
+      </div>
+
+      <div id="authLoggedOut">
+        <div class="field">
+          <label for="adminEmail">管理者メール</label>
+          <input id="adminEmail" type="email" placeholder="manager@salon.jp" />
+        </div>
+        <button id="sendMagicLinkBtn" class="primary-btn" type="button">ログインリンクを送る</button>
+      </div>
+
+      <div id="authLoggedIn" class="hidden">
+        <div class="auth-summary">
+          <strong id="whoAmI">-</strong>
+          <span id="tenantLabel" class="muted">-</span>
         </div>
       </div>
-    </div>
-  </div>
+    </section>
 
+    <section class="card toolbar">
+      <div class="toolbar-row">
+        <input id="selectedDate" type="date" />
+        <select id="statusFilter">
+          <option value="">全ステータス</option>
+          <option value="pending">未確認</option>
+          <option value="confirmed">確認済み</option>
+          <option value="risk">要確認</option>
+          <option value="cancelled">キャンセル</option>
+          <option value="completed">完了</option>
+        </select>
+        <input id="searchText" type="text" placeholder="お客様名 / 電話 / サービス" />
+        <button id="refreshBtn" class="primary-btn" type="button">更新</button>
+      </div>
+      <div class="toolbar-row slim">
+        <div class="metric"><strong id="metricCount">0</strong><span>予約件数</span></div>
+        <div class="metric"><strong id="metricPending">0</strong><span>未確認</span></div>
+        <div class="metric"><strong id="metricRisk">0</strong><span>要確認</span></div>
+        <div class="metric"><strong id="metricCancelled">0</strong><span>キャンセル</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="table-head">
+        <h2>予約一覧</h2>
+        <span id="lastUpdated" class="muted">最終更新: --</span>
+      </div>
+      <div id="bookingTable" class="booking-table"></div>
+      <div id="emptyState" class="empty-state hidden">条件に一致する予約はありません</div>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./src/env.js"></script>
+  <script src="./src/supabase-client.js"></script>
   <script src="./admin.js"></script>
 </body>
 </html>
