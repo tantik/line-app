@@ -50,6 +50,37 @@ async function init() {
   setLoading(true, "読み込み中...", "予約情報を準備しています");
 
   try {
+    const isLocalhost =
+      location.hostname === "127.0.0.1" ||
+      location.hostname === "localhost";
+
+    if (isLocalhost) {
+      console.log("DEV MODE: localhost detected, LINE login bypass enabled");
+
+      userId = "dev-user";
+      displayName = "Dev User";
+
+      const nameInput = document.getElementById("name");
+      if (nameInput) nameInput.value = displayName || "";
+
+      const leadOwnerName = document.getElementById("leadOwnerName");
+      if (leadOwnerName) leadOwnerName.value = displayName || "";
+
+      bindPhoneInput();
+
+      await Promise.all([loadServices(true), loadStaff(true)]);
+
+      renderServices();
+      renderStaffStep1();
+      renderDateOptions();
+      renderStep3IdleState();
+      updateSummary();
+      showScreen("screenWelcome");
+
+      startBookingsPrefetch();
+      return;
+    }
+
     await liff.init({ liffId: CONFIG.LIFF_ID });
 
     if (!liff.isLoggedIn()) {
