@@ -2,82 +2,175 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Salon Admin | Supabase</title>
-  <link rel="stylesheet" href="./style.css" />
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1,viewport-fit=cover"
+  />
+  <title>Salon Admin | Bookings</title>
   <link rel="stylesheet" href="./admin.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./src/env.js"></script>
+  <script src="./src/supabase.js"></script>
 </head>
 <body>
   <div id="loadingOverlay" class="loading-overlay active">
     <div class="loading-card">
       <div class="spinner"></div>
-      <h2>読み込み中...</h2>
-      <p>予約データを準備しています</p>
+      <div class="loading-title">読み込み中...</div>
+      <div class="loading-text">予約データを準備しています</div>
     </div>
   </div>
 
-  <main class="admin-wrap">
-    <section class="card auth-card">
-      <div class="auth-header">
+  <div class="app-shell">
+    <aside class="side-panel">
+      <div class="brand-box">
+        <div class="brand-badge">Admin</div>
+        <h1>予約管理</h1>
+        <p>リアルタイムで予約状況を確認できます</p>
+      </div>
+
+      <section id="authLoggedOut" class="auth-card">
+        <h2>サロン管理者ログイン</h2>
+        <p class="muted">
+          メールアドレスにログインリンクを送信します
+        </p>
+
+        <label class="field-label" for="adminEmail">管理者メール</label>
+        <input
+          id="adminEmail"
+          class="text-input"
+          type="email"
+          placeholder="owner@example.com"
+          autocomplete="email"
+        />
+
+        <button id="sendMagicLinkBtn" class="btn btn-primary btn-block">
+          ログインリンクを送る
+        </button>
+      </section>
+
+      <section id="authLoggedIn" class="auth-card hidden">
+        <div class="whoami">
+          <div class="whoami-label">ログイン中</div>
+          <div id="whoAmI" class="whoami-value">-</div>
+        </div>
+
+        <div class="tenant-box">
+          <div class="whoami-label">サロン / 権限</div>
+          <div id="tenantLabel" class="tenant-value">-</div>
+        </div>
+
+        <div class="side-actions">
+          <button id="refreshBtn" class="btn btn-secondary">更新</button>
+          <button id="signOutBtn" class="btn btn-ghost">ログアウト</button>
+        </div>
+      </section>
+
+      <section class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-value" id="metricCount">0</div>
+          <div class="metric-label">表示件数</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="metricPending">0</div>
+          <div class="metric-label">未確認</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="metricRisk">0</div>
+          <div class="metric-label">要確認</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" id="metricCancelled">0</div>
+          <div class="metric-label">キャンセル</div>
+        </div>
+      </section>
+
+      <section class="legend-card">
+        <h3>ステータス</h3>
+        <div class="legend-list">
+          <div class="legend-item"><span class="legend-dot is-pending"></span> 未確認</div>
+          <div class="legend-item"><span class="legend-dot is-confirmed"></span> 確認済み</div>
+          <div class="legend-item"><span class="legend-dot is-risk"></span> 要確認</div>
+          <div class="legend-item"><span class="legend-dot is-cancelled"></span> キャンセル</div>
+          <div class="legend-item"><span class="legend-dot is-completed"></span> 完了</div>
+        </div>
+      </section>
+    </aside>
+
+    <main class="main-panel">
+      <header class="topbar">
         <div>
-          <span class="pill">Admin</span>
-          <h1>予約カレンダー</h1>
-          <p class="muted">担当者ごとの予約状況を確認できます</p>
+          <div class="eyebrow">Salon Bookings</div>
+          <h2>Bookings</h2>
+          <p class="muted">日 / 週 / 月の切り替えとリアルタイム更新</p>
         </div>
-        <button id="signOutBtn" class="ghost-btn" type="button">ログアウト</button>
-      </div>
+        <div id="lastUpdated" class="last-updated">最終更新: --</div>
+      </header>
 
-      <div id="authLoggedOut">
-        <div class="field">
-          <label for="adminEmail">管理者メール</label>
-          <input id="adminEmail" type="email" placeholder="manager@salon.jp" />
+      <section class="toolbar-card">
+        <div class="toolbar-row">
+          <div class="view-switch" role="tablist" aria-label="view switch">
+            <button class="view-btn is-active" data-view="today">今日</button>
+            <button class="view-btn" data-view="day">日</button>
+            <button class="view-btn" data-view="week">週</button>
+            <button class="view-btn" data-view="month">月</button>
+          </div>
+
+          <div class="date-nav">
+            <button id="prevRangeBtn" class="icon-btn" aria-label="previous">←</button>
+            <button id="jumpTodayBtn" class="btn btn-secondary">今日へ</button>
+            <div id="rangeLabel" class="range-label">--</div>
+            <button id="nextRangeBtn" class="icon-btn" aria-label="next">→</button>
+          </div>
         </div>
-        <button id="sendMagicLinkBtn" class="primary-btn" type="button">ログインリンクを送る</button>
-      </div>
 
-      <div id="authLoggedIn" class="hidden">
-        <div class="auth-summary">
-          <strong id="whoAmI">-</strong>
-          <span id="tenantLabel" class="muted">-</span>
+        <div class="toolbar-row filters-row">
+          <div class="filter-group">
+            <label class="field-label" for="selectedDate">基準日</label>
+            <input id="selectedDate" class="text-input" type="date" />
+          </div>
+
+          <div class="filter-group">
+            <label class="field-label" for="staffFilter">担当者</label>
+            <select id="staffFilter" class="select-input">
+              <option value="">全担当者</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="field-label" for="statusFilter">ステータス</label>
+            <select id="statusFilter" class="select-input">
+              <option value="">全ステータス</option>
+              <option value="pending">未確認</option>
+              <option value="confirmed">確認済み</option>
+              <option value="risk">要確認</option>
+              <option value="cancelled">キャンセル</option>
+              <option value="completed">完了</option>
+            </select>
+          </div>
+
+          <div class="filter-group search-group">
+            <label class="field-label" for="searchText">検索</label>
+            <input
+              id="searchText"
+              class="text-input"
+              type="text"
+              placeholder="名前・電話・サービス・担当者"
+            />
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="card toolbar">
-      <div class="toolbar-row">
-        <input id="selectedDate" type="date" />
-        <select id="statusFilter">
-          <option value="">全ステータス</option>
-          <option value="pending">未確認</option>
-          <option value="confirmed">確認済み</option>
-          <option value="risk">要確認</option>
-          <option value="cancelled">キャンセル</option>
-          <option value="completed">完了</option>
-        </select>
-        <input id="searchText" type="text" placeholder="お客様名 / 電話 / サービス" />
-        <button id="refreshBtn" class="primary-btn" type="button">更新</button>
-      </div>
-      <div class="toolbar-row slim">
-        <div class="metric"><strong id="metricCount">0</strong><span>予約件数</span></div>
-        <div class="metric"><strong id="metricPending">0</strong><span>未確認</span></div>
-        <div class="metric"><strong id="metricRisk">0</strong><span>要確認</span></div>
-        <div class="metric"><strong id="metricCancelled">0</strong><span>キャンセル</span></div>
-      </div>
-    </section>
+      <section class="content-card">
+        <div id="bookingsMount"></div>
+        <div id="emptyState" class="empty-state hidden">
+          条件に一致する予約はありません
+        </div>
+      </section>
+    </main>
+  </div>
 
-    <section class="card">
-      <div class="table-head">
-        <h2>予約一覧</h2>
-        <span id="lastUpdated" class="muted">最終更新: --</span>
-      </div>
-      <div id="bookingTable" class="booking-table"></div>
-      <div id="emptyState" class="empty-state hidden">条件に一致する予約はありません</div>
-    </section>
-  </main>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./src/env.js"></script>
-  <script src="./src/supabase-client.js"></script>
   <script src="./admin.js"></script>
 </body>
 </html>
