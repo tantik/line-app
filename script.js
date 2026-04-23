@@ -223,6 +223,16 @@ async function fetchJson(url) {
   return res.json();
 }
 
+function getSupabase() {
+  return window.supabaseClient || null;
+}
+
+function getSalonSlug() {
+  return window.appEnv?.SALON_SLUG || "mirawi-demo";
+}
+
+/* -------------------- data loading -------------------- */
+
 async function loadServices(useCache = true) {
   try {
     const cached = useCache ? getCache("services") : null;
@@ -230,6 +240,34 @@ async function loadServices(useCache = true) {
       services = cached;
       return;
     }
+
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        const { data, error } = await sb.rpc("public_catalog", {
+          p_salon_slug: getSalonSlug(),
+        });
+
+        if (!error && data) {
+          const list = Array.isArray(data?.services) ? data.services : Array.isArray(data) ? data : [];
+          if (list.length) {
+            services = list.map((s) => ({
+              serviceId: s.id ?? s.service_id ?? s.serviceId,
+              name: s.name,
+              price: s.price ?? s.price_jpy ?? 0,
+              duration: s.duration_minutes ?? s.duration ?? 0,
+              image: s.image_url ?? s.image ?? null,
+              description: s.description ?? "",
+            }));
+            setCache("services", services);
+            return;
+          }
+        }
+      } catch (rpcErr) {
+        console.log("public_catalog services fallback:", rpcErr);
+      }
+    }
+
     services = await fetchJson(SERVICES_URL);
     setCache("services", services);
   } catch (e) {
@@ -245,6 +283,35 @@ async function loadStaff(useCache = true) {
       staff = cached;
       return;
     }
+
+    const sb = getSupabase();
+    if (sb) {
+      try {
+        const { data, error } = await sb.rpc("public_catalog", {
+          p_salon_slug: getSalonSlug(),
+        });
+
+        if (!error && data) {
+          const list = Array.isArray(data?.staff) ? data.staff : [];
+          if (list.length) {
+            staff = list.map((m) => ({
+              staffId: m.id ?? m.staff_id ?? m.staffId,
+              name: m.name,
+              startTime: m.start_time ?? m.startTime ?? "10:00",
+              endTime: m.end_time ?? m.endTime ?? "19:00",
+              workDays: m.work_days ?? m.workDays ?? "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
+              services: Array.isArray(m.service_ids) ? m.service_ids : Array.isArray(m.services) ? m.services : [],
+              image: m.image_url ?? m.image ?? null,
+            }));
+            setCache("staff", staff);
+            return;
+          }
+        }
+      } catch (rpcErr) {
+        console.log("public_catalog staff fallback:", rpcErr);
+      }
+    }
+
     staff = await fetchJson(STAFF_URL);
     setCache("staff", staff);
   } catch (e) {
@@ -262,6 +329,8 @@ async function ensureBookingsLoaded(force = false, silent = false) {
     }
 
     if (!silent) setInlineTimeLoading(true, "空き状況を確認中...");
+
+    // Temporary fallback: keep old bookings feed for slot rendering
     bookings = await fetchJson(BOOKINGS_URL);
     setCache("bookings", bookings);
   } catch (e) {
@@ -312,7 +381,6 @@ function clearBookingState() {
 }
 
 function reconcileSelectionState() {
-  // 1) If selected service is incompatible with selected staff, clear staff and time
   if (
     selectedService &&
     selectedStaff &&
@@ -322,19 +390,16 @@ function reconcileSelectionState() {
     selectedTime = "";
   }
 
-  // 2) If selected staff exists but selected date is not their workday, clear date/time
   if (selectedStaff && selectedDate && !isStaffWorkingOnDate(selectedStaff, selectedDate)) {
     selectedDate = "";
     selectedTime = "";
   }
 
-  // 3) If selected date exists but no candidate staff can work that date for selected service, clear date/time
   if (selectedDate && selectedService && !isDateSelectable(selectedDate)) {
     selectedDate = "";
     selectedTime = "";
   }
 
-  // 4) If selected time exists but selected staff cannot do that slot, clear time
   if (selectedTime && selectedDate && selectedService && selectedStaff) {
     const duration = Number(selectedService.duration || 0);
     if (!isStaffAvailable(selectedStaff, selectedDate, selectedTime, duration)) {
@@ -342,7 +407,6 @@ function reconcileSelectionState() {
     }
   }
 
-  // 5) If selected time exists and selected staff is empty, keep time but ensure at least one staff can do it
   if (selectedTime && selectedDate && selectedService && !selectedStaff) {
     const duration = Number(selectedService.duration || 0);
     const anyAvailable = getCandidateStaffForSelectedService().some((member) =>
@@ -439,16 +503,12 @@ async function goConfirmStep() {
 
 function getCandidateServicesForSelectedStaff() {
   if (!selectedStaff) return [...services];
-  return services.filter((service) =>
-    staffCanDoService(selectedStaff, service.serviceId)
-  );
+  return services.filter((service) => staffCanDoService(selectedStaff, service.serviceId));
 }
 
 function getCandidateStaffForSelectedService() {
   if (!selectedService) return [...staff];
-  return staff.filter((member) =>
-    staffCanDoService(member, selectedService.serviceId)
-  );
+  return staff.filter((member) => staffCanDoService(member, selectedService.serviceId));
 }
 
 /* -------------------- step 1 render -------------------- */
@@ -499,7 +559,6 @@ function renderServices() {
 
       selectedService = isSame ? null : service;
 
-      // Changing service can invalidate staff/date/time
       if (
         selectedStaff &&
         selectedService &&
@@ -758,7 +817,6 @@ function renderTimeOptions() {
       const isSame = selectedTime === time;
       selectedTime = isSame ? "" : time;
 
-      // If selected staff cannot do the newly selected time, clear staff
       if (
         selectedStaff &&
         selectedTime &&
@@ -880,7 +938,7 @@ function updateSummary() {
   if (s3) s3.textContent = dateTimeText;
 }
 
-/* -------------------- booking submit -------------------- */
+/* -------------------- submit booking: Supabase -------------------- */
 
 async function submitBooking() {
   const name = (document.getElementById("name")?.value || "").trim();
@@ -911,35 +969,43 @@ async function submitBooking() {
 
   if (phoneInput) phoneInput.value = phone;
 
+  const sb = getSupabase();
+  if (!sb) {
+    alert("Supabase client が見つかりません");
+    return;
+  }
+
   try {
     setLoading(true, "送信中...", "予約内容を確定しています");
 
-    const res = await fetch(CONFIG.WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({
-        mode: "booking",
-        name,
-        phone,
-        userId,
-        staffId: selectedStaff.staffId,
-        staffName: selectedStaff.name,
-        serviceId: selectedService.serviceId,
-        serviceName: selectedService.name,
-        date: selectedDate,
-        time: selectedTime,
-        duration: Number(selectedService.duration || 0),
-      }),
+    const { data, error } = await sb.rpc("create_public_booking", {
+      p_salon_slug: getSalonSlug(),
+      p_service_id: selectedService.serviceId,
+      p_staff_id: selectedStaff.staffId,
+      p_booking_date: selectedDate,
+      p_start_time: selectedTime,
+      p_customer_name: name,
+      p_customer_phone: phone,
+      p_line_user_id: userId || null,
+      p_source: "mini_app",
     });
 
-    const result = await res.json();
+    if (error) {
+      console.log("create_public_booking error:", error);
 
-    if (result.status === "error") {
-      await ensureBookingsLoaded(true, true);
-      selectedTime = "";
-      reconcileSelectionState();
-      renderAllBookingState();
-      alert("この時間はすでに予約されています");
+      if (
+        String(error.message || "").includes("slot_unavailable") ||
+        String(error.message || "").includes("duplicate_booking")
+      ) {
+        await ensureBookingsLoaded(true, true);
+        selectedTime = "";
+        reconcileSelectionState();
+        renderAllBookingState();
+        alert("この時間は予約できません。別の時間を選んでください。");
+        return;
+      }
+
+      alert(`予約エラー: ${error.message}`);
       return;
     }
 
@@ -958,7 +1024,7 @@ async function submitBooking() {
   }
 }
 
-/* -------------------- lead submit -------------------- */
+/* -------------------- submit lead: Supabase -------------------- */
 
 async function submitLeadForm() {
   const salonName = (document.getElementById("leadSalonName")?.value || "").trim();
@@ -972,36 +1038,29 @@ async function submitLeadForm() {
     return;
   }
 
+  const sb = getSupabase();
+  if (!sb) {
+    alert("Supabase client が見つかりません");
+    return;
+  }
+
   try {
     setLoading(true, "送信中...", "ご相談内容を送信しています");
 
-    const payload = {
-      mode: "lead",
-      userId,
-      displayName,
-      salonName,
-      ownerName,
-      contact,
-      businessType,
-      needs,
-      source: "mini_app",
-    };
-
-    const res = await fetch(CONFIG.WEBHOOK_URL, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload),
+    const { error } = await sb.rpc("create_public_lead", {
+      p_salon_slug: getSalonSlug(),
+      p_contact_name: ownerName,
+      p_salon_name: salonName,
+      p_contact_channel: contact,
+      p_business_type: businessType || null,
+      p_message: needs || null,
+      p_source: "mini_app",
+      p_line_user_id: userId || null,
     });
 
-    let result = {};
-    try {
-      result = await res.json();
-    } catch {
-      result = { status: "ok" };
-    }
-
-    if (result.status === "error") {
-      alert("送信に失敗しました");
+    if (error) {
+      console.log("create_public_lead error:", error);
+      alert(`送信に失敗しました: ${error.message}`);
       return;
     }
 
