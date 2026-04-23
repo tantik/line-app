@@ -232,57 +232,39 @@ function getEnv() {
 }
 
 function getSalonSlug() {
-  return getEnv()?.SALON_SLUG || "demo-salon";
+  return getEnv()?.SALON_SLUG || "mirawi-demo";
 }
 
 /* -------------------- mappers -------------------- */
 
-function normalizeServiceRow(s) {
+function normalizeServiceRow(row) {
   return {
-    serviceId: s.id ?? s.service_id ?? s.serviceId,
-    name: s.name ?? s.service_name ?? "",
-    price:
-      s.price ??
-      s.price_jpy ??
-      s.base_price ??
-      s.amount ??
-      s.service_price ??
-      0,
-    duration:
-      s.duration_minutes ??
-      s.duration ??
-      s.duration_mins ??
-      s.minutes ??
-      s.service_duration ??
-      0,
-    image: s.image_url ?? s.image ?? s.photo ?? null,
-    description: s.description ?? s.note ?? "",
+    serviceId: row.id,
+    name: row.name || "サービス",
+    description: row.description || "",
+    duration: row.durationMinutes || 30,
+    price: row.priceJpy || 0,
+    category: row.category || null,
+    image: row.imageUrl || row.image || row.photo || null,
   };
 }
 
-function normalizeStaffRow(m) {
+function normalizeStaffRow(row) {
   return {
-    staffId: m.id ?? m.staff_id ?? m.staffId,
-    name: m.name ?? m.staff_name ?? "",
-    startTime: normalizeTime(
-      m.start_time ?? m.startTime ?? m.work_start ?? "10:00"
-    ),
-    endTime: normalizeTime(
-      m.end_time ?? m.endTime ?? m.work_end ?? "19:00"
-    ),
+    staffId: row.id,
+    name: row.name || "Staff",
+    startTime: normalizeTime(row.startTime || "10:00"),
+    endTime: normalizeTime(row.endTime || "19:00"),
     workDays:
-      m.work_days ??
-      m.workDays ??
-      m.working_days ??
+      row.workDays ||
       "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
-    services: Array.isArray(m.service_ids)
-      ? m.service_ids
-      : Array.isArray(m.services)
-      ? m.services
-      : Array.isArray(m.serviceIds)
-      ? m.serviceIds
+    services: Array.isArray(row.serviceIds)
+      ? row.serviceIds
+      : Array.isArray(row.services)
+      ? row.services
       : [],
-    image: m.image_url ?? m.image ?? m.photo ?? null,
+    image: row.photoUrl || row.image || row.photo || null,
+    slotMinutes: row.slotMinutes || 30,
   };
 }
 
@@ -384,7 +366,6 @@ async function ensureBookingsLoaded(force = false, silent = false) {
 
     if (!silent) setInlineTimeLoading(true, "空き状況を確認中...");
 
-    // пока оставляем старый feed для рендера занятости
     bookings = await fetchJson(BOOKINGS_URL);
     setCache("bookings", bookings);
   } catch (e) {
