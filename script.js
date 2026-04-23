@@ -1,23 +1,16 @@
 const CONFIG = {
   LIFF_ID: "2009586903-hyNXZaW7",
-  WEBHOOK_URL:
-    "https://script.google.com/macros/s/AKfycbwJ6JgQWqmhp9Y7gWPKvr5l5IixbWuNRAsbJ0km6AQIGuUBlniZeDfOpqtkGds-pxzB/exec",
+  BUSINESS_LABEL: "Salon",
   DATE_RANGE_DAYS: 60,
   INITIAL_VISIBLE_DAYS: 14,
   LOAD_MORE_DAYS_STEP: 14,
-  TIME_STEP_MINUTES: 30,
   SAME_DAY_BLOCK_MINUTES: 20,
   CACHE_TTL_MS: 3 * 60 * 1000,
 };
 
-const SERVICES_URL = `${CONFIG.WEBHOOK_URL}?action=services`;
-const STAFF_URL = `${CONFIG.WEBHOOK_URL}?action=staff`;
-const BOOKINGS_URL = `${CONFIG.WEBHOOK_URL}?action=bookings`;
-
 const cacheStore = {
-  services: { data: null, ts: 0 },
-  staff: { data: null, ts: 0 },
-  bookings: { data: null, ts: 0 },
+  catalog: { data: null, ts: 0 },
+  slots: new Map(),
 };
 
 let userId = "";
@@ -25,7 +18,6 @@ let displayName = "";
 
 let services = [];
 let staff = [];
-let bookings = [];
 
 let selectedService = null;
 let selectedStaff = null;
@@ -34,6 +26,28 @@ let selectedTime = "";
 
 let visibleDaysCount = CONFIG.INITIAL_VISIBLE_DAYS;
 let initDone = false;
+
+/**
+ * availableSlotsState:
+ * {
+ *   date: "2026-04-23",
+ *   serviceId: "...",
+ *   preferredStaffId: "...|null",
+ *   slots: [
+ *     {
+ *       time: "10:00",
+ *       staffIds: ["..."],
+ *       staffMap: Map<string, staffObj>
+ *     }
+ *   ]
+ * }
+ */
+let availableSlotsState = {
+  date: "",
+  serviceId: "",
+  preferredStaffId: "",
+  slots: [],
+};
 
 document.addEventListener("DOMContentLoaded", () => {
   bindStaticEvents();
@@ -50,8 +64,7 @@ async function init() {
 
   try {
     const isLocalhost =
-      location.hostname === "127.0.0.1" ||
-      location.hostname === "localhost";
+      location.hostname === "127.0.0.1" || location.hostname === "localhost";
 
     if (isLocalhost) {
       console.log("DEV MODE: localhost detected, LINE login bypass enabled");
@@ -61,10 +74,9 @@ async function init() {
       fillInitialProfileFields();
       bindPhoneInput();
 
-      await Promise.all([loadServices(true), loadStaff(true)]);
+      await loadCatalog(true);
       renderAllBookingState();
       showScreen("screenWelcome");
-      startBookingsPrefetch();
       return;
     }
 
@@ -82,10 +94,9 @@ async function init() {
     fillInitialProfileFields();
     bindPhoneInput();
 
-    await Promise.all([loadServices(true), loadStaff(true)]);
+    await loadCatalog(true);
     renderAllBookingState();
     showScreen("screenWelcome");
-    startBookingsPrefetch();
   } catch (error) {
     console.log("LIFF init error:", error);
     alert("初期化エラーが発生しました");
@@ -109,13 +120,13 @@ function bindStaticEvents() {
   document.getElementById("btnOpenInfo")?.addEventListener("click", () => showScreen("screenInfo"));
   document.getElementById("btnOpenLead")?.addEventListener("click", openLeadScreen);
   document.getElementById("btnOpenAdmin")?.addEventListener("click", openAdminDemo);
-
   document.getElementById("btnInfoStartDemo")?.addEventListener("click", startDemoFlow);
   document.getElementById("btnSubmitLead")?.addEventListener("click", submitLeadForm);
 
   document.getElementById("btnClearStaffInline")?.addEventListener("click", () => {
     selectedStaff = null;
     selectedTime = "";
+    invalidateSlotsSelection();
     reconcileSelectionState();
     renderAllBookingState();
   });
@@ -123,10 +134,8 @@ function bindStaticEvents() {
   document.getElementById("btnGoDateTime")?.addEventListener("click", goDateTimeStep);
   document.getElementById("btnGoConfirm")?.addEventListener("click", goConfirmStep);
   document.getElementById("btnSubmitBooking")?.addEventListener("click", submitBooking);
-
   document.getElementById("btnSuccessLead")?.addEventListener("click", openLeadScreen);
   document.getElementById("btnSuccessRestart")?.addEventListener("click", resetAndGoWelcome);
-
   document.getElementById("loadMoreDatesBtn")?.addEventListener("click", loadMoreDates);
 
   document.querySelectorAll("[data-back]").forEach((btn) => {
@@ -183,6 +192,7 @@ function setInlineTimeLoading(show, text = "空き状況を確認中...") {
   if (!box) return;
 
   box.style.display = show ? "flex" : "none";
+
   const textNode = box.querySelector("div:last-child");
   if (textNode) textNode.textContent = text;
 }
@@ -201,27 +211,60 @@ function toast(message) {
   }, 2500);
 }
 
-/* -------------------- cache / fetch -------------------- */
+/* -------------------- cache -------------------- */
 
 function getCache(key) {
-  const item = cacheStore[key];
-  if (!item || !item.data) return null;
-  if (Date.now() - item.ts > CONFIG.CACHE_TTL_MS) return null;
-  return item.data;
+  if (key === "catalog") {
+    const item = cacheStore.catalog;
+    if (!item?.data) return null;
+    if (Date.now() - item.ts > CONFIG.CACHE_TTL_MS) return null;
+    return item.data;
+  }
+
+  return null;
 }
 
 function setCache(key, data) {
-  cacheStore[key] = {
-    data: Array.isArray(data) ? [...data] : data,
-    ts: Date.now(),
-  };
+  if (key === "catalog") {
+    cacheStore.catalog = {
+      data,
+      ts: Date.now(),
+    };
+  }
 }
 
-async function fetchJson(url) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+function getSlotsCacheKey({ date, serviceId, staffId }) {
+  return JSON.stringify({
+    date: String(date || ""),
+    serviceId: String(serviceId || ""),
+    staffId: String(staffId || ""),
+  });
 }
+
+function getSlotsCache(params) {
+  const key = getSlotsCacheKey(params);
+  const item = cacheStore.slots.get(key);
+  if (!item?.data) return null;
+  if (Date.now() - item.ts > CONFIG.CACHE_TTL_MS) {
+    cacheStore.slots.delete(key);
+    return null;
+  }
+  return item.data;
+}
+
+function setSlotsCache(params, data) {
+  const key = getSlotsCacheKey(params);
+  cacheStore.slots.set(key, {
+    data,
+    ts: Date.now(),
+  });
+}
+
+function clearSlotsCache() {
+  cacheStore.slots.clear();
+}
+
+/* -------------------- env / supabase -------------------- */
 
 function getSupabase() {
   return window.supabaseClient || null;
@@ -239,151 +282,357 @@ function getSalonSlug() {
 
 function normalizeServiceRow(row) {
   return {
-    serviceId: row.id,
-    name: row.name || "サービス",
-    description: row.description || "",
-    duration: row.durationMinutes || 30,
-    price: row.priceJpy || 0,
-    category: row.category || null,
-    image: row.imageUrl || row.image || row.photo || null,
+    serviceId:
+      row.id ??
+      row.service_id ??
+      row.serviceId ??
+      null,
+    name:
+      row.name ??
+      row.service_name ??
+      "サービス",
+    description:
+      row.description ??
+      row.note ??
+      "",
+    duration:
+      Number(
+        row.durationMinutes ??
+          row.duration_minutes ??
+          row.duration ??
+          row.minutes ??
+          30
+      ) || 30,
+    price:
+      Number(
+        row.priceJpy ??
+          row.price_jpy ??
+          row.price ??
+          row.base_price ??
+          row.amount ??
+          0
+      ) || 0,
+    category:
+      row.category ?? null,
+    image:
+      row.imageUrl ??
+      row.image_url ??
+      row.image ??
+      row.photo ??
+      null,
   };
 }
 
 function normalizeStaffRow(row) {
   return {
-    staffId: row.id,
-    name: row.name || "Staff",
-    startTime: normalizeTime(row.startTime || "10:00"),
-    endTime: normalizeTime(row.endTime || "19:00"),
+    staffId:
+      row.id ??
+      row.staff_id ??
+      row.staffId ??
+      null,
+    name:
+      row.name ??
+      row.staff_name ??
+      "Staff",
+    startTime: normalizeTime(
+      row.startTime ??
+        row.start_time ??
+        row.work_start ??
+        "10:00"
+    ),
+    endTime: normalizeTime(
+      row.endTime ??
+        row.end_time ??
+        row.work_end ??
+        "19:00"
+    ),
     workDays:
-      row.workDays ||
+      row.workDays ??
+      row.work_days ??
+      row.working_days ??
       "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
-    services: Array.isArray(row.serviceIds)
-      ? row.serviceIds
-      : Array.isArray(row.services)
-      ? row.services
-      : [],
-    image: row.photoUrl || row.image || row.photo || null,
-    slotMinutes: row.slotMinutes || 30,
+    services: normalizeStaffServiceIds(row),
+    image:
+      row.photoUrl ??
+      row.photo_url ??
+      row.image ??
+      row.image_url ??
+      row.photo ??
+      null,
+    slotMinutes:
+      Number(row.slotMinutes ?? row.slot_minutes ?? 30) || 30,
   };
 }
 
-/* -------------------- data loading -------------------- */
+function normalizeStaffServiceIds(row) {
+  if (Array.isArray(row.serviceIds)) return row.serviceIds;
+  if (Array.isArray(row.service_ids)) return row.service_ids;
+  if (Array.isArray(row.services)) return row.services;
 
-async function loadServices(useCache = true) {
-  try {
-    const cached = useCache ? getCache("services") : null;
-    if (cached) {
-      services = cached;
-      return;
-    }
-
-    const sb = getSupabase();
-    if (sb) {
-      try {
-        const { data, error } = await sb.rpc("public_catalog", {
-          p_salon_slug: getSalonSlug(),
-        });
-
-        console.log("public_catalog raw:", data, error);
-
-        if (!error && data) {
-          const list = Array.isArray(data?.services)
-            ? data.services
-            : Array.isArray(data)
-            ? data
-            : [];
-
-          if (list.length) {
-            services = list.map(normalizeServiceRow);
-            console.log("normalized services:", services);
-            setCache("services", services);
-            return;
-          }
-        }
-      } catch (rpcErr) {
-        console.log("public_catalog services fallback:", rpcErr);
-      }
-    }
-
-    services = await fetchJson(SERVICES_URL);
-    setCache("services", services);
-  } catch (e) {
-    console.log("Services load error:", e);
-    services = [];
+  if (typeof row.services === "string") {
+    return row.services
+      .split(",")
+      .map((v) => v.trim())
+      .filter(Boolean);
   }
+
+  return [];
 }
 
-async function loadStaff(useCache = true) {
-  try {
-    const cached = useCache ? getCache("staff") : null;
-    if (cached) {
-      staff = cached;
-      return;
-    }
+function normalizeSlotRow(row) {
+  const time =
+    normalizeTime(
+      row.time ??
+        row.start_time ??
+        row.startTime ??
+        row.slot_time ??
+        ""
+    ) || "";
 
-    const sb = getSupabase();
-    if (sb) {
-      try {
-        const { data, error } = await sb.rpc("public_catalog", {
-          p_salon_slug: getSalonSlug(),
-        });
+  const staffIdsRaw =
+    row.staff_ids ??
+    row.staffIds ??
+    row.available_staff_ids ??
+    row.matching_staff_ids ??
+    row.staff_id ??
+    row.staffId ??
+    [];
 
-        if (!error && data) {
-          const list = Array.isArray(data?.staff)
-            ? data.staff
-            : Array.isArray(data?.staff_members)
-            ? data.staff_members
-            : [];
+  let staffIds = [];
 
-          if (list.length) {
-            staff = list.map(normalizeStaffRow);
-            console.log("normalized staff:", staff);
-            setCache("staff", staff);
-            return;
-          }
-        }
-      } catch (rpcErr) {
-        console.log("public_catalog staff fallback:", rpcErr);
-      }
-    }
-
-    staff = await fetchJson(STAFF_URL);
-    setCache("staff", staff);
-  } catch (e) {
-    console.log("Staff load error:", e);
-    staff = [];
+  if (Array.isArray(staffIdsRaw)) {
+    staffIds = staffIdsRaw.map(String);
+  } else if (staffIdsRaw) {
+    staffIds = [String(staffIdsRaw)];
   }
+
+  return {
+    time,
+    staffIds,
+  };
 }
 
-async function ensureBookingsLoaded(force = false, silent = false) {
+/* -------------------- catalog loading -------------------- */
+
+async function loadCatalog(useCache = true) {
+  const cached = useCache ? getCache("catalog") : null;
+  if (cached) {
+    services = cached.services || [];
+    staff = cached.staff || [];
+    return;
+  }
+
+  const sb = getSupabase();
+  if (!sb) {
+    throw new Error("Supabase client is not available");
+  }
+
+  const { data, error } = await sb.rpc("public_catalog", {
+    p_salon_slug: getSalonSlug(),
+  });
+
+  if (error) {
+    throw error;
+  }
+
+  const serviceList = Array.isArray(data?.services)
+    ? data.services
+    : Array.isArray(data)
+    ? data
+    : [];
+
+  const staffList = Array.isArray(data?.staff)
+    ? data.staff
+    : Array.isArray(data?.staff_members)
+    ? data.staff_members
+    : [];
+
+  services = serviceList.map(normalizeServiceRow);
+  staff = staffList.map(normalizeStaffRow);
+
+  setCache("catalog", {
+    services,
+    staff,
+  });
+}
+
+/* -------------------- available slots -------------------- */
+
+async function ensureAvailableSlotsLoaded(force = false, silent = false) {
+  if (!selectedService || !selectedDate) {
+    availableSlotsState = {
+      date: "",
+      serviceId: "",
+      preferredStaffId: "",
+      slots: [],
+    };
+    return;
+  }
+
+  const params = {
+    date: selectedDate,
+    serviceId: selectedService.serviceId,
+    staffId: selectedStaff?.staffId || null,
+  };
+
+  const cached = !force ? getSlotsCache(params) : null;
+  if (cached) {
+    availableSlotsState = cached;
+    return;
+  }
+
+  const sb = getSupabase();
+  if (!sb) {
+    throw new Error("Supabase client is not available");
+  }
+
+  if (!silent) {
+    setInlineTimeLoading(true, "空き状況を確認中...");
+  }
+
   try {
-    const cached = !force ? getCache("bookings") : null;
-    if (cached) {
-      bookings = cached;
-      return;
+    const rpcPayloadCandidates = [
+      {
+        p_salon_slug: getSalonSlug(),
+        p_service_id: selectedService.serviceId,
+        p_date: selectedDate,
+        p_staff_id: selectedStaff?.staffId || null,
+      },
+      {
+        p_salon_slug: getSalonSlug(),
+        p_service_id: selectedService.serviceId,
+        p_booking_date: selectedDate,
+        p_staff_id: selectedStaff?.staffId || null,
+      },
+    ];
+
+    let lastError = null;
+    let data = null;
+
+    for (const payload of rpcPayloadCandidates) {
+      const res = await sb.rpc("available_slots", payload);
+      if (!res.error) {
+        data = res.data;
+        lastError = null;
+        break;
+      }
+      lastError = res.error;
     }
 
-    if (!silent) setInlineTimeLoading(true, "空き状況を確認中...");
+    if (lastError) {
+      throw lastError;
+    }
 
-    bookings = await fetchJson(BOOKINGS_URL);
-    setCache("bookings", bookings);
-  } catch (e) {
-    console.log("Bookings load error:", e);
-    bookings = [];
+    const rawSlots = Array.isArray(data?.slots)
+      ? data.slots
+      : Array.isArray(data)
+      ? data
+      : [];
+
+    const normalizedSlots = rawSlots
+      .map(normalizeSlotRow)
+      .filter((slot) => !!slot.time);
+
+    const staffMapById = new Map(staff.map((member) => [String(member.staffId), member]));
+
+    const enrichedSlots = normalizedSlots.map((slot) => {
+      const resolvedStaffIds =
+        slot.staffIds.length > 0
+          ? slot.staffIds
+          : inferStaffIdsForTimeFallback(slot.time);
+
+      const uniqueStaffIds = [...new Set(resolvedStaffIds.map(String))];
+      const slotStaffMap = new Map();
+
+      uniqueStaffIds.forEach((id) => {
+        const member = staffMapById.get(String(id));
+        if (member) {
+          slotStaffMap.set(String(id), member);
+        }
+      });
+
+      return {
+        time: slot.time,
+        staffIds: uniqueStaffIds,
+        staffMap: slotStaffMap,
+      };
+    });
+
+    availableSlotsState = {
+      date: selectedDate,
+      serviceId: String(selectedService.serviceId),
+      preferredStaffId: selectedStaff?.staffId ? String(selectedStaff.staffId) : "",
+      slots: enrichedSlots,
+    };
+
+    setSlotsCache(params, availableSlotsState);
   } finally {
-    if (!silent) setInlineTimeLoading(false);
+    if (!silent) {
+      setInlineTimeLoading(false);
+    }
   }
 }
 
-function startBookingsPrefetch() {
-  setTimeout(async () => {
-    try {
-      await ensureBookingsLoaded(false, true);
-    } catch (e) {
-      console.log("Prefetch bookings error:", e);
-    }
-  }, 500);
+function inferStaffIdsForTimeFallback(time) {
+  if (!selectedService || !selectedDate || !time) return [];
+
+  return getCandidateStaffForSelectedService()
+    .filter((member) => {
+      if (selectedStaff && String(member.staffId) !== String(selectedStaff.staffId)) {
+        return false;
+      }
+
+      if (!isStaffWorkingOnDate(member, selectedDate)) {
+        return false;
+      }
+
+      const duration = Number(selectedService.duration || 0);
+      const start = timeToMinutes(time);
+      const end = start + duration;
+      const memberStart = timeToMinutes(member.startTime);
+      const memberEnd = timeToMinutes(member.endTime);
+
+      return start >= memberStart && end <= memberEnd;
+    })
+    .map((member) => String(member.staffId));
+}
+
+function invalidateSlotsSelection() {
+  availableSlotsState = {
+    date: "",
+    serviceId: "",
+    preferredStaffId: "",
+    slots: [],
+  };
+}
+
+function getAvailableTimes() {
+  return Array.isArray(availableSlotsState.slots)
+    ? availableSlotsState.slots.map((slot) => slot.time)
+    : [];
+}
+
+function getSlotByTime(time) {
+  return availableSlotsState.slots.find((slot) => slot.time === time) || null;
+}
+
+function isTimeAvailable(time) {
+  return !!getSlotByTime(time);
+}
+
+function getAvailableStaffForSelectedTime() {
+  if (!selectedTime) return [];
+
+  const slot = getSlotByTime(selectedTime);
+  if (!slot) return [];
+
+  const result = [];
+  slot.staffIds.forEach((id) => {
+    const member = slot.staffMap.get(String(id));
+    if (member) result.push(member);
+  });
+
+  return result;
 }
 
 /* -------------------- state helpers -------------------- */
@@ -413,6 +662,7 @@ function clearBookingState() {
   selectedDate = "";
   selectedTime = "";
   visibleDaysCount = CONFIG.INITIAL_VISIBLE_DAYS;
+  invalidateSlotsSelection();
 }
 
 function reconcileSelectionState() {
@@ -423,33 +673,31 @@ function reconcileSelectionState() {
   ) {
     selectedStaff = null;
     selectedTime = "";
+    invalidateSlotsSelection();
   }
 
-  if (selectedStaff && selectedDate && !isStaffWorkingOnDate(selectedStaff, selectedDate)) {
+  if (
+    selectedStaff &&
+    selectedDate &&
+    !isStaffWorkingOnDate(selectedStaff, selectedDate)
+  ) {
     selectedDate = "";
+    selectedTime = "";
+    invalidateSlotsSelection();
+  }
+
+  if (selectedTime && !isTimeAvailable(selectedTime)) {
     selectedTime = "";
   }
 
-  if (selectedDate && selectedService && !isDateSelectable(selectedDate)) {
-    selectedDate = "";
-    selectedTime = "";
-  }
-
-  if (selectedTime && selectedDate && selectedService && selectedStaff) {
-    const duration = Number(selectedService.duration || 0);
-    if (!isStaffAvailable(selectedStaff, selectedDate, selectedTime, duration)) {
-      selectedTime = "";
-    }
-  }
-
-  if (selectedTime && selectedDate && selectedService && !selectedStaff) {
-    const duration = Number(selectedService.duration || 0);
-    const anyAvailable = getCandidateStaffForSelectedService().some((member) =>
-      isStaffAvailable(member, selectedDate, selectedTime, duration)
-    );
-    if (!anyAvailable) {
-      selectedTime = "";
-    }
+  if (
+    selectedTime &&
+    selectedStaff &&
+    !getAvailableStaffForSelectedTime()
+      .map((member) => String(member.staffId))
+      .includes(String(selectedStaff.staffId))
+  ) {
+    selectedStaff = null;
   }
 }
 
@@ -477,6 +725,7 @@ function normalizePhone(value) {
   if (cleaned.includes("+")) {
     cleaned = (cleaned.startsWith("+") ? "+" : "") + cleaned.replace(/\+/g, "");
   }
+
   return cleaned;
 }
 
@@ -514,10 +763,19 @@ async function goConfirmStep() {
     return;
   }
 
-  await ensureBookingsLoaded(false);
+  try {
+    await ensureAvailableSlotsLoaded(true, false);
+  } catch (error) {
+    console.log("available_slots reload error:", error);
+    alert("空き状況の確認に失敗しました");
+    return;
+  }
 
-  const duration = Number(selectedService.duration || 0);
-  if (!isStaffAvailable(selectedStaff, selectedDate, selectedTime, duration)) {
+  const availableStaffIds = getAvailableStaffForSelectedTime().map((member) =>
+    String(member.staffId)
+  );
+
+  if (!availableStaffIds.includes(String(selectedStaff.staffId))) {
     selectedTime = "";
     reconcileSelectionState();
     renderAllBookingState();
@@ -538,12 +796,16 @@ async function goConfirmStep() {
 
 function getCandidateServicesForSelectedStaff() {
   if (!selectedStaff) return [...services];
-  return services.filter((service) => staffCanDoService(selectedStaff, service.serviceId));
+  return services.filter((service) =>
+    staffCanDoService(selectedStaff, service.serviceId)
+  );
 }
 
 function getCandidateStaffForSelectedService() {
   if (!selectedService) return [...staff];
-  return staff.filter((member) => staffCanDoService(member, selectedService.serviceId));
+  return staff.filter((member) =>
+    staffCanDoService(member, selectedService.serviceId)
+  );
 }
 
 /* -------------------- step 1 render -------------------- */
@@ -572,19 +834,17 @@ function renderServices() {
       card.classList.add("active");
     }
 
-    const imageUrl = service.image || service.imageUrl || service.photo || "";
+    const imageUrl = service.image || "";
     const visual = imageUrl
-      ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(service.name || "")}" style="width:100%;height:100%;object-fit:cover;">`
-      : `<span>${escapeHtml(getServiceVisual(service.name))}</span>`;
+      ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(service.name || "")}">`
+      : `${escapeHtml(getServiceVisual(service.name))}`;
 
     card.innerHTML = `
-      <div class="service-card-media">${visual}</div>
-      <div class="service-card-body">
-        <div class="service-card-label">✂ サービス</div>
-        <h3 class="service-card-name">${escapeHtml(service.name || "-")}</h3>
-        <div class="service-card-meta">${escapeHtml(String(service.duration || 0))}分</div>
-        <div class="service-card-price">¥${escapeHtml(String(service.price || 0))}</div>
-      </div>
+      <div class="service-visual">${visual}</div>
+      <div class="service-meta">✂ サービス</div>
+      <h3>${escapeHtml(service.name || "-")}</h3>
+      <div class="service-sub">${escapeHtml(String(service.duration || 0))}分</div>
+      <div class="service-price">¥${escapeHtml(String(service.price || 0))}</div>
     `;
 
     card.addEventListener("click", () => {
@@ -603,6 +863,7 @@ function renderServices() {
       }
 
       selectedTime = "";
+      invalidateSlotsSelection();
       reconcileSelectionState();
       renderAllBookingState();
     });
@@ -611,7 +872,9 @@ function renderServices() {
   });
 
   if (!filtered.length) {
-    el.innerHTML = `<div class="empty-state">この担当者が対応できるサービスがありません</div>`;
+    el.innerHTML = `
+      <div class="empty-state">この担当者が対応できるサービスがありません</div>
+    `;
   }
 }
 
@@ -636,7 +899,7 @@ function renderStaffStep1() {
       card.classList.add("active");
     }
 
-    const imageUrl = member.image || member.imageUrl || member.photo || "";
+    const imageUrl = member.image || "";
     const avatar = imageUrl
       ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(member.name || "")}">`
       : `<div class="staff-initial">${escapeHtml((member.name || "S").slice(0, 1))}</div>`;
@@ -654,7 +917,7 @@ function renderStaffStep1() {
 
       selectedStaff = isSame ? null : member;
       selectedTime = "";
-
+      invalidateSlotsSelection();
       reconcileSelectionState();
       renderAllBookingState();
     });
@@ -663,8 +926,7 @@ function renderStaffStep1() {
   });
 
   if (!filtered.length) {
-    box.className = "empty-state";
-    box.innerHTML = `このサービスに対応できる担当者がいません`;
+    box.innerHTML = `<div class="empty-state">このサービスに対応できる担当者がいません</div>`;
   }
 }
 
@@ -674,6 +936,7 @@ function renderDateOptions() {
   const box = document.getElementById("dateList");
   const countLabel = document.getElementById("dateCountLabel");
   const moreBtn = document.getElementById("loadMoreDatesBtn");
+
   if (!box) return;
 
   box.innerHTML = "";
@@ -693,44 +956,47 @@ function renderDateOptions() {
 
     const item = document.createElement("div");
     item.className = "date-item";
+
     if (value === selectedDate) item.classList.add("active");
 
-    const available = isDateSelectable(value);
-    if (!available) item.classList.add("disabled");
+    const selectable = isDateSelectable(value);
+    if (!selectable) item.classList.add("disabled");
 
     item.innerHTML = `
-      <div class="date-item-day">${weekdays[d.getDay()]}</div>
-      <div class="date-item-date">${mm}/${dd}</div>
+      <div class="date-week">${weekdays[d.getDay()]}</div>
+      <div class="date-main">${mm}/${dd}</div>
     `;
 
     item.addEventListener("click", async () => {
-      if (!available) return;
+      if (!selectable) return;
 
-      const isSameDate = selectedDate === value;
-      selectedDate = isSameDate ? "" : value;
+      const isSame = selectedDate === value;
+      selectedDate = isSame ? "" : value;
       selectedTime = "";
 
-      renderDateOptions();
+      invalidateSlotsSelection();
 
       if (!selectedDate) {
-        renderStep2IdleState();
-        updateSummary();
+        reconcileSelectionState();
+        renderAllBookingState();
         return;
       }
 
       const slotHint = document.getElementById("slotHint");
       if (slotHint) slotHint.textContent = "空き状況を確認しています";
 
-      setInlineTimeLoading(true, "空き状況を確認中...");
-      await ensureBookingsLoaded(false);
-      setInlineTimeLoading(false);
+      try {
+        await ensureAvailableSlotsLoaded(false, false);
+      } catch (error) {
+        console.log("available_slots error:", error);
+        alert("空き状況の取得に失敗しました");
+        invalidateSlotsSelection();
+      }
 
       if (slotHint) slotHint.textContent = "時間を選択してください";
 
       reconcileSelectionState();
-      renderTimeOptions();
-      renderStaffStep2();
-      updateSummary();
+      renderAllBookingState();
     });
 
     box.appendChild(item);
@@ -759,6 +1025,7 @@ function loadMoreDates() {
     visibleDaysCount + CONFIG.LOAD_MORE_DAYS_STEP,
     CONFIG.DATE_RANGE_DAYS
   );
+
   renderDateOptions();
 }
 
@@ -791,6 +1058,7 @@ function renderStep2IdleState() {
 function renderTimeOptions() {
   const box = document.getElementById("timeList");
   const slotHint = document.getElementById("slotHint");
+
   if (!box) return;
 
   box.classList.remove("empty-state");
@@ -803,37 +1071,22 @@ function renderTimeOptions() {
 
   if (slotHint) slotHint.textContent = "時間を選択してください";
 
-  const duration = Number(selectedService.duration || 0);
+  const times = getAvailableTimes().filter((time) => !isTimeBlockedByNow(selectedDate, time));
 
-  let candidates = getCandidateStaffForSelectedService();
-
-  if (selectedStaff) {
-    candidates = candidates.filter(
-      (m) => String(m.staffId) === String(selectedStaff.staffId)
-    );
-  }
-
-  const start = getEarliestStart(candidates);
-  const end = getLatestEnd(candidates);
-
-  if (start === null || end === null) {
-    box.innerHTML = `対応可能な担当者がいません`;
+  if (!times.length) {
+    box.innerHTML = `この日に利用できる時間がありません`;
     box.classList.add("empty-state");
     return;
   }
 
-  let hasAny = false;
-  let current = start;
-
-  while (current + duration <= end) {
-    const time = minutesToTime(current);
+  times.forEach((time) => {
     const item = document.createElement("div");
     item.className = "time-item";
 
-    const available = isAnyStaffAvailableAtTime(time, duration);
+    const available = isTimeAvailable(time);
     const blocked = isTimeBlockedByNow(selectedDate, time);
-
     let status = "空き";
+
     if (!available || blocked) {
       item.classList.add("disabled");
       status = "不可";
@@ -855,7 +1108,9 @@ function renderTimeOptions() {
       if (
         selectedStaff &&
         selectedTime &&
-        !isStaffAvailable(selectedStaff, selectedDate, selectedTime, duration)
+        !getAvailableStaffForSelectedTime()
+          .map((member) => String(member.staffId))
+          .includes(String(selectedStaff.staffId))
       ) {
         selectedStaff = null;
       }
@@ -867,14 +1122,7 @@ function renderTimeOptions() {
     });
 
     box.appendChild(item);
-
-    if (available && !blocked) hasAny = true;
-    current += CONFIG.TIME_STEP_MINUTES;
-  }
-
-  if (!hasAny) {
-    box.classList.add("empty-state");
-  }
+  });
 }
 
 /* -------------------- step 2 available staff -------------------- */
@@ -899,12 +1147,7 @@ function renderStaffStep2() {
     return;
   }
 
-  let filtered = getCandidateStaffForSelectedService();
-
-  const duration = Number(selectedService.duration || 0);
-  filtered = filtered.filter((member) =>
-    isStaffAvailable(member, selectedDate, selectedTime, duration)
-  );
+  const filtered = getAvailableStaffForSelectedTime();
 
   filtered.forEach((member) => {
     const card = document.createElement("button");
@@ -918,7 +1161,7 @@ function renderStaffStep2() {
       card.classList.add("active");
     }
 
-    const imageUrl = member.image || member.imageUrl || member.photo || "";
+    const imageUrl = member.image || "";
     const avatar = imageUrl
       ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(member.name || "")}">`
       : `<div class="staff-initial">${escapeHtml((member.name || "S").slice(0, 1))}</div>`;
@@ -1028,11 +1271,14 @@ async function submitBooking() {
     console.log("create_public_booking result:", data, error);
 
     if (error) {
+      const message = String(error.message || "");
+
       if (
-        String(error.message || "").includes("slot_unavailable") ||
-        String(error.message || "").includes("duplicate_booking")
+        message.includes("slot_unavailable") ||
+        message.includes("duplicate_booking") ||
+        message.includes("overlapping")
       ) {
-        await ensureBookingsLoaded(true, true);
+        await ensureAvailableSlotsLoaded(true, true);
         selectedTime = "";
         reconcileSelectionState();
         renderAllBookingState();
@@ -1049,7 +1295,7 @@ async function submitBooking() {
     document.getElementById("successService").textContent = selectedService.name;
     document.getElementById("successStaff").textContent = selectedStaff.name;
 
-    await ensureBookingsLoaded(true, true);
+    await ensureAvailableSlotsLoaded(true, true);
     showScreen("screenSuccess");
   } catch (err) {
     console.log("Submit error:", err);
@@ -1137,59 +1383,6 @@ function staffCanDoService(member, serviceId) {
   return arr.map(String).includes(String(serviceId));
 }
 
-function getEarliestStart(members) {
-  if (!members.length) return null;
-  const starts = members.map((m) => timeToMinutes(m.startTime));
-  return Math.min(...starts);
-}
-
-function getLatestEnd(members) {
-  if (!members.length) return null;
-  const ends = members.map((m) => timeToMinutes(m.endTime));
-  return Math.max(...ends);
-}
-
-function isAnyStaffAvailableAtTime(time, duration) {
-  if (!selectedService || !selectedDate) return false;
-
-  let candidates = getCandidateStaffForSelectedService();
-
-  if (selectedStaff) {
-    candidates = candidates.filter(
-      (member) => String(member.staffId) === String(selectedStaff.staffId)
-    );
-  }
-
-  return candidates.some((member) =>
-    isStaffAvailable(member, selectedDate, time, duration)
-  );
-}
-
-function isStaffAvailable(member, date, time, duration) {
-  if (!member || !date || !time || !duration) return false;
-  if (!isStaffWorkingOnDate(member, date)) return false;
-
-  const start = timeToMinutes(time);
-  const end = start + Number(duration);
-  const memberStart = timeToMinutes(member.startTime);
-  const memberEnd = timeToMinutes(member.endTime);
-
-  if (start < memberStart || end > memberEnd) return false;
-
-  const busy = bookings.filter(
-    (b) =>
-      String(b.staffId) === String(member.staffId) &&
-      String(b.date).trim() === String(date).trim() &&
-      String(b.status).trim() === "booked"
-  );
-
-  return !busy.some((b) => {
-    const bStart = timeToMinutes(normalizeTime(b.time));
-    const bEnd = bStart + Number(b.duration || 0);
-    return start < bEnd && end > bStart;
-  });
-}
-
 function isStaffWorkingOnDate(member, date) {
   const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const d = new Date(`${date}T00:00:00`);
@@ -1226,21 +1419,19 @@ function isTimeBlockedByNow(dateStr, timeStr) {
 
 /* -------------------- utils -------------------- */
 
-function minutesToTime(min) {
-  const h = String(Math.floor(min / 60)).padStart(2, "0");
-  const m = String(min % 60).padStart(2, "0");
-  return `${h}:${m}`;
+function normalizeTime(value) {
+  const str = String(value || "").trim();
+  if (!str) return "";
+  if (/^\d:\d{2}$/.test(str)) return `0${str}`;
+  return str.slice(0, 5);
 }
 
 function timeToMinutes(value) {
-  const [h, m] = normalizeTime(value).split(":").map(Number);
-  return h * 60 + m;
-}
+  const normalized = normalizeTime(value);
+  if (!normalized) return 0;
 
-function normalizeTime(value) {
-  const str = String(value || "").trim();
-  if (/^\d:\d{2}$/.test(str)) return `0${str}`;
-  return str.slice(0, 5);
+  const [h, m] = normalized.split(":").map(Number);
+  return h * 60 + m;
 }
 
 function getTodayString() {
