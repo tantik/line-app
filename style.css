@@ -1015,3 +1015,117 @@ select:focus {
     grid-auto-columns: 100px;
   }
 }
+
+
+
+.service-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.service-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.25), transparent);
+  opacity: 0;
+  transition: 0.4s;
+}
+
+.service-card:hover::after {
+  opacity: 1;
+}
+
+.service-card.active {
+  transform: translateY(-3px) scale(1.02);
+}
+
+.service-card-media {
+  position: relative;
+}
+
+.service-card-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,0.15));
+}
+.staff-card {
+  position: relative;
+}
+
+.staff-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  background: radial-gradient(circle at top, rgba(216,168,109,0.25), transparent 70%);
+  opacity: 0;
+  transition: 0.3s;
+}
+
+.staff-card:hover::after {
+  opacity: 1;
+}
+
+.staff-card.active {
+  transform: translateY(-3px) scale(1.03);
+}
+
+.staff-avatar {
+  box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+.date-item {
+  backdrop-filter: blur(6px);
+  transition: 0.2s;
+}
+
+.date-item:hover {
+  transform: translateY(-2px);
+}
+
+.date-item.active {
+  box-shadow: 0 6px 18px rgba(216,168,109,0.4);
+}
+.time-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.time-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.3), transparent);
+  opacity: 0;
+  transition: 0.3s;
+}
+
+.time-item:hover::after {
+  opacity: 1;
+}
+
+.time-item.active {
+  transform: scale(1.05);
+}
+.screen {
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.btn-primary {
+  box-shadow: 0 8px 20px rgba(216,168,109,0.35);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px) scale(1.02);
+}
