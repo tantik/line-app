@@ -1,4 +1,4 @@
-const supabase = window.supabaseClient;
+const sb = window.supabaseClient;
 const env = window.__APP_ENV__ || window.appEnv || {};
 
 let currentSalonId = null;
@@ -9,7 +9,7 @@ let allBookings = [];
 let allStaff = [];
 
 const bookingState = {
-  view: "today", // today | day | week | month
+  view: "today",
   selectedDate: getTodayString(),
   statusFilter: "",
   staffFilter: "",
@@ -22,14 +22,14 @@ async function initAdmin() {
   bindAdminUi();
   setInitialDate();
 
-  const { data, error } = await supabase.auth.getSession();
+  const { data, error } = await sb.auth.getSession();
   if (error) {
     console.error(error);
   }
 
   await applySession(data?.session || null);
 
-  supabase.auth.onAuthStateChange(async (_event, session) => {
+  sb.auth.onAuthStateChange(async (_event, session) => {
     await applySession(session);
   });
 }
