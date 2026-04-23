@@ -460,6 +460,7 @@ function renderStaffStep1() {
   if (!box) return;
 
   box.innerHTML = "";
+  box.className = "staff-gallery";
 
   const filtered = selectedService
     ? staff.filter((member) => staffCanDoService(member, selectedService.serviceId))
@@ -508,7 +509,8 @@ function renderStaffStep1() {
   });
 
   if (!filtered.length) {
-    box.innerHTML = `<div class="empty-state">このサービスに対応できる担当者がいません</div>`;
+    box.className = "empty-state";
+    box.innerHTML = `このサービスに対応できる担当者がいません`;
   }
 }
 
@@ -537,12 +539,17 @@ function renderDateOptions() {
     item.className = "date-item";
     if (value === selectedDate) item.classList.add("active");
 
+    const available = isDateSelectable(value);
+    if (!available) item.classList.add("disabled");
+
     item.innerHTML = `
       <div class="date-item-day">${weekdays[d.getDay()]}</div>
       <div class="date-item-date">${mm}/${dd}</div>
     `;
 
     item.addEventListener("click", async () => {
+      if (!available) return;
+
       selectedDate = value;
       selectedTime = "";
 
@@ -567,6 +574,18 @@ function renderDateOptions() {
 
   if (countLabel) countLabel.textContent = `${count}日表示`;
   if (moreBtn) moreBtn.classList.toggle("hidden", count >= CONFIG.DATE_RANGE_DAYS);
+}
+
+function isDateSelectable(dateValue) {
+  if (!selectedService) return true;
+
+  const candidates = selectedStaff
+    ? staff.filter((m) => String(m.staffId) === String(selectedStaff.staffId))
+    : staff.filter((m) => staffCanDoService(m, selectedService.serviceId));
+
+  if (!candidates.length) return false;
+
+  return candidates.some((member) => isStaffWorkingOnDate(member, dateValue));
 }
 
 function loadMoreDates() {
@@ -669,7 +688,7 @@ function renderTimeOptions() {
         !isStaffAvailable(selectedStaff, selectedDate, selectedTime, duration)
       ) {
         selectedStaff = null;
-        renderStaffStep1();
+        renderStep1();
       }
 
       renderTimeOptions();
@@ -694,16 +713,17 @@ function renderStaffStep2() {
 
   box.classList.remove("empty-state");
   box.innerHTML = "";
+  box.className = "compact-grid";
 
   if (!selectedService) {
+    box.className = "empty-state";
     box.innerHTML = "先にサービスを選択してください";
-    box.classList.add("empty-state");
     return;
   }
 
   if (!selectedDate || !selectedTime) {
+    box.className = "empty-state";
     box.innerHTML = "時間を選ぶと表示されます";
-    box.classList.add("empty-state");
     return;
   }
 
@@ -750,8 +770,8 @@ function renderStaffStep2() {
   });
 
   if (!filtered.length) {
+    box.className = "empty-state";
     box.innerHTML = "この条件で対応できる担当者がいません";
-    box.classList.add("empty-state");
   }
 }
 
