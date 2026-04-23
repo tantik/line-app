@@ -2,7 +2,6 @@ const CONFIG = {
   LIFF_ID: "2009586903-hyNXZaW7",
   WEBHOOK_URL:
     "https://script.google.com/macros/s/AKfycbwJ6JgQWqmhp9Y7gWPKvr5l5IixbWuNRAsbJ0km6AQIGuUBlniZeDfOpqtkGds-pxzB/exec",
-  BUSINESS_LABEL: "Salon",
   DATE_RANGE_DAYS: 60,
   INITIAL_VISIBLE_DAYS: 14,
   LOAD_MORE_DAYS_STEP: 14,
@@ -36,8 +35,6 @@ let selectedTime = "";
 let visibleDaysCount = CONFIG.INITIAL_VISIBLE_DAYS;
 let initDone = false;
 
-/* -------------------- init -------------------- */
-
 document.addEventListener("DOMContentLoaded", () => {
   bindStaticEvents();
   init();
@@ -56,27 +53,17 @@ async function init() {
 
     if (isLocalhost) {
       console.log("DEV MODE: localhost detected, LINE login bypass enabled");
-
       userId = "dev-user";
       displayName = "Dev User";
-
-      const nameInput = document.getElementById("name");
-      if (nameInput) nameInput.value = displayName || "";
-
-      const leadOwnerName = document.getElementById("leadOwnerName");
-      if (leadOwnerName) leadOwnerName.value = displayName || "";
-
+      fillInitialProfileFields();
       bindPhoneInput();
 
       await Promise.all([loadServices(true), loadStaff(true)]);
-
-      renderServices();
-      renderStaffStep1();
+      renderStep1();
       renderDateOptions();
-      renderStep3IdleState();
+      renderStep2IdleState();
       updateSummary();
       showScreen("screenWelcome");
-
       startBookingsPrefetch();
       return;
     }
@@ -92,23 +79,15 @@ async function init() {
     userId = profile?.userId || "";
     displayName = profile?.displayName || "";
 
-    const nameInput = document.getElementById("name");
-    if (nameInput) nameInput.value = displayName || "";
-
-    const leadOwnerName = document.getElementById("leadOwnerName");
-    if (leadOwnerName) leadOwnerName.value = displayName || "";
-
+    fillInitialProfileFields();
     bindPhoneInput();
 
     await Promise.all([loadServices(true), loadStaff(true)]);
-
-    renderServices();
-    renderStaffStep1();
+    renderStep1();
     renderDateOptions();
-    renderStep3IdleState();
+    renderStep2IdleState();
     updateSummary();
     showScreen("screenWelcome");
-
     startBookingsPrefetch();
   } catch (error) {
     console.log("LIFF init error:", error);
@@ -118,7 +97,13 @@ async function init() {
   }
 }
 
-/* -------------------- bindings -------------------- */
+function fillInitialProfileFields() {
+  const nameInput = document.getElementById("name");
+  if (nameInput) nameInput.value = displayName || "";
+
+  const leadOwnerName = document.getElementById("leadOwnerName");
+  if (leadOwnerName) leadOwnerName.value = displayName || "";
+}
 
 function bindStaticEvents() {
   document.getElementById("btnStartDemo")?.addEventListener("click", startDemoFlow);
@@ -127,21 +112,22 @@ function bindStaticEvents() {
   document.getElementById("btnOpenAdmin")?.addEventListener("click", openAdminDemo);
 
   document.getElementById("btnInfoStartDemo")?.addEventListener("click", startDemoFlow);
-
   document.getElementById("btnSubmitLead")?.addEventListener("click", submitLeadForm);
 
-  document.getElementById("btnGoStaff")?.addEventListener("click", goStaffStep);
-  document.getElementById("btnStaffSkip")?.addEventListener("click", () => {
+  document.getElementById("btnClearStaffInline")?.addEventListener("click", () => {
     selectedStaff = null;
     selectedTime = "";
-    renderStaffStep1();
-    renderTimeOptions();
-    renderStaffStep2();
+    renderStep1();
+    if (selectedDate) {
+      renderTimeOptions();
+      renderStaffStep2();
+    } else {
+      renderStep2IdleState();
+    }
     updateSummary();
-    showScreen("screenDateTime");
   });
-  document.getElementById("btnGoDateTime")?.addEventListener("click", goDateTimeStep);
 
+  document.getElementById("btnGoDateTime")?.addEventListener("click", goDateTimeStep);
   document.getElementById("btnGoConfirm")?.addEventListener("click", goConfirmStep);
   document.getElementById("btnSubmitBooking")?.addEventListener("click", submitBooking);
 
@@ -158,14 +144,15 @@ function bindStaticEvents() {
   });
 }
 
-/* -------------------- screen nav -------------------- */
-
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach((screen) => {
     screen.classList.remove("active");
   });
   const target = document.getElementById(id);
-  if (target) target.classList.add("active");
+  if (target) {
+    target.classList.add("active");
+    target.scrollTop = 0;
+  }
 }
 
 function openAdminDemo() {
@@ -179,8 +166,6 @@ function openLeadScreen() {
   }
   showScreen("screenLead");
 }
-
-/* -------------------- loading / toast -------------------- */
 
 function setLoading(show, title = "読み込み中...", text = "少々お待ちください") {
   const overlay = document.getElementById("loadingOverlay");
@@ -216,8 +201,6 @@ function toast(message) {
     el.remove();
   }, 2500);
 }
-
-/* -------------------- cache / fetch -------------------- */
 
 function getCache(key) {
   const item = cacheStore[key];
@@ -297,31 +280,27 @@ function startBookingsPrefetch() {
   }, 500);
 }
 
-/* -------------------- state reset -------------------- */
-
 function startDemoFlow() {
   clearBookingState();
+
   const nameInput = document.getElementById("name");
   const phoneInput = document.getElementById("phone");
 
   if (nameInput) nameInput.value = displayName || "";
   if (phoneInput) phoneInput.value = "";
 
-  renderServices();
-  renderStaffStep1();
+  renderStep1();
   renderDateOptions();
-  renderStep3IdleState();
+  renderStep2IdleState();
   updateSummary();
-
-  showScreen("screenService");
+  showScreen("screenBookingStep1");
 }
 
 function resetAndGoWelcome() {
   clearBookingState();
-  renderServices();
-  renderStaffStep1();
+  renderStep1();
   renderDateOptions();
-  renderStep3IdleState();
+  renderStep2IdleState();
   updateSummary();
   showScreen("screenWelcome");
 }
@@ -333,8 +312,6 @@ function clearBookingState() {
   selectedTime = "";
   visibleDaysCount = CONFIG.INITIAL_VISIBLE_DAYS;
 }
-
-/* -------------------- phone helpers -------------------- */
 
 function normalizePhone(value) {
   const raw = String(value || "").trim();
@@ -360,35 +337,23 @@ function bindPhoneInput() {
   });
 }
 
-/* -------------------- step routing -------------------- */
-
-function goStaffStep() {
-  if (!selectedService) {
-    alert("サービスを選択してください");
-    return;
-  }
-  document.getElementById("staffStepSelectedService").textContent =
-    `${selectedService.name} ¥${selectedService.price}`;
-  renderStaffStep1();
-  showScreen("screenStaff");
-}
-
 function goDateTimeStep() {
   if (!selectedService) {
     alert("サービスを選択してください");
     return;
   }
+
   renderDateOptions();
 
   if (selectedDate) {
     renderTimeOptions();
     renderStaffStep2();
   } else {
-    renderStep3IdleState();
+    renderStep2IdleState();
   }
 
   updateSummary();
-  showScreen("screenDateTime");
+  showScreen("screenBookingStep2");
 }
 
 async function goConfirmStep() {
@@ -415,10 +380,13 @@ async function goConfirmStep() {
   document.getElementById("confirmDate").textContent = selectedDate || "-";
   document.getElementById("confirmTime").textContent = selectedTime || "-";
 
-  showScreen("screenConfirm");
+  showScreen("screenBookingStep3");
 }
 
-/* -------------------- services render -------------------- */
+function renderStep1() {
+  renderServices();
+  renderStaffStep1();
+}
 
 function renderServices() {
   const el = document.getElementById("servicesList");
@@ -436,6 +404,7 @@ function renderServices() {
   filtered.forEach((service) => {
     const card = document.createElement("div");
     card.className = "service-card";
+
     if (
       selectedService &&
       String(selectedService.serviceId) === String(service.serviceId)
@@ -451,17 +420,10 @@ function renderServices() {
     card.innerHTML = `
       <div class="service-card-media">${visual}</div>
       <div class="service-card-body">
-        <div class="service-card-top">
-          <h3 class="service-card-name">${escapeHtml(service.name || "-")}</h3>
-          <div class="service-card-price">¥${escapeHtml(String(service.price || 0))}</div>
-        </div>
-        <div class="service-card-meta">
-          <span>${escapeHtml(String(service.duration || 0))}分</span>
-          <span>サービス</span>
-        </div>
-        <div class="service-card-desc">
-          ${escapeHtml(service.description || "ご希望の内容を選択してください")}
-        </div>
+        <div class="service-card-label">✂ サービス</div>
+        <h3 class="service-card-name">${escapeHtml(service.name || "-")}</h3>
+        <div class="service-card-meta">${escapeHtml(String(service.duration || 0))}分</div>
+        <div class="service-card-price">¥${escapeHtml(String(service.price || 0))}</div>
       </div>
     `;
 
@@ -473,14 +435,13 @@ function renderServices() {
         selectedTime = "";
       }
 
-      renderServices();
-      renderStaffStep1();
+      renderStep1();
 
       if (selectedDate) {
         renderTimeOptions();
         renderStaffStep2();
       } else {
-        renderStep3IdleState();
+        renderStep2IdleState();
       }
 
       updateSummary();
@@ -493,8 +454,6 @@ function renderServices() {
     el.innerHTML = `<div class="empty-state">この担当者が対応できるサービスがありません</div>`;
   }
 }
-
-/* -------------------- staff step 1 -------------------- */
 
 function renderStaffStep1() {
   const box = document.getElementById("staffList");
@@ -533,14 +492,13 @@ function renderStaffStep1() {
       selectedStaff = member;
       selectedTime = "";
 
-      renderServices();
-      renderStaffStep1();
+      renderStep1();
 
       if (selectedDate) {
         renderTimeOptions();
         renderStaffStep2();
       } else {
-        renderStep3IdleState();
+        renderStep2IdleState();
       }
 
       updateSummary();
@@ -553,8 +511,6 @@ function renderStaffStep1() {
     box.innerHTML = `<div class="empty-state">このサービスに対応できる担当者がいません</div>`;
   }
 }
-
-/* -------------------- dates -------------------- */
 
 function renderDateOptions() {
   const box = document.getElementById("dateList");
@@ -610,9 +566,7 @@ function renderDateOptions() {
   }
 
   if (countLabel) countLabel.textContent = `${count}日表示`;
-  if (moreBtn) {
-    moreBtn.classList.toggle("hidden", count >= CONFIG.DATE_RANGE_DAYS);
-  }
+  if (moreBtn) moreBtn.classList.toggle("hidden", count >= CONFIG.DATE_RANGE_DAYS);
 }
 
 function loadMoreDates() {
@@ -623,9 +577,7 @@ function loadMoreDates() {
   renderDateOptions();
 }
 
-/* -------------------- step 3 idle -------------------- */
-
-function renderStep3IdleState() {
+function renderStep2IdleState() {
   const timeBox = document.getElementById("timeList");
   const staffBox = document.getElementById("staffListStep2");
   const slotHint = document.getElementById("slotHint");
@@ -647,8 +599,6 @@ function renderStep3IdleState() {
   }
 }
 
-/* -------------------- times -------------------- */
-
 function renderTimeOptions() {
   const box = document.getElementById("timeList");
   const slotHint = document.getElementById("slotHint");
@@ -658,7 +608,7 @@ function renderTimeOptions() {
   box.innerHTML = "";
 
   if (!selectedDate || !selectedService) {
-    renderStep3IdleState();
+    renderStep2IdleState();
     return;
   }
 
@@ -738,8 +688,6 @@ function renderTimeOptions() {
   }
 }
 
-/* -------------------- staff step 2 -------------------- */
-
 function renderStaffStep2() {
   const box = document.getElementById("staffListStep2");
   if (!box) return;
@@ -793,7 +741,7 @@ function renderStaffStep2() {
 
     card.addEventListener("click", () => {
       selectedStaff = member;
-      renderStaffStep1();
+      renderStep1();
       renderStaffStep2();
       updateSummary();
     });
@@ -806,8 +754,6 @@ function renderStaffStep2() {
     box.classList.add("empty-state");
   }
 }
-
-/* -------------------- summary -------------------- */
 
 function updateSummary() {
   const serviceText = selectedService
@@ -831,8 +777,6 @@ function updateSummary() {
   if (s2) s2.textContent = staffText;
   if (s3) s3.textContent = dateTimeText;
 }
-
-/* -------------------- booking submit -------------------- */
 
 async function submitBooking() {
   const name = (document.getElementById("name")?.value || "").trim();
@@ -909,8 +853,6 @@ async function submitBooking() {
   }
 }
 
-/* -------------------- lead submit -------------------- */
-
 async function submitLeadForm() {
   const salonName = (document.getElementById("leadSalonName")?.value || "").trim();
   const ownerName = (document.getElementById("leadOwnerName")?.value || "").trim();
@@ -985,8 +927,6 @@ function clearLeadForm() {
     }
   });
 }
-
-/* -------------------- business logic -------------------- */
 
 function staffCanDoService(member, serviceId) {
   const arr = Array.isArray(member.services) ? member.services : [];
@@ -1081,8 +1021,6 @@ function isTimeBlockedByNow(dateStr, timeStr) {
   const diffMinutes = (selectedDateTime.getTime() - now.getTime()) / 60000;
   return diffMinutes < CONFIG.SAME_DAY_BLOCK_MINUTES;
 }
-
-/* -------------------- utils -------------------- */
 
 function minutesToTime(min) {
   const h = String(Math.floor(min / 60)).padStart(2, "0");

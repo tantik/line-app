@@ -6,7 +6,7 @@
     name="viewport"
     content="width=device-width, initial-scale=1.0, viewport-fit=cover"
   />
-  <title>Mirawi Salon Demo</title>
+  <title>Salon Mini App</title>
   <meta
     name="description"
     content="LINE予約デモ。予約体験、仕組み紹介、導入相談、管理画面デモをミニアプリ形式で確認できます。"
@@ -41,8 +41,7 @@
   <main class="app-shell">
     <div class="device-frame">
       <div class="screen-stack">
-
-        <!-- 0. WELCOME -->
+        <!-- WELCOME -->
         <section id="screenWelcome" class="screen active">
           <div class="hero-glow"></div>
 
@@ -132,7 +131,7 @@
             <article class="soft-card">
               <span class="soft-kicker">04</span>
               <h3>管理画面で運用</h3>
-              <p>将来的には予約一覧、スタッフ、料金、時間設定をサロン側で更新できる設計です。</p>
+              <p>予約一覧、確認状況、スタッフ、料金、時間設定をまとめて確認できます。</p>
             </article>
           </div>
 
@@ -221,55 +220,44 @@
           </div>
         </section>
 
-        <!-- STEP 1 SERVICE -->
-        <section id="screenService" class="screen">
+        <!-- STEP 1: SERVICE + STAFF -->
+        <section id="screenBookingStep1" class="screen">
           <div class="screen-top">
             <button class="icon-back" data-back="screenWelcome" type="button">←</button>
-            <div class="step-chip">1/4</div>
+            <div class="step-chip">1/3</div>
           </div>
 
           <div class="section-head compact">
-            <h2>サービスを選択</h2>
-            <p>ご希望のメニューを選択してください</p>
+            <h2>予約</h2>
+            <p>サービスと担当者を選択してください</p>
           </div>
 
+          <div class="block-head">
+            <h3>サービス選択</h3>
+          </div>
           <div id="servicesList" class="service-gallery"></div>
 
-          <div class="bottom-actions single sticky-cta">
-            <button class="btn btn-primary" id="btnGoStaff" type="button">次へ</button>
-          </div>
-        </section>
-
-        <!-- STEP 2 STAFF -->
-        <section id="screenStaff" class="screen">
-          <div class="screen-top">
-            <button class="icon-back" data-back="screenService" type="button">←</button>
-            <div class="step-chip">2/4</div>
+          <div class="services-scroll-indicator">
+            <span></span>
           </div>
 
-          <div class="section-head compact">
-            <h2>担当者を選択</h2>
-            <p>選択したサービスに対応できる担当者のみ表示されます</p>
-          </div>
-
-          <div class="selection-summary mini">
-            <span>サービス</span>
-            <strong id="staffStepSelectedService">-</strong>
+          <div class="block-head with-action">
+            <h3>担当者選択</h3>
+            <button id="btnClearStaffInline" class="inline-link" type="button">未選択にする</button>
           </div>
 
           <div id="staffList" class="staff-grid"></div>
 
-          <div class="bottom-actions">
-            <button class="btn btn-ghost" id="btnStaffSkip" type="button">未選択で進む</button>
+          <div class="bottom-actions single sticky-cta">
             <button class="btn btn-primary" id="btnGoDateTime" type="button">次へ</button>
           </div>
         </section>
 
-        <!-- STEP 3 DATE/TIME -->
-        <section id="screenDateTime" class="screen">
+        <!-- STEP 2: DATE + TIME -->
+        <section id="screenBookingStep2" class="screen">
           <div class="screen-top">
-            <button class="icon-back" data-back="screenStaff" type="button">←</button>
-            <div class="step-chip">3/4</div>
+            <button class="icon-back" data-back="screenBookingStep1" type="button">←</button>
+            <div class="step-chip">2/3</div>
           </div>
 
           <div class="section-head compact">
@@ -329,11 +317,11 @@
           </div>
         </section>
 
-        <!-- STEP 4 CONFIRM -->
-        <section id="screenConfirm" class="screen">
+        <!-- STEP 3: CONFIRM -->
+        <section id="screenBookingStep3" class="screen">
           <div class="screen-top">
-            <button class="icon-back" data-back="screenDateTime" type="button">←</button>
-            <div class="step-chip">4/4</div>
+            <button class="icon-back" data-back="screenBookingStep2" type="button">←</button>
+            <div class="step-chip">3/3</div>
           </div>
 
           <div class="section-head compact">
@@ -377,7 +365,7 @@
           </div>
 
           <div class="bottom-actions">
-            <button class="btn btn-ghost" data-back="screenDateTime" type="button">戻る</button>
+            <button class="btn btn-ghost" data-back="screenBookingStep2" type="button">戻る</button>
             <button class="btn btn-primary" id="btnSubmitBooking" type="button">予約を確定</button>
           </div>
         </section>
@@ -433,7 +421,6 @@
             </button>
           </div>
         </section>
-
       </div>
     </div>
   </main>
