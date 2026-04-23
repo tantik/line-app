@@ -227,8 +227,63 @@ function getSupabase() {
   return window.supabaseClient || null;
 }
 
+function getEnv() {
+  return window.__APP_ENV__ || window.appEnv || null;
+}
+
 function getSalonSlug() {
-  return window.appEnv?.SALON_SLUG || "mirawi-demo";
+  return getEnv()?.SALON_SLUG || "demo-salon";
+}
+
+/* -------------------- mappers -------------------- */
+
+function normalizeServiceRow(s) {
+  return {
+    serviceId: s.id ?? s.service_id ?? s.serviceId,
+    name: s.name ?? s.service_name ?? "",
+    price:
+      s.price ??
+      s.price_jpy ??
+      s.base_price ??
+      s.amount ??
+      s.service_price ??
+      0,
+    duration:
+      s.duration_minutes ??
+      s.duration ??
+      s.duration_mins ??
+      s.minutes ??
+      s.service_duration ??
+      0,
+    image: s.image_url ?? s.image ?? s.photo ?? null,
+    description: s.description ?? s.note ?? "",
+  };
+}
+
+function normalizeStaffRow(m) {
+  return {
+    staffId: m.id ?? m.staff_id ?? m.staffId,
+    name: m.name ?? m.staff_name ?? "",
+    startTime: normalizeTime(
+      m.start_time ?? m.startTime ?? m.work_start ?? "10:00"
+    ),
+    endTime: normalizeTime(
+      m.end_time ?? m.endTime ?? m.work_end ?? "19:00"
+    ),
+    workDays:
+      m.work_days ??
+      m.workDays ??
+      m.working_days ??
+      "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
+    services: Array.isArray(m.service_ids)
+      ? m.service_ids
+      : Array.isArray(m.services)
+      ? m.services
+      : Array.isArray(m.serviceIds)
+      ? m.serviceIds
+      : [],
+    image: m.image_url ?? m.image ?? m.photo ?? null,
+  };
 }
 
 /* -------------------- data loading -------------------- */
@@ -248,17 +303,18 @@ async function loadServices(useCache = true) {
           p_salon_slug: getSalonSlug(),
         });
 
+        console.log("public_catalog raw:", data, error);
+
         if (!error && data) {
-          const list = Array.isArray(data?.services) ? data.services : Array.isArray(data) ? data : [];
+          const list = Array.isArray(data?.services)
+            ? data.services
+            : Array.isArray(data)
+            ? data
+            : [];
+
           if (list.length) {
-            services = list.map((s) => ({
-              serviceId: s.id ?? s.service_id ?? s.serviceId,
-              name: s.name,
-              price: s.price ?? s.price_jpy ?? 0,
-              duration: s.duration_minutes ?? s.duration ?? 0,
-              image: s.image_url ?? s.image ?? null,
-              description: s.description ?? "",
-            }));
+            services = list.map(normalizeServiceRow);
+            console.log("normalized services:", services);
             setCache("services", services);
             return;
           }
@@ -292,17 +348,15 @@ async function loadStaff(useCache = true) {
         });
 
         if (!error && data) {
-          const list = Array.isArray(data?.staff) ? data.staff : [];
+          const list = Array.isArray(data?.staff)
+            ? data.staff
+            : Array.isArray(data?.staff_members)
+            ? data.staff_members
+            : [];
+
           if (list.length) {
-            staff = list.map((m) => ({
-              staffId: m.id ?? m.staff_id ?? m.staffId,
-              name: m.name,
-              startTime: m.start_time ?? m.startTime ?? "10:00",
-              endTime: m.end_time ?? m.endTime ?? "19:00",
-              workDays: m.work_days ?? m.workDays ?? "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
-              services: Array.isArray(m.service_ids) ? m.service_ids : Array.isArray(m.services) ? m.services : [],
-              image: m.image_url ?? m.image ?? null,
-            }));
+            staff = list.map(normalizeStaffRow);
+            console.log("normalized staff:", staff);
             setCache("staff", staff);
             return;
           }
@@ -330,7 +384,7 @@ async function ensureBookingsLoaded(force = false, silent = false) {
 
     if (!silent) setInlineTimeLoading(true, "空き状況を確認中...");
 
-    // Temporary fallback: keep old bookings feed for slot rendering
+    // пока оставляем старый feed для рендера занятости
     bookings = await fetchJson(BOOKINGS_URL);
     setCache("bookings", bookings);
   } catch (e) {
@@ -990,9 +1044,9 @@ async function submitBooking() {
       p_source: "mini_app",
     });
 
-    if (error) {
-      console.log("create_public_booking error:", error);
+    console.log("create_public_booking result:", data, error);
 
+    if (error) {
       if (
         String(error.message || "").includes("slot_unavailable") ||
         String(error.message || "").includes("duplicate_booking")
@@ -1205,7 +1259,7 @@ function timeToMinutes(value) {
 function normalizeTime(value) {
   const str = String(value || "").trim();
   if (/^\d:\d{2}$/.test(str)) return `0${str}`;
-  return str;
+  return str.slice(0, 5);
 }
 
 function getTodayString() {
