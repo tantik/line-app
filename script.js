@@ -32,7 +32,7 @@ let initDone = false;
  * {
  *   date: "2026-04-23",
  *   serviceId: "...",
- *   preferredStaffId: "...|null",
+ *   preferredStaffId: "...|''",
  *   slots: [
  *     {
  *       time: "10:00",
@@ -237,7 +237,7 @@ function getSlotsCacheKey({ date, serviceId, staffId }) {
   return JSON.stringify({
     date: String(date || ""),
     serviceId: String(serviceId || ""),
-    staffId: String(staffId || ""),
+    staffId: String(staffId || "ALL"),
   });
 }
 
@@ -383,9 +383,9 @@ function normalizeSlotRow(row) {
   const time =
     normalizeTime(
       row.time ??
+        row.slot_time ??
         row.start_time ??
         row.startTime ??
-        row.slot_time ??
         ""
     ) || "";
 
@@ -458,6 +458,57 @@ async function loadCatalog(useCache = true) {
 
 /* -------------------- available slots -------------------- */
 
+async function fetchAvailableSlotsForStaff(sb, staffId) {
+  const payloadCandidates = [
+    {
+      p_salon_slug: getSalonSlug(),
+      p_service_id: selectedService.serviceId,
+      p_staff_id: staffId,
+      p_date: selectedDate,
+    },
+    {
+      p_salon_slug: getSalonSlug(),
+      p_service_id: selectedService.serviceId,
+      p_staff_id: staffId,
+      p_booking_date: selectedDate,
+    },
+  ];
+
+  let lastError = null;
+  let data = null;
+
+  for (const payload of payloadCandidates) {
+    const res = await sb.rpc("available_slots", payload);
+    if (!res.error) {
+      data = res.data;
+      lastError = null;
+      break;
+    }
+    lastError = res.error;
+  }
+
+  if (lastError) {
+    throw lastError;
+  }
+
+  const rawSlots = Array.isArray(data?.slots)
+    ? data.slots
+    : Array.isArray(data)
+    ? data
+    : [];
+
+  return rawSlots
+    .map(normalizeSlotRow)
+    .filter((slot) => !!slot.time)
+    .map((slot) => ({
+      time: slot.time,
+      staffIds:
+        slot.staffIds && slot.staffIds.length
+          ? slot.staffIds
+          : [String(staffId)],
+    }));
+}
+
 async function ensureAvailableSlotsLoaded(force = false, silent = false) {
   if (!selectedService || !selectedDate) {
     availableSlotsState = {
@@ -472,7 +523,7 @@ async function ensureAvailableSlotsLoaded(force = false, silent = false) {
   const params = {
     date: selectedDate,
     serviceId: selectedService.serviceId,
-    staffId: selectedStaff?.staffId || null,
+    staffId: selectedStaff?.staffId || "ALL",
   };
 
   const cached = !force ? getSlotsCache(params) : null;
@@ -491,72 +542,48 @@ async function ensureAvailableSlotsLoaded(force = false, silent = false) {
   }
 
   try {
-    const rpcPayloadCandidates = [
-      {
-        p_salon_slug: getSalonSlug(),
-        p_service_id: selectedService.serviceId,
-        p_date: selectedDate,
-        p_staff_id: selectedStaff?.staffId || null,
-      },
-      {
-        p_salon_slug: getSalonSlug(),
-        p_service_id: selectedService.serviceId,
-        p_booking_date: selectedDate,
-        p_staff_id: selectedStaff?.staffId || null,
-      },
-    ];
-
-    let lastError = null;
-    let data = null;
-
-    for (const payload of rpcPayloadCandidates) {
-      const res = await sb.rpc("available_slots", payload);
-      if (!res.error) {
-        data = res.data;
-        lastError = null;
-        break;
-      }
-      lastError = res.error;
-    }
-
-    if (lastError) {
-      throw lastError;
-    }
-
-    const rawSlots = Array.isArray(data?.slots)
-      ? data.slots
-      : Array.isArray(data)
-      ? data
-      : [];
-
-    const normalizedSlots = rawSlots
-      .map(normalizeSlotRow)
-      .filter((slot) => !!slot.time);
+    const candidateStaff = selectedStaff
+      ? [selectedStaff]
+      : getCandidateStaffForSelectedService().filter((member) =>
+          isStaffWorkingOnDate(member, selectedDate)
+        );
 
     const staffMapById = new Map(staff.map((member) => [String(member.staffId), member]));
+    const mergedByTime = new Map();
 
-    const enrichedSlots = normalizedSlots.map((slot) => {
-      const resolvedStaffIds =
-        slot.staffIds.length > 0
-          ? slot.staffIds
-          : inferStaffIdsForTimeFallback(slot.time);
+    for (const member of candidateStaff) {
+      const memberSlots = await fetchAvailableSlotsForStaff(sb, member.staffId);
 
-      const uniqueStaffIds = [...new Set(resolvedStaffIds.map(String))];
-      const slotStaffMap = new Map();
-
-      uniqueStaffIds.forEach((id) => {
-        const member = staffMapById.get(String(id));
-        if (member) {
-          slotStaffMap.set(String(id), member);
+      memberSlots.forEach((slot) => {
+        const time = slot.time;
+        if (!mergedByTime.has(time)) {
+          mergedByTime.set(time, new Set());
         }
+        const staffSet = mergedByTime.get(time);
+        slot.staffIds.forEach((id) => staffSet.add(String(id)));
+        staffSet.add(String(member.staffId));
       });
+    }
 
-      return {
-        time: slot.time,
-        staffIds: uniqueStaffIds,
-        staffMap: slotStaffMap,
-      };
-    });
+    const enrichedSlots = Array.from(mergedByTime.entries())
+      .sort((a, b) => timeToMinutes(a[0]) - timeToMinutes(b[0]))
+      .map(([time, staffIdSet]) => {
+        const uniqueStaffIds = Array.from(staffIdSet);
+        const slotStaffMap = new Map();
+
+        uniqueStaffIds.forEach((id) => {
+          const member = staffMapById.get(String(id));
+          if (member) {
+            slotStaffMap.set(String(id), member);
+          }
+        });
+
+        return {
+          time,
+          staffIds: uniqueStaffIds,
+          staffMap: slotStaffMap,
+        };
+      });
 
     availableSlotsState = {
       date: selectedDate,
@@ -573,30 +600,6 @@ async function ensureAvailableSlotsLoaded(force = false, silent = false) {
   }
 }
 
-function inferStaffIdsForTimeFallback(time) {
-  if (!selectedService || !selectedDate || !time) return [];
-
-  return getCandidateStaffForSelectedService()
-    .filter((member) => {
-      if (selectedStaff && String(member.staffId) !== String(selectedStaff.staffId)) {
-        return false;
-      }
-
-      if (!isStaffWorkingOnDate(member, selectedDate)) {
-        return false;
-      }
-
-      const duration = Number(selectedService.duration || 0);
-      const start = timeToMinutes(time);
-      const end = start + duration;
-      const memberStart = timeToMinutes(member.startTime);
-      const memberEnd = timeToMinutes(member.endTime);
-
-      return start >= memberStart && end <= memberEnd;
-    })
-    .map((member) => String(member.staffId));
-}
-
 function invalidateSlotsSelection() {
   availableSlotsState = {
     date: "",
@@ -607,9 +610,19 @@ function invalidateSlotsSelection() {
 }
 
 function getAvailableTimes() {
-  return Array.isArray(availableSlotsState.slots)
-    ? availableSlotsState.slots.map((slot) => slot.time)
-    : [];
+  if (!Array.isArray(availableSlotsState.slots)) return [];
+
+  const list = availableSlotsState.slots;
+
+  if (!selectedStaff) {
+    return list.map((slot) => slot.time);
+  }
+
+  return list
+    .filter((slot) =>
+      slot.staffIds.map(String).includes(String(selectedStaff.staffId))
+    )
+    .map((slot) => slot.time);
 }
 
 function getSlotByTime(time) {
@@ -993,7 +1006,11 @@ function renderDateOptions() {
         invalidateSlotsSelection();
       }
 
-      if (slotHint) slotHint.textContent = "時間を選択してください";
+      if (slotHint) {
+        slotHint.textContent = selectedStaff
+          ? "時間を選択してください"
+          : "時間を選択してください（あとで担当者も選べます）";
+      }
 
       reconcileSelectionState();
       renderAllBookingState();
@@ -1069,7 +1086,11 @@ function renderTimeOptions() {
     return;
   }
 
-  if (slotHint) slotHint.textContent = "時間を選択してください";
+  if (slotHint) {
+    slotHint.textContent = selectedStaff
+      ? "時間を選択してください"
+      : "時間を選択してください（あとで担当者も選べます）";
+  }
 
   const times = getAvailableTimes().filter((time) => !isTimeBlockedByNow(selectedDate, time));
 
@@ -1224,7 +1245,7 @@ async function submitBooking() {
   const phone = normalizePhone(phoneInput?.value || "");
 
   if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) {
-    alert("先に予約内容を選択してください");
+    alert("サービス・担当者・日付・時間を選択してください");
     return;
   }
 
