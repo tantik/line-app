@@ -7,9 +7,10 @@ let refreshTimer = null;
 let realtimeChannel = null;
 let allBookings = [];
 let allStaff = [];
+let currentTab = "bookings";
 
 const bookingState = {
-  view: "today",
+  view: "today", // today | day | week | month
   selectedDate: getTodayString(),
   statusFilter: "",
   staffFilter: "",
@@ -21,6 +22,14 @@ document.addEventListener("DOMContentLoaded", initAdmin);
 async function initAdmin() {
   bindAdminUi();
   setInitialDate();
+  switchTab("bookings");
+
+  if (!sb) {
+    console.error("window.supabaseClient is missing");
+    toast("Supabase client が見つかりません");
+    setLoading(false);
+    return;
+  }
 
   const { data, error } = await sb.auth.getSession();
   if (error) {
@@ -43,7 +52,7 @@ function bindAdminUi() {
 
   document.getElementById("signOutBtn")?.addEventListener("click", async () => {
     try {
-      await supabase.auth.signOut();
+      await sb.auth.signOut();
     } catch (error) {
       console.error(error);
       toast("ログアウトに失敗しました");
@@ -52,9 +61,10 @@ function bindAdminUi() {
 
   document.getElementById("refreshBtn")?.addEventListener("click", async () => {
     await loadBookings(true);
+    await loadStaff();
   });
 
-  document.getElementById("selectedDate")?.addEventListener("change", async (e) => {
+  document.getElementById("selectedDate")?.addEventListener("change", (e) => {
     bookingState.selectedDate = e.target.value || getTodayString();
     renderRangeLabel();
     renderBookings();
@@ -85,7 +95,7 @@ function bindAdminUi() {
 
   document.getElementById("jumpTodayBtn")?.addEventListener("click", () => {
     bookingState.selectedDate = getTodayString();
-    if (bookingState.view === "today") bookingState.view = "today";
+    bookingState.view = "today";
     syncSelectedDateInput();
     syncViewButtons();
     renderRangeLabel();
@@ -105,9 +115,22 @@ function bindAdminUi() {
     });
   });
 
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      switchTab(btn.dataset.tab);
+    });
+  });
+
+  document.getElementById("addStaffBtn")?.addEventListener("click", () => {
+    toast("次のステップで Staff CRUD を追加します");
+  });
+
   document.addEventListener("visibilitychange", async () => {
     if (document.hidden) return;
-    if (currentSalonId) await loadBookings(true);
+    if (currentSalonId) {
+      await loadBookings(true);
+      await loadStaff();
+    }
   });
 }
 
@@ -121,7 +144,7 @@ async function sendMagicLink() {
   setLoading(true, "送信中...", "ログインリンクを送信しています");
 
   try {
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await sb.auth.signInWithOtp({
       email,
       options: {
         emailRedirectTo:
@@ -155,6 +178,7 @@ async function applySession(session) {
     unsubscribeRealtime();
     populateStaffFilter([]);
     renderBookings();
+    renderStaff([]);
     setLoading(false);
     return;
   }
@@ -167,6 +191,7 @@ async function applySession(session) {
 
     await resolveSalonMembership();
     await loadBookings(true);
+    await loadStaff();
     subscribeRealtime();
     startRefresh();
   } catch (error) {
@@ -178,7 +203,7 @@ async function applySession(session) {
 }
 
 async function resolveSalonMembership() {
-  const { data, error } = await supabase
+  const { data, error } = await sb
     .from("salon_members")
     .select("salon_id, role, salons(name, slug)")
     .eq("user_id", currentUser.id)
@@ -194,6 +219,24 @@ async function resolveSalonMembership() {
     `${data.salons?.name || "-"} / ${data.role || "-"}`;
 }
 
+/* -------------------- tabs -------------------- */
+
+function switchTab(tab) {
+  currentTab = tab;
+
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.tab === tab);
+  });
+
+  document.getElementById("bookingsSection")?.classList.toggle("hidden", tab !== "bookings");
+  document.getElementById("staffSection")?.classList.toggle("hidden", tab !== "staff");
+
+  const pageTitle = document.getElementById("pageTitle");
+  if (pageTitle) {
+    pageTitle.textContent = tab === "bookings" ? "Bookings" : "Staff";
+  }
+}
+
 /* -------------------- data loading -------------------- */
 
 async function loadBookings(showSpinner = false) {
@@ -204,7 +247,7 @@ async function loadBookings(showSpinner = false) {
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from("admin_booking_view")
       .select("*")
       .eq("salon_id", currentSalonId)
@@ -214,8 +257,8 @@ async function loadBookings(showSpinner = false) {
     if (error) throw error;
 
     allBookings = Array.isArray(data) ? data : [];
-
     hydrateStaffFilterFromBookings();
+
     document.getElementById(
       "lastUpdated"
     ).textContent = `最終更新: ${new Date().toLocaleString("ja-JP")}`;
@@ -226,6 +269,27 @@ async function loadBookings(showSpinner = false) {
     toast("予約読み込みに失敗しました");
   } finally {
     if (showSpinner) setLoading(false);
+  }
+}
+
+async function loadStaff() {
+  if (!currentSalonId) return;
+
+  try {
+    const { data, error } = await sb
+      .from("staff")
+      .select("*")
+      .eq("salon_id", currentSalonId)
+      .order("created_at", { ascending: true });
+
+    if (error) throw error;
+
+    allStaff = Array.isArray(data) ? data : [];
+    renderStaff(allStaff);
+  } catch (error) {
+    console.error(error);
+    toast("スタッフ取得エラー");
+    renderStaff([]);
   }
 }
 
@@ -241,11 +305,11 @@ function hydrateStaffFilterFromBookings() {
     }
   });
 
-  allStaff = Array.from(map.values()).sort((a, b) =>
+  const filterStaff = Array.from(map.values()).sort((a, b) =>
     String(a.name).localeCompare(String(b.name), "ja")
   );
 
-  populateStaffFilter(allStaff);
+  populateStaffFilter(filterStaff);
 }
 
 function populateStaffFilter(staffList) {
@@ -277,7 +341,7 @@ function subscribeRealtime() {
 
   if (!currentSalonId) return;
 
-  realtimeChannel = supabase
+  realtimeChannel = sb
     .channel(`admin-bookings-${currentSalonId}`)
     .on(
       "postgres_changes",
@@ -298,7 +362,7 @@ function subscribeRealtime() {
 
 function unsubscribeRealtime() {
   if (realtimeChannel) {
-    supabase.removeChannel(realtimeChannel);
+    sb.removeChannel(realtimeChannel);
     realtimeChannel = null;
   }
 }
@@ -308,6 +372,7 @@ function startRefresh() {
   refreshTimer = setInterval(async () => {
     if (document.hidden || !currentSalonId) return;
     await loadBookings(false);
+    await loadStaff();
   }, 30000);
 }
 
@@ -346,6 +411,54 @@ function renderBookings() {
   }
 
   renderDayView(items, mount);
+}
+
+function renderStaff(list) {
+  const mount = document.getElementById("staffList");
+  if (!mount) return;
+
+  mount.innerHTML = "";
+
+  if (!list.length) {
+    mount.innerHTML = `<div class="empty-state">スタッフがいません</div>`;
+    return;
+  }
+
+  list.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "staff-card";
+
+    const photo = item.photo_url
+      ? escapeHtml(item.photo_url)
+      : "https://via.placeholder.com/60?text=Staff";
+
+    card.innerHTML = `
+      <div class="staff-left">
+        <img src="${photo}" alt="${escapeHtml(item.name || "staff")}" />
+        <div>
+          <div class="staff-name">${escapeHtml(item.name || "-")}</div>
+          <div class="staff-status">
+            ${item.is_active ? "🟢 Active" : "⚪ Inactive"}
+          </div>
+        </div>
+      </div>
+
+      <div class="staff-actions">
+        <button data-id="${escapeHtml(String(item.id))}" class="edit-btn">編集</button>
+        <button data-id="${escapeHtml(String(item.id))}" class="delete-btn">削除</button>
+      </div>
+    `;
+
+    card.querySelector(".edit-btn")?.addEventListener("click", () => {
+      toast(`編集: ${item.name || "-"}`);
+    });
+
+    card.querySelector(".delete-btn")?.addEventListener("click", () => {
+      toast(`削除は次のステップで追加します`);
+    });
+
+    mount.appendChild(card);
+  });
 }
 
 function getFilteredBookings() {
@@ -446,7 +559,6 @@ function renderMonthView(items, mount) {
   const monthStart = firstDayOfMonth(selected);
   const monthEnd = lastDayOfMonth(selected);
   const monthStartDate = parseDateLocal(monthStart);
-  const monthEndDate = parseDateLocal(monthEnd);
 
   const grid = document.createElement("div");
   grid.className = "month-grid";
@@ -603,7 +715,7 @@ async function updateBookingStatus(bookingId, nextStatus) {
       patch.confirmed_at = new Date().toISOString();
     }
 
-    const { error } = await supabase
+    const { error } = await sb
       .from("bookings")
       .update(patch)
       .eq("id", bookingId)
@@ -624,16 +736,27 @@ async function updateBookingStatus(bookingId, nextStatus) {
 /* -------------------- metrics -------------------- */
 
 function updateMetrics(items) {
-  document.getElementById("metricCount").textContent = String(items.length);
-  document.getElementById("metricPending").textContent = String(
-    items.filter((x) => x.status === "pending").length
-  );
-  document.getElementById("metricRisk").textContent = String(
-    items.filter((x) => x.status === "risk").length
-  );
-  document.getElementById("metricCancelled").textContent = String(
-    items.filter((x) => x.status === "cancelled").length
-  );
+  const metricCount = document.getElementById("metricCount");
+  const metricPending = document.getElementById("metricPending");
+  const metricRisk = document.getElementById("metricRisk");
+  const metricCancelled = document.getElementById("metricCancelled");
+
+  if (metricCount) metricCount.textContent = String(items.length);
+  if (metricPending) {
+    metricPending.textContent = String(
+      items.filter((x) => x.status === "pending").length
+    );
+  }
+  if (metricRisk) {
+    metricRisk.textContent = String(
+      items.filter((x) => x.status === "risk").length
+    );
+  }
+  if (metricCancelled) {
+    metricCancelled.textContent = String(
+      items.filter((x) => x.status === "cancelled").length
+    );
+  }
 }
 
 /* -------------------- range / dates -------------------- */
@@ -803,7 +926,7 @@ function addMonths(dateStr, amount) {
 
 function getWeekStart(dateStr) {
   const d = parseDateLocal(dateStr);
-  const day = d.getDay(); // Sun 0
+  const day = d.getDay();
   d.setDate(d.getDate() - day);
   return toDateString(d);
 }

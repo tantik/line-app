@@ -6,35 +6,33 @@
     name="viewport"
     content="width=device-width,initial-scale=1,viewport-fit=cover"
   />
-  <title>Salon Admin | Bookings</title>
+  <title>Salon Admin</title>
   <link rel="stylesheet" href="./admin.css" />
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./src/env.js"></script>
-  <script src="./src/supabase.js"></script>
+  <script src="./src/supabase-client.js"></script>
 </head>
 <body>
   <div id="loadingOverlay" class="loading-overlay active">
     <div class="loading-card">
       <div class="spinner"></div>
       <div class="loading-title">読み込み中...</div>
-      <div class="loading-text">予約データを準備しています</div>
+      <div class="loading-text">管理画面を準備しています</div>
     </div>
   </div>
 
   <div class="app-shell">
     <aside class="side-panel">
       <div class="brand-box">
-        <div class="brand-badge">Admin</div>
-        <h1>予約管理</h1>
-        <p>リアルタイムで予約状況を確認できます</p>
+        <div class="brand-badge">Salon Admin</div>
+        <h1>管理ダッシュボード</h1>
+        <p>予約・スタッフをリアルタイムで確認できます</p>
       </div>
 
       <section id="authLoggedOut" class="auth-card">
-        <h2>サロン管理者ログイン</h2>
-        <p class="muted">
-          メールアドレスにログインリンクを送信します
-        </p>
+        <h2>管理者ログイン</h2>
+        <p class="muted">メールアドレスにログインリンクを送信します</p>
 
         <label class="field-label" for="adminEmail">管理者メール</label>
         <input
@@ -101,72 +99,95 @@
     <main class="main-panel">
       <header class="topbar">
         <div>
-          <div class="eyebrow">Salon Bookings</div>
-          <h2>Bookings</h2>
-          <p class="muted">日 / 週 / 月の切り替えとリアルタイム更新</p>
+          <div class="eyebrow">Salon Admin</div>
+          <h2 id="pageTitle">Bookings</h2>
+
+          <div class="tabs">
+            <button class="tab-btn is-active" data-tab="bookings">Bookings</button>
+            <button class="tab-btn" data-tab="staff">Staff</button>
+          </div>
+
+          <p class="muted">予約・スタッフ管理</p>
         </div>
+
         <div id="lastUpdated" class="last-updated">最終更新: --</div>
       </header>
 
-      <section class="toolbar-card">
-        <div class="toolbar-row">
-          <div class="view-switch" role="tablist" aria-label="view switch">
-            <button class="view-btn is-active" data-view="today">今日</button>
-            <button class="view-btn" data-view="day">日</button>
-            <button class="view-btn" data-view="week">週</button>
-            <button class="view-btn" data-view="month">月</button>
+      <section id="bookingsSection">
+        <section class="toolbar-card">
+          <div class="toolbar-row">
+            <div class="view-switch" role="tablist" aria-label="view switch">
+              <button class="view-btn is-active" data-view="today">今日</button>
+              <button class="view-btn" data-view="day">日</button>
+              <button class="view-btn" data-view="week">週</button>
+              <button class="view-btn" data-view="month">月</button>
+            </div>
+
+            <div class="date-nav">
+              <button id="prevRangeBtn" class="icon-btn" aria-label="previous">←</button>
+              <button id="jumpTodayBtn" class="btn btn-secondary">今日へ</button>
+              <div id="rangeLabel" class="range-label">--</div>
+              <button id="nextRangeBtn" class="icon-btn" aria-label="next">→</button>
+            </div>
           </div>
 
-          <div class="date-nav">
-            <button id="prevRangeBtn" class="icon-btn" aria-label="previous">←</button>
-            <button id="jumpTodayBtn" class="btn btn-secondary">今日へ</button>
-            <div id="rangeLabel" class="range-label">--</div>
-            <button id="nextRangeBtn" class="icon-btn" aria-label="next">→</button>
-          </div>
-        </div>
+          <div class="toolbar-row filters-row">
+            <div class="filter-group">
+              <label class="field-label" for="selectedDate">基準日</label>
+              <input id="selectedDate" class="text-input" type="date" />
+            </div>
 
-        <div class="toolbar-row filters-row">
-          <div class="filter-group">
-            <label class="field-label" for="selectedDate">基準日</label>
-            <input id="selectedDate" class="text-input" type="date" />
-          </div>
+            <div class="filter-group">
+              <label class="field-label" for="staffFilter">担当者</label>
+              <select id="staffFilter" class="select-input">
+                <option value="">全担当者</option>
+              </select>
+            </div>
 
-          <div class="filter-group">
-            <label class="field-label" for="staffFilter">担当者</label>
-            <select id="staffFilter" class="select-input">
-              <option value="">全担当者</option>
-            </select>
-          </div>
+            <div class="filter-group">
+              <label class="field-label" for="statusFilter">ステータス</label>
+              <select id="statusFilter" class="select-input">
+                <option value="">全ステータス</option>
+                <option value="pending">未確認</option>
+                <option value="confirmed">確認済み</option>
+                <option value="risk">要確認</option>
+                <option value="cancelled">キャンセル</option>
+                <option value="completed">完了</option>
+              </select>
+            </div>
 
-          <div class="filter-group">
-            <label class="field-label" for="statusFilter">ステータス</label>
-            <select id="statusFilter" class="select-input">
-              <option value="">全ステータス</option>
-              <option value="pending">未確認</option>
-              <option value="confirmed">確認済み</option>
-              <option value="risk">要確認</option>
-              <option value="cancelled">キャンセル</option>
-              <option value="completed">完了</option>
-            </select>
+            <div class="filter-group search-group">
+              <label class="field-label" for="searchText">検索</label>
+              <input
+                id="searchText"
+                class="text-input"
+                type="text"
+                placeholder="名前・電話・サービス・担当者"
+              />
+            </div>
           </div>
+        </section>
 
-          <div class="filter-group search-group">
-            <label class="field-label" for="searchText">検索</label>
-            <input
-              id="searchText"
-              class="text-input"
-              type="text"
-              placeholder="名前・電話・サービス・担当者"
-            />
+        <section class="content-card">
+          <div id="bookingsMount"></div>
+          <div id="emptyState" class="empty-state hidden">
+            条件に一致する予約はありません
           </div>
-        </div>
+        </section>
       </section>
 
-      <section class="content-card">
-        <div id="bookingsMount"></div>
-        <div id="emptyState" class="empty-state hidden">
-          条件に一致する予約はありません
-        </div>
+      <section id="staffSection" class="hidden">
+        <section class="content-card">
+          <div class="staff-header">
+            <div>
+              <div class="section-title">スタッフ一覧</div>
+              <div class="section-subtitle">スタッフ情報を管理できます</div>
+            </div>
+            <button id="addStaffBtn" class="btn btn-primary">＋ スタッフ追加</button>
+          </div>
+
+          <div id="staffList"></div>
+        </section>
       </section>
     </main>
   </div>
