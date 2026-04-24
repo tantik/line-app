@@ -194,47 +194,62 @@
   </div>
 
   <div id="staffModal" class="modal hidden">
-    <div class="modal-content">
-      <div class="modal-head">
-        <div>
-          <div class="eyebrow">Staff</div>
-          <h3 id="staffModalTitle">スタッフ追加</h3>
-        </div>
-        <button id="closeStaffModalBtn" class="modal-close" type="button">×</button>
+  <div class="modal-content">
+    <div class="modal-head">
+      <div>
+        <div class="eyebrow">Staff</div>
+        <h3 id="staffModalTitle">スタッフ追加</h3>
+      </div>
+      <button id="closeStaffModalBtn" class="modal-close" type="button">×</button>
+    </div>
+
+    <div class="form-grid">
+      <div class="form-field">
+        <label class="field-label" for="staffNameInput">名前</label>
+        <input id="staffNameInput" class="text-input" type="text" placeholder="例: Sakura" />
       </div>
 
-      <div class="form-grid">
-        <div class="form-field">
-          <label class="field-label" for="staffNameInput">名前</label>
-          <input id="staffNameInput" class="text-input" type="text" placeholder="例: Sakura" />
-        </div>
-
-        <div class="form-field">
-          <label class="field-label" for="staffPhotoInput">写真URL</label>
-          <input id="staffPhotoInput" class="text-input" type="url" placeholder="https://..." />
-        </div>
-
-        <div class="form-field">
-          <label class="field-label" for="staffActiveInput">表示状態</label>
-          <label class="switch-row">
-            <input id="staffActiveInput" type="checkbox" checked />
-            <span>Active / 表示する</span>
-          </label>
-        </div>
-
-        <div class="form-field">
-          <label class="field-label">担当サービス</label>
-          <div id="servicesCheckboxes" class="checkbox-list"></div>
-        </div>
+      <div class="form-field">
+        <label class="field-label" for="staffPhotoInput">写真URL</label>
+        <input id="staffPhotoInput" class="text-input" type="url" placeholder="https://..." />
       </div>
 
-      <div class="modal-actions">
-        <button id="saveStaffBtn" class="btn btn-primary" type="button">保存</button>
-        <button id="deleteStaffBtn" class="btn btn-danger hidden" type="button">削除</button>
-        <button id="cancelStaffModalBtn" class="btn btn-secondary" type="button">キャンセル</button>
+      <div class="form-field">
+        <label class="field-label" for="staffStartTimeInput">勤務開始</label>
+        <input id="staffStartTimeInput" class="text-input" type="time" value="10:00" />
+      </div>
+
+      <div class="form-field">
+        <label class="field-label" for="staffEndTimeInput">勤務終了</label>
+        <input id="staffEndTimeInput" class="text-input" type="time" value="19:00" />
+      </div>
+
+      <div class="form-field">
+        <label class="field-label" for="staffSlotMinutesInput">予約間隔（分）</label>
+        <input id="staffSlotMinutesInput" class="text-input" type="number" min="5" step="5" value="30" />
+      </div>
+
+      <div class="form-field">
+        <label class="field-label" for="staffActiveInput">表示状態</label>
+        <label class="switch-row">
+          <input id="staffActiveInput" type="checkbox" checked />
+          <span>Active / 表示する</span>
+        </label>
+      </div>
+
+      <div class="form-field">
+        <label class="field-label">担当サービス</label>
+        <div id="servicesCheckboxes" class="checkbox-list"></div>
       </div>
     </div>
+
+    <div class="modal-actions">
+      <button id="saveStaffBtn" class="btn btn-primary" type="button">保存</button>
+      <button id="deleteStaffBtn" class="btn btn-danger hidden" type="button">削除</button>
+      <button id="cancelStaffModalBtn" class="btn btn-secondary" type="button">キャンセル</button>
+    </div>
   </div>
+</div>
 
   <script src="./admin.js"></script>
 </body>

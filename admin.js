@@ -6,12 +6,14 @@ let currentSalonSlug = null;
 let currentUser = null;
 let refreshTimer = null;
 let realtimeChannel = null;
+let staffReloadTimer = null;
 
 let allBookings = [];
 let allStaff = [];
 let allServices = [];
 let currentTab = "bookings";
 let editingStaffId = null;
+let isSavingStaff = false;
 
 const bookingState = {
   view: "today",
@@ -166,11 +168,13 @@ async function applySession(session) {
   if (!currentUser) {
     setText("whoAmI", "-");
     setText("tenantLabel", "-");
+
     currentSalonId = null;
     currentSalonSlug = null;
     allBookings = [];
     allStaff = [];
     allServices = [];
+
     stopRefresh();
     unsubscribeRealtime();
     populateStaffFilter([]);
@@ -386,9 +390,10 @@ function renderStaff(list) {
       ? serviceNames.map((name) => `<span class="service-tag">${escapeHtml(name)}</span>`).join("")
       : `<span class="service-tag">サービス未設定</span>`;
 
-    const scheduleText = item.start_time && item.end_time
-      ? ` / ${formatTime(item.start_time)} - ${formatTime(item.end_time)}`
-      : "";
+    const scheduleText =
+      item.start_time && item.end_time
+        ? ` / ${formatTime(item.start_time)} - ${formatTime(item.end_time)}`
+        : "";
 
     card.innerHTML = `
       <div class="staff-left">
@@ -423,15 +428,15 @@ function renderStaff(list) {
 function openStaffModal(staff = null) {
   editingStaffId = staff?.id || null;
 
-  const titleEl = document.getElementById("staffModalTitle");
-  if (titleEl) titleEl.textContent = editingStaffId ? "スタッフ編集" : "スタッフ追加";
+  setText("staffModalTitle", editingStaffId ? "スタッフ編集" : "スタッフ追加");
 
-  const nameInput = document.getElementById("staffNameInput");
-  const photoInput = document.getElementById("staffPhotoInput");
+  setInputValue("staffNameInput", staff?.name || "");
+  setInputValue("staffPhotoInput", staff?.photo_url || "");
+  setInputValue("staffStartTimeInput", formatTime(staff?.start_time || "10:00"));
+  setInputValue("staffEndTimeInput", formatTime(staff?.end_time || "19:00"));
+  setInputValue("staffSlotMinutesInput", String(staff?.slot_minutes || 30));
+
   const activeInput = document.getElementById("staffActiveInput");
-
-  if (nameInput) nameInput.value = staff?.name || "";
-  if (photoInput) photoInput.value = staff?.photo_url || "";
   if (activeInput) activeInput.checked = staff?.is_active !== false;
 
   document.getElementById("deleteStaffBtn")?.classList.toggle("hidden", !editingStaffId);
@@ -441,6 +446,7 @@ function openStaffModal(staff = null) {
 }
 
 function closeStaffModal() {
+  if (isSavingStaff) return;
   editingStaffId = null;
   document.getElementById("staffModal")?.classList.add("hidden");
 }
@@ -472,6 +478,8 @@ function renderServiceCheckboxes(selectedIds = []) {
 }
 
 async function saveStaff() {
+  if (isSavingStaff) return;
+
   if (!currentSalonId) {
     toast("サロン情報がありません");
     return;
@@ -479,6 +487,9 @@ async function saveStaff() {
 
   const name = document.getElementById("staffNameInput")?.value.trim();
   const photoUrl = document.getElementById("staffPhotoInput")?.value.trim();
+  const startTime = normalizeTimeInput(document.getElementById("staffStartTimeInput")?.value || "10:00");
+  const endTime = normalizeTimeInput(document.getElementById("staffEndTimeInput")?.value || "19:00");
+  const slotMinutes = Number(document.getElementById("staffSlotMinutesInput")?.value || 30);
   const isActive = document.getElementById("staffActiveInput")?.checked ?? true;
 
   const serviceIds = Array.from(
@@ -490,10 +501,31 @@ async function saveStaff() {
     return;
   }
 
+  if (!startTime || !endTime || timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+    toast("勤務時間を確認してください");
+    return;
+  }
+
+  if (!Number.isFinite(slotMinutes) || slotMinutes < 5) {
+    toast("予約間隔を確認してください");
+    return;
+  }
+
+  isSavingStaff = true;
+  setSaveStaffButtonState(true);
   setLoading(true, "保存中...", "スタッフ情報を保存しています");
 
   try {
     let staffId = editingStaffId;
+
+    const staffPayload = {
+      name,
+      photo_url: photoUrl || null,
+      is_active: isActive,
+      slot_minutes: slotMinutes,
+      start_time: startTime,
+      end_time: endTime,
+    };
 
     if (!staffId) {
       const code = makeStaffCode(name);
@@ -503,12 +535,7 @@ async function saveStaff() {
         .insert({
           salon_id: currentSalonId,
           code,
-          name,
-          photo_url: photoUrl || null,
-          is_active: isActive,
-          slot_minutes: 30,
-          start_time: "10:00",
-          end_time: "19:00",
+          ...staffPayload,
         })
         .select("id")
         .single();
@@ -518,11 +545,7 @@ async function saveStaff() {
     } else {
       const { error } = await sb
         .from("staff")
-        .update({
-          name,
-          photo_url: photoUrl || null,
-          is_active: isActive,
-        })
+        .update(staffPayload)
         .eq("id", staffId)
         .eq("salon_id", currentSalonId);
 
@@ -544,28 +567,39 @@ async function saveStaff() {
         service_id: serviceId,
       }));
 
-      const { error: insertError } = await sb
-        .from("staff_service_map")
-        .insert(rows);
-
+      const { error: insertError } = await sb.from("staff_service_map").insert(rows);
       if (insertError) throw insertError;
     }
 
     toast("保存しました");
-    closeStaffModal();
+    closeStaffModalAfterSave();
     await loadStaff();
   } catch (error) {
     console.error("saveStaff error:", error);
     toast(error.message || "保存に失敗しました");
   } finally {
+    isSavingStaff = false;
+    setSaveStaffButtonState(false);
     setLoading(false);
   }
+}
+
+function closeStaffModalAfterSave() {
+  editingStaffId = null;
+  document.getElementById("staffModal")?.classList.add("hidden");
+}
+
+function setSaveStaffButtonState(disabled) {
+  const btn = document.getElementById("saveStaffBtn");
+  if (!btn) return;
+  btn.disabled = disabled;
+  btn.textContent = disabled ? "保存中..." : "保存";
 }
 
 async function deleteEditingStaff() {
   if (!editingStaffId) return;
   await deleteStaff(editingStaffId);
-  closeStaffModal();
+  closeStaffModalAfterSave();
 }
 
 async function deleteStaff(staffId) {
@@ -641,36 +675,37 @@ function populateStaffFilter(staffList) {
 }
 
 function subscribeRealtime() {
-  unsubscribeRealtime();
-
   if (!currentSalonId) return;
 
+  // 🔥 НЕ создавать повторно
+  if (realtimeChannel) return;
+
   realtimeChannel = sb
-    .channel(`admin-bookings-${currentSalonId}`)
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "bookings", filter: `salon_id=eq.${currentSalonId}` },
-      async () => {
-        await loadBookings(false);
-      }
-    )
+    .channel(`admin-${currentSalonId}`)
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "staff", filter: `salon_id=eq.${currentSalonId}` },
-      async () => {
-        await loadStaff();
+      () => {
+        debouncedLoadStaff();
       }
     )
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "staff_service_map", filter: `salon_id=eq.${currentSalonId}` },
-      async () => {
-        await loadStaff();
+      () => {
+        debouncedLoadStaff();
       }
     )
     .subscribe((status) => {
       console.log("Realtime status:", status);
     });
+}
+
+function debouncedLoadStaff() {
+  window.clearTimeout(staffReloadTimer);
+  staffReloadTimer = window.setTimeout(() => {
+    if (!isSavingStaff) loadStaff();
+  }, 400);
 }
 
 function unsubscribeRealtime() {
@@ -683,14 +718,14 @@ function unsubscribeRealtime() {
 function startRefresh() {
   stopRefresh();
 
-  refreshTimer = setInterval(async () => {
+  refreshTimer = window.setInterval(async () => {
     if (document.hidden || !currentSalonId) return;
     await refreshAll(false);
   }, 30000);
 }
 
 function stopRefresh() {
-  if (refreshTimer) clearInterval(refreshTimer);
+  if (refreshTimer) window.clearInterval(refreshTimer);
   refreshTimer = null;
 }
 
@@ -1086,12 +1121,17 @@ function toast(text) {
   el.textContent = text;
   document.body.appendChild(el);
 
-  setTimeout(() => el.remove(), 2600);
+  window.setTimeout(() => el.remove(), 2600);
 }
 
 function setText(id, value) {
   const el = document.getElementById(id);
   if (el) el.textContent = value;
+}
+
+function setInputValue(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.value = value;
 }
 
 function makeStaffCode(name) {
@@ -1102,6 +1142,17 @@ function makeStaffCode(name) {
     .replace(/^-+|-+$/g, "");
 
   return `${base || "staff"}-${Date.now().toString(36)}`;
+}
+
+function normalizeTimeInput(value) {
+  const str = String(value || "").trim();
+  if (!str) return "";
+  return str.slice(0, 5);
+}
+
+function timeToMinutes(value) {
+  const [h, m] = String(value || "00:00").split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
 }
 
 function formatStatusLabel(status) {
