@@ -126,6 +126,7 @@ function bindAdminUi() {
 
 async function sendMagicLink() {
   const email = document.getElementById("adminEmail")?.value.trim();
+
   if (!email) {
     toast("メールを入力してください");
     return;
@@ -202,6 +203,7 @@ async function resolveSalonMembership() {
   if (!data) throw new Error("membership_not_found");
 
   currentSalonId = data.salon_id;
+
   document.getElementById("tenantLabel").textContent =
     `${data.salons?.name || "-"} / ${data.role || "-"}`;
 }
@@ -234,6 +236,8 @@ function switchTab(tab) {
   if (pageTitle) pageTitle.textContent = currentTab === "bookings" ? "Bookings" : "Staff";
 }
 
+/* -------------------- loading data -------------------- */
+
 async function loadBookings(showSpinner = false) {
   if (!currentSalonId) return;
 
@@ -259,7 +263,7 @@ async function loadBookings(showSpinner = false) {
 
     renderBookings();
   } catch (error) {
-    console.error(error);
+    console.error("loadBookings error:", error);
     toast("予約読み込みに失敗しました");
   } finally {
     if (showSpinner) setLoading(false);
@@ -270,16 +274,28 @@ async function loadServices() {
   if (!currentSalonId) return;
 
   try {
-    const { data, error } = await sb
+    let res = await sb
       .from("services")
-      .select("id, name")
+      .select("id, name, salon_id")
       .eq("salon_id", currentSalonId)
       .order("name", { ascending: true });
 
-    if (error) throw error;
-    allServices = Array.isArray(data) ? data : [];
+    if (res.error) {
+      console.warn("services basic query failed:", res.error);
+
+      res = await sb
+        .from("services")
+        .select("*")
+        .eq("salon_id", currentSalonId);
+    }
+
+    if (res.error) throw res.error;
+
+    allServices = Array.isArray(res.data) ? res.data : [];
+
+    console.log("Loaded services:", allServices);
   } catch (error) {
-    console.error(error);
+    console.error("loadServices error:", error);
     toast("サービス取得エラー");
     allServices = [];
   }
@@ -301,10 +317,12 @@ async function loadStaff() {
     const staffIds = staffList.map((item) => item.id);
 
     let links = [];
+
     if (staffIds.length) {
       const { data: linkRows, error: linkError } = await sb
-        .from("staff_services")
-        .select("staff_id, service_id")
+        .from("staff_service_map")
+        .select("*")
+        .eq("salon_id", currentSalonId)
         .in("staff_id", staffIds);
 
       if (linkError) throw linkError;
@@ -324,11 +342,248 @@ async function loadStaff() {
 
     renderStaff(allStaff);
   } catch (error) {
-    console.error(error);
+    console.error("loadStaff error:", error);
     toast("スタッフ取得エラー");
     renderStaff([]);
   }
 }
+
+/* -------------------- staff CRUD -------------------- */
+
+function renderStaff(list) {
+  const mount = document.getElementById("staffList");
+  if (!mount) return;
+
+  mount.innerHTML = "";
+
+  if (!list.length) {
+    mount.innerHTML = `<div class="empty-state">スタッフがいません</div>`;
+    return;
+  }
+
+  list.forEach((item) => {
+    const card = document.createElement("div");
+    card.className = "staff-card";
+
+    const photo = item.photo_url
+      ? escapeAttr(item.photo_url)
+      : "https://via.placeholder.com/120x120.png?text=Staff";
+
+    const serviceNames = (item.serviceIds || [])
+      .map((id) => allServices.find((service) => String(service.id) === String(id))?.name)
+      .filter(Boolean);
+
+    const tagsHtml = serviceNames.length
+      ? serviceNames.map((name) => `<span class="service-tag">${escapeHtml(name)}</span>`).join("")
+      : `<span class="service-tag">サービス未設定</span>`;
+
+    card.innerHTML = `
+      <div class="staff-left">
+        <img src="${photo}" alt="${escapeAttr(item.name || "staff")}" />
+        <div>
+          <div class="staff-name">${escapeHtml(item.name || "-")}</div>
+          <div class="staff-status">
+            ${item.is_active === false ? "⚪ Inactive" : "🟢 Active"}
+            ${item.start_time && item.end_time ? ` / ${escapeHtml(item.start_time)} - ${escapeHtml(item.end_time)}` : ""}
+          </div>
+          <div class="staff-service-tags">${tagsHtml}</div>
+        </div>
+      </div>
+
+      <div class="staff-actions">
+        <button type="button" data-action="edit">編集</button>
+        <button type="button" data-action="delete">削除</button>
+      </div>
+    `;
+
+    card.querySelector('[data-action="edit"]')?.addEventListener("click", () => {
+      openStaffModal(item);
+    });
+
+    card.querySelector('[data-action="delete"]')?.addEventListener("click", async () => {
+      await deleteStaff(item.id);
+    });
+
+    mount.appendChild(card);
+  });
+}
+
+function openStaffModal(staff = null) {
+  editingStaffId = staff?.id || null;
+
+  document.getElementById("staffModalTitle").textContent = editingStaffId
+    ? "スタッフ編集"
+    : "スタッフ追加";
+
+  document.getElementById("staffNameInput").value = staff?.name || "";
+  document.getElementById("staffPhotoInput").value = staff?.photo_url || "";
+  document.getElementById("staffActiveInput").checked = staff?.is_active !== false;
+
+  document.getElementById("deleteStaffBtn")?.classList.toggle("hidden", !editingStaffId);
+
+  renderServiceCheckboxes(staff?.serviceIds || []);
+  document.getElementById("staffModal")?.classList.remove("hidden");
+}
+
+function closeStaffModal() {
+  editingStaffId = null;
+  document.getElementById("staffModal")?.classList.add("hidden");
+}
+
+function renderServiceCheckboxes(selectedIds = []) {
+  const container = document.getElementById("servicesCheckboxes");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  if (!allServices.length) {
+    container.innerHTML = `<div class="muted">サービスがまだありません</div>`;
+    return;
+  }
+
+  allServices.forEach((service) => {
+    const label = document.createElement("label");
+    label.className = "checkbox-item";
+
+    const checked = selectedIds.map(String).includes(String(service.id));
+
+    label.innerHTML = `
+      <input type="checkbox" value="${escapeAttr(service.id)}" ${checked ? "checked" : ""} />
+      <span>${escapeHtml(service.name || "-")}</span>
+    `;
+
+    container.appendChild(label);
+  });
+}
+
+async function saveStaff() {
+  if (!currentSalonId) {
+    toast("サロン情報がありません");
+    return;
+  }
+
+  const name = document.getElementById("staffNameInput")?.value.trim();
+  const photoUrl = document.getElementById("staffPhotoInput")?.value.trim();
+  const isActive = document.getElementById("staffActiveInput")?.checked ?? true;
+
+  const serviceIds = Array.from(
+    document.querySelectorAll("#servicesCheckboxes input[type='checkbox']:checked")
+  ).map((input) => input.value);
+
+  if (!name) {
+    toast("スタッフ名を入力してください");
+    return;
+  }
+
+  setLoading(true, "保存中...", "スタッフ情報を保存しています");
+
+  try {
+    let staffId = editingStaffId;
+
+    if (!staffId) {
+      const code = makeStaffCode(name);
+
+      const { data, error } = await sb
+        .from("staff")
+        .insert({
+          salon_id: currentSalonId,
+          code,
+          name,
+          photo_url: photoUrl || null,
+          is_active: isActive,
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      staffId = data.id;
+    } else {
+      const { error } = await sb
+        .from("staff")
+        .update({
+          name,
+          photo_url: photoUrl || null,
+          is_active: isActive,
+        })
+        .eq("id", staffId)
+        .eq("salon_id", currentSalonId);
+
+      if (error) throw error;
+    }
+
+    const { error: deleteError } = await sb
+      .from("staff_service_map")
+      .delete()
+      .eq("salon_id", currentSalonId)
+      .eq("staff_id", staffId);
+
+    if (deleteError) throw deleteError;
+
+    if (serviceIds.length) {
+      const rows = serviceIds.map((serviceId) => ({
+        salon_id: currentSalonId,
+        staff_id: staffId,
+        service_id: serviceId,
+      }));
+
+      const { error: insertError } = await sb
+        .from("staff_service_map")
+        .insert(rows);
+
+      if (insertError) throw insertError;
+    }
+
+    toast("保存しました");
+    closeStaffModal();
+    await loadStaff();
+  } catch (error) {
+    console.error("saveStaff error:", error);
+    toast(error.message || "保存に失敗しました");
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function deleteEditingStaff() {
+  if (!editingStaffId) return;
+  await deleteStaff(editingStaffId);
+  closeStaffModal();
+}
+
+async function deleteStaff(staffId) {
+  if (!staffId) return;
+
+  const ok = confirm("このスタッフを削除しますか？");
+  if (!ok) return;
+
+  setLoading(true, "削除中...", "スタッフを削除しています");
+
+  try {
+    await sb
+      .from("staff_service_map")
+      .delete()
+      .eq("staff_id", staffId)
+      .eq("salon_id", currentSalonId);
+
+    const { error } = await sb
+      .from("staff")
+      .delete()
+      .eq("id", staffId)
+      .eq("salon_id", currentSalonId);
+
+    if (error) throw error;
+
+    toast("削除しました");
+    await loadStaff();
+  } catch (error) {
+    console.error("deleteStaff error:", error);
+    toast(error.message || "削除に失敗しました");
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* -------------------- booking UI -------------------- */
 
 function hydrateStaffFilterFromBookings() {
   const map = new Map();
@@ -378,14 +633,23 @@ function subscribeRealtime() {
     .channel(`admin-bookings-${currentSalonId}`)
     .on(
       "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "bookings",
-        filter: `salon_id=eq.${currentSalonId}`,
-      },
+      { event: "*", schema: "public", table: "bookings", filter: `salon_id=eq.${currentSalonId}` },
       async () => {
         await loadBookings(false);
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "staff", filter: `salon_id=eq.${currentSalonId}` },
+      async () => {
+        await loadStaff();
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "staff_service_map", filter: `salon_id=eq.${currentSalonId}` },
+      async () => {
+        await loadStaff();
       }
     )
     .subscribe((status) => {
@@ -402,6 +666,7 @@ function unsubscribeRealtime() {
 
 function startRefresh() {
   stopRefresh();
+
   refreshTimer = setInterval(async () => {
     if (document.hidden || !currentSalonId) return;
     await refreshAll(false);
@@ -443,228 +708,10 @@ function renderBookings() {
   renderDayView(items, mount);
 }
 
-function renderStaff(list) {
-  const mount = document.getElementById("staffList");
-  if (!mount) return;
-
-  mount.innerHTML = "";
-
-  if (!list.length) {
-    mount.innerHTML = `<div class="empty-state">スタッフがいません</div>`;
-    return;
-  }
-
-  list.forEach((item) => {
-    const card = document.createElement("div");
-    card.className = "staff-card";
-
-    const photo = item.photo_url
-      ? escapeAttr(item.photo_url)
-      : "https://via.placeholder.com/120x120.png?text=Staff";
-
-    const serviceNames = (item.serviceIds || [])
-      .map((id) => allServices.find((service) => String(service.id) === String(id))?.name)
-      .filter(Boolean);
-
-    const tagsHtml = serviceNames.length
-      ? serviceNames.map((name) => `<span class="service-tag">${escapeHtml(name)}</span>`).join("")
-      : `<span class="service-tag">サービス未設定</span>`;
-
-    card.innerHTML = `
-      <div class="staff-left">
-        <img src="${photo}" alt="${escapeAttr(item.name || "staff")}" />
-        <div>
-          <div class="staff-name">${escapeHtml(item.name || "-")}</div>
-          <div class="staff-status">${item.is_active ? "🟢 Active" : "⚪ Inactive"}</div>
-          <div class="staff-service-tags">${tagsHtml}</div>
-        </div>
-      </div>
-
-      <div class="staff-actions">
-        <button type="button" data-action="edit">編集</button>
-        <button type="button" data-action="delete">削除</button>
-      </div>
-    `;
-
-    card.querySelector('[data-action="edit"]')?.addEventListener("click", () => {
-      openStaffModal(item);
-    });
-
-    card.querySelector('[data-action="delete"]')?.addEventListener("click", async () => {
-      await deleteStaff(item.id);
-    });
-
-    mount.appendChild(card);
-  });
-}
-
-function openStaffModal(staff = null) {
-  editingStaffId = staff?.id || null;
-
-  document.getElementById("staffModalTitle").textContent = editingStaffId
-    ? "スタッフ編集"
-    : "スタッフ追加";
-
-  document.getElementById("staffNameInput").value = staff?.name || "";
-  document.getElementById("staffPhotoInput").value = staff?.photo_url || "";
-  document.getElementById("staffActiveInput").checked = staff?.is_active ?? true;
-
-  document.getElementById("deleteStaffBtn")?.classList.toggle("hidden", !editingStaffId);
-
-  renderServiceCheckboxes(staff?.serviceIds || []);
-  document.getElementById("staffModal")?.classList.remove("hidden");
-}
-
-function closeStaffModal() {
-  editingStaffId = null;
-  document.getElementById("staffModal")?.classList.add("hidden");
-}
-
-function renderServiceCheckboxes(selectedIds = []) {
-  const container = document.getElementById("servicesCheckboxes");
-  if (!container) return;
-
-  container.innerHTML = "";
-
-  if (!allServices.length) {
-    container.innerHTML = `<div class="muted">サービスがまだありません</div>`;
-    return;
-  }
-
-  allServices.forEach((service) => {
-    const label = document.createElement("label");
-    label.className = "checkbox-item";
-
-    const checked = selectedIds.map(String).includes(String(service.id));
-
-    label.innerHTML = `
-      <input type="checkbox" value="${escapeAttr(service.id)}" ${checked ? "checked" : ""} />
-      <span>${escapeHtml(service.name || "-")}</span>
-    `;
-
-    container.appendChild(label);
-  });
-}
-
-async function saveStaff() {
-  if (!currentSalonId) return;
-
-  const name = document.getElementById("staffNameInput")?.value.trim();
-  const photoUrl = document.getElementById("staffPhotoInput")?.value.trim();
-  const isActive = document.getElementById("staffActiveInput")?.checked ?? true;
-
-  const serviceIds = Array.from(
-    document.querySelectorAll("#servicesCheckboxes input[type='checkbox']:checked")
-  ).map((input) => input.value);
-
-  if (!name) {
-    toast("スタッフ名を入力してください");
-    return;
-  }
-
-  setLoading(true, "保存中...", "スタッフ情報を保存しています");
-
-  try {
-    let staffId = editingStaffId;
-
-    if (!staffId) {
-      const { data, error } = await sb
-        .from("staff")
-        .insert({
-          salon_id: currentSalonId,
-          name,
-          photo_url: photoUrl || null,
-          is_active: isActive,
-        })
-        .select("id")
-        .single();
-
-      if (error) throw error;
-      staffId = data.id;
-    } else {
-      const { error } = await sb
-        .from("staff")
-        .update({
-          name,
-          photo_url: photoUrl || null,
-          is_active: isActive,
-        })
-        .eq("id", staffId)
-        .eq("salon_id", currentSalonId);
-
-      if (error) throw error;
-    }
-
-    const { error: deleteLinkError } = await sb
-      .from("staff_services")
-      .delete()
-      .eq("staff_id", staffId);
-
-    if (deleteLinkError) throw deleteLinkError;
-
-    if (serviceIds.length) {
-      const rows = serviceIds.map((serviceId) => ({
-        staff_id: staffId,
-        service_id: serviceId,
-      }));
-
-      const { error: insertLinkError } = await sb
-        .from("staff_services")
-        .insert(rows);
-
-      if (insertLinkError) throw insertLinkError;
-    }
-
-    toast("保存しました");
-    closeStaffModal();
-    await loadStaff();
-  } catch (error) {
-    console.error(error);
-    toast("保存に失敗しました");
-  } finally {
-    setLoading(false);
-  }
-}
-
-async function deleteEditingStaff() {
-  if (!editingStaffId) return;
-  await deleteStaff(editingStaffId);
-  closeStaffModal();
-}
-
-async function deleteStaff(staffId) {
-  if (!staffId) return;
-
-  const ok = confirm("このスタッフを削除しますか？");
-  if (!ok) return;
-
-  setLoading(true, "削除中...", "スタッフを削除しています");
-
-  try {
-    await sb.from("staff_services").delete().eq("staff_id", staffId);
-
-    const { error } = await sb
-      .from("staff")
-      .delete()
-      .eq("id", staffId)
-      .eq("salon_id", currentSalonId);
-
-    if (error) throw error;
-
-    toast("削除しました");
-    await loadStaff();
-  } catch (error) {
-    console.error(error);
-    toast("削除に失敗しました");
-  } finally {
-    setLoading(false);
-  }
-}
-
 function getFilteredBookings() {
   let items = Array.isArray(allBookings) ? [...allBookings] : [];
-
   const { start, end } = getCurrentRange();
+
   items = items.filter((item) => {
     const date = item.booking_date;
     return date >= start && date <= end;
@@ -676,8 +723,7 @@ function getFilteredBookings() {
 
   if (bookingState.staffFilter) {
     items = items.filter(
-      (item) =>
-        String(item.staff_id || item.staff_name || "") === String(bookingState.staffFilter)
+      (item) => String(item.staff_id || item.staff_name || "") === String(bookingState.staffFilter)
     );
   }
 
@@ -688,9 +734,7 @@ function getFilteredBookings() {
         item.customer_phone,
         item.service_name,
         item.staff_name,
-      ]
-        .join(" ")
-        .toLowerCase();
+      ].join(" ").toLowerCase();
 
       return haystack.includes(bookingState.searchText);
     });
@@ -910,6 +954,8 @@ async function updateBookingStatus(bookingId, nextStatus) {
   }
 }
 
+/* -------------------- helpers -------------------- */
+
 function updateMetrics(items) {
   setText("metricCount", String(items.length));
   setText("metricPending", String(items.filter((x) => x.status === "pending").length));
@@ -1034,6 +1080,16 @@ function setText(id, value) {
   if (el) el.textContent = value;
 }
 
+function makeStaffCode(name) {
+  const base = String(name || "staff")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return `${base || "staff"}-${Date.now().toString(36)}`;
+}
+
 function formatStatusLabel(status) {
   switch (String(status || "")) {
     case "pending": return "未確認";
@@ -1046,8 +1102,7 @@ function formatStatusLabel(status) {
 }
 
 function getTodayString() {
-  const d = new Date();
-  return toDateString(d);
+  return toDateString(new Date());
 }
 
 function parseDateLocal(dateStr) {
