@@ -125,11 +125,12 @@ function bindAdminUi() {
     if (event.key === "Escape") closeStaffModal();
   });
 
-  document.addEventListener("visibilitychange", async () => {
-    if (document.hidden) return;
-    if (currentSalonId) await refreshAll(false);
-  });
-}
+ document.addEventListener("visibilitychange", () => {
+  if (document.hidden) return;
+  if (currentSalonId) {
+    loadBookings(false);
+  }
+});
 
 async function sendMagicLink() {
   const email = document.getElementById("adminEmail")?.value.trim();
@@ -221,10 +222,14 @@ async function resolveSalonMembership() {
 async function refreshAll(showSpinner = false) {
   if (!currentSalonId) return;
 
-  if (showSpinner) setLoading(true, "読み込み中...", "データを更新しています");
+  if (showSpinner) setLoading(true);
 
   try {
-    await loadServices();
+    // 🔥 services грузим ТОЛЬКО если пусто
+    if (!allServices.length) {
+      await loadServices();
+    }
+
     await loadBookings(false);
     await loadStaff();
   } finally {
@@ -308,7 +313,7 @@ async function loadServices() {
       }
     }
 
-    console.log("Loaded services:", allServices);
+
   } catch (error) {
     console.error("loadServices error:", error);
     toast(error.message || "サービス取得エラー");
@@ -378,9 +383,7 @@ function renderStaff(list) {
     const card = document.createElement("div");
     card.className = "staff-card";
 
-    const photo = item.photo_url
-      ? escapeAttr(item.photo_url)
-      : "https://via.placeholder.com/120x120.png?text=Staff";
+    const photo = getSafeStaffPhoto(item.photo_url);
 
     const serviceNames = (item.serviceIds || [])
       .map((id) => allServices.find((service) => String(service.id) === String(id))?.name)
@@ -397,7 +400,7 @@ function renderStaff(list) {
 
     card.innerHTML = `
       <div class="staff-left">
-        <img src="${photo}" alt="${escapeAttr(item.name || "staff")}" />
+        <img src="${escapeAttr(photo)}" alt="${escapeAttr(item.name || "staff")}" />
         <div>
           <div class="staff-name">${escapeHtml(item.name || "-")}</div>
           <div class="staff-status">
@@ -425,13 +428,26 @@ function renderStaff(list) {
   });
 }
 
+function getSafeStaffPhoto(photoUrl) {
+  const fallback = "https://via.placeholder.com/120x120.png?text=Staff";
+  const value = String(photoUrl || "").trim();
+
+  if (!value) return fallback;
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  return fallback;
+}
+
 function openStaffModal(staff = null) {
   editingStaffId = staff?.id || null;
 
   setText("staffModalTitle", editingStaffId ? "スタッフ編集" : "スタッフ追加");
 
   setInputValue("staffNameInput", staff?.name || "");
-  setInputValue("staffPhotoInput", staff?.photo_url || "");
+  setInputValue("staffPhotoInput", getEditablePhotoValue(staff?.photo_url || ""));
   setInputValue("staffStartTimeInput", formatTime(staff?.start_time || "10:00"));
   setInputValue("staffEndTimeInput", formatTime(staff?.end_time || "19:00"));
   setInputValue("staffSlotMinutesInput", String(staff?.slot_minutes || 30));
@@ -443,6 +459,12 @@ function openStaffModal(staff = null) {
 
   renderServiceCheckboxes(staff?.serviceIds || []);
   document.getElementById("staffModal")?.classList.remove("hidden");
+}
+
+function getEditablePhotoValue(photoUrl) {
+  const value = String(photoUrl || "").trim();
+  if (value.startsWith("http://") || value.startsWith("https://")) return value;
+  return "";
 }
 
 function closeStaffModal() {
@@ -486,7 +508,8 @@ async function saveStaff() {
   }
 
   const name = document.getElementById("staffNameInput")?.value.trim();
-  const photoUrl = document.getElementById("staffPhotoInput")?.value.trim();
+  const photoUrlRaw = document.getElementById("staffPhotoInput")?.value.trim();
+  const photoUrl = normalizePhotoUrl(photoUrlRaw);
   const startTime = normalizeTimeInput(document.getElementById("staffStartTimeInput")?.value || "10:00");
   const endTime = normalizeTimeInput(document.getElementById("staffEndTimeInput")?.value || "19:00");
   const slotMinutes = Number(document.getElementById("staffSlotMinutesInput")?.value || 30);
@@ -520,7 +543,7 @@ async function saveStaff() {
 
     const staffPayload = {
       name,
-      photo_url: photoUrl || null,
+      photo_url: photoUrl,
       is_active: isActive,
       slot_minutes: slotMinutes,
       start_time: startTime,
@@ -582,6 +605,13 @@ async function saveStaff() {
     setSaveStaffButtonState(false);
     setLoading(false);
   }
+}
+
+function normalizePhotoUrl(value) {
+  const str = String(value || "").trim();
+  if (!str) return null;
+  if (str.startsWith("http://") || str.startsWith("https://")) return str;
+  return null;
 }
 
 function closeStaffModalAfterSave() {
@@ -676,24 +706,15 @@ function populateStaffFilter(staffList) {
 
 function subscribeRealtime() {
   if (!currentSalonId) return;
-
-  // 🔥 НЕ создавать повторно
   if (realtimeChannel) return;
 
   realtimeChannel = sb
     .channel(`admin-${currentSalonId}`)
     .on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "staff", filter: `salon_id=eq.${currentSalonId}` },
-      () => {
-        debouncedLoadStaff();
-      }
-    )
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "staff_service_map", filter: `salon_id=eq.${currentSalonId}` },
-      () => {
-        debouncedLoadStaff();
+      { event: "*", schema: "public", table: "bookings", filter: `salon_id=eq.${currentSalonId}` },
+      async () => {
+        await loadBookings(false);
       }
     )
     .subscribe((status) => {
@@ -705,7 +726,7 @@ function debouncedLoadStaff() {
   window.clearTimeout(staffReloadTimer);
   staffReloadTimer = window.setTimeout(() => {
     if (!isSavingStaff) loadStaff();
-  }, 400);
+  }, 500);
 }
 
 function unsubscribeRealtime() {
@@ -718,10 +739,10 @@ function unsubscribeRealtime() {
 function startRefresh() {
   stopRefresh();
 
-  refreshTimer = window.setInterval(async () => {
+  refreshTimer = setInterval(() => {
     if (document.hidden || !currentSalonId) return;
-    await refreshAll(false);
-  }, 30000);
+    loadBookings(false);
+  }, 60000); // раз в минуту
 }
 
 function stopRefresh() {
