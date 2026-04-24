@@ -1275,3 +1275,214 @@ function escapeClass(value) {
     .toLowerCase()
     .replace(/[^a-z0-9_-]/g, "");
 }
+const sb = window.supabaseClient;
+
+let currentSalonId = null;
+let currentUser = null;
+let realtimeChannel = null;
+
+let allServices = [];
+let allStaff = [];
+
+document.addEventListener("DOMContentLoaded", init);
+
+async function init() {
+  bindUI();
+
+  const { data } = await sb.auth.getSession();
+  await applySession(data?.session || null);
+
+  sb.auth.onAuthStateChange(async (_event, session) => {
+    await applySession(session);
+  });
+}
+
+function bindUI() {
+  document.getElementById("addStaffBtn")?.addEventListener("click", () => openStaffModal());
+
+  document.getElementById("saveStaffBtn")?.addEventListener("click", saveStaff);
+
+  document.getElementById("closeStaffModalBtn")?.addEventListener("click", closeStaffModal);
+  document.getElementById("cancelStaffModalBtn")?.addEventListener("click", closeStaffModal);
+}
+
+async function applySession(session) {
+  currentUser = session?.user || null;
+
+  if (!currentUser) return;
+
+  const { data } = await sb
+    .from("salon_members")
+    .select("salon_id")
+    .eq("user_id", currentUser.id)
+    .eq("is_active", true)
+    .single();
+
+  currentSalonId = data?.salon_id;
+
+  await loadServices();
+  await loadStaff();
+  subscribeRealtime();
+}
+
+async function loadServices() {
+  const { data } = await sb
+    .from("services")
+    .select("*")
+    .eq("salon_id", currentSalonId);
+
+  allServices = data || [];
+}
+
+async function loadStaff() {
+  const { data } = await sb
+    .from("staff")
+    .select("*")
+    .eq("salon_id", currentSalonId);
+
+  allStaff = data || [];
+  renderStaff();
+}
+
+function renderStaff() {
+  const mount = document.getElementById("staffList");
+  mount.innerHTML = "";
+
+  allStaff.forEach((s) => {
+    const el = document.createElement("div");
+
+    const photo = getSafePhoto(s.photo_url);
+
+    el.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:center;">
+        <img src="${photo}" width="60" height="60"/>
+        <div>
+          <div>${s.name}</div>
+          <div>${s.start_time || ""} - ${s.end_time || ""}</div>
+        </div>
+        <button data-id="${s.id}">Edit</button>
+      </div>
+    `;
+
+    el.querySelector("button").onclick = () => openStaffModal(s);
+
+    mount.appendChild(el);
+  });
+}
+
+function getSafePhoto(url) {
+  if (!url) return "https://via.placeholder.com/60";
+
+  if (url.startsWith("http")) return url;
+
+  return "https://via.placeholder.com/60";
+}
+
+let editingId = null;
+
+function openStaffModal(staff = null) {
+  editingId = staff?.id || null;
+
+  document.getElementById("staffNameInput").value = staff?.name || "";
+  document.getElementById("staffPhotoInput").value = staff?.photo_url || "";
+  document.getElementById("staffStartTimeInput").value = staff?.start_time || "10:00";
+  document.getElementById("staffEndTimeInput").value = staff?.end_time || "19:00";
+  document.getElementById("staffSlotMinutesInput").value = staff?.slot_minutes || 30;
+
+  renderServiceCheckboxes(staff?.serviceIds || []);
+
+  document.getElementById("staffModal").classList.remove("hidden");
+}
+
+function closeStaffModal() {
+  editingId = null;
+  document.getElementById("staffModal").classList.add("hidden");
+}
+
+function renderServiceCheckboxes(selected = []) {
+  const box = document.getElementById("servicesCheckboxes");
+  box.innerHTML = "";
+
+  allServices.forEach((s) => {
+    const el = document.createElement("label");
+
+    const checked = selected.includes(s.id) ? "checked" : "";
+
+    el.innerHTML = `
+      <input type="checkbox" value="${s.id}" ${checked}/>
+      ${s.name}
+    `;
+
+    box.appendChild(el);
+  });
+}
+
+async function saveStaff() {
+  const name = document.getElementById("staffNameInput").value;
+  const photo = document.getElementById("staffPhotoInput").value;
+  const start = document.getElementById("staffStartTimeInput").value;
+  const end = document.getElementById("staffEndTimeInput").value;
+  const slot = parseInt(document.getElementById("staffSlotMinutesInput").value);
+
+  const services = Array.from(
+    document.querySelectorAll("#servicesCheckboxes input:checked")
+  ).map((i) => i.value);
+
+  let id = editingId;
+
+  if (!id) {
+    const { data } = await sb
+      .from("staff")
+      .insert({
+        salon_id: currentSalonId,
+        name,
+        photo_url: photo,
+        start_time: start,
+        end_time: end,
+        slot_minutes: slot,
+      })
+      .select("id")
+      .single();
+
+    id = data.id;
+  } else {
+    await sb
+      .from("staff")
+      .update({
+        name,
+        photo_url: photo,
+        start_time: start,
+        end_time: end,
+        slot_minutes: slot,
+      })
+      .eq("id", id);
+  }
+
+  await sb.from("staff_service_map").delete().eq("staff_id", id);
+
+  if (services.length) {
+    await sb.from("staff_service_map").insert(
+      services.map((sid) => ({
+        staff_id: id,
+        salon_id: currentSalonId,
+        service_id: sid,
+      }))
+    );
+  }
+
+  closeStaffModal();
+  await loadStaff();
+}
+
+function subscribeRealtime() {
+  if (realtimeChannel) return;
+
+  realtimeChannel = sb
+    .channel("staff")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "staff" },
+      () => loadStaff()
+    )
+    .subscribe();
+}
