@@ -164,8 +164,8 @@ async function applySession(session) {
   document.getElementById("authLoggedIn")?.classList.toggle("hidden", !currentUser);
 
   if (!currentUser) {
-    document.getElementById("whoAmI").textContent = "-";
-    document.getElementById("tenantLabel").textContent = "-";
+    setText("whoAmI", "-");
+    setText("tenantLabel", "-");
     currentSalonId = null;
     currentSalonSlug = null;
     allBookings = [];
@@ -183,7 +183,7 @@ async function applySession(session) {
   setLoading(true, "読み込み中...", "管理者権限を確認しています");
 
   try {
-    document.getElementById("whoAmI").textContent = currentUser.email || currentUser.id;
+    setText("whoAmI", currentUser.email || currentUser.id);
     await resolveSalonMembership();
     await refreshAll(false);
     subscribeRealtime();
@@ -211,8 +211,7 @@ async function resolveSalonMembership() {
   currentSalonId = data.salon_id;
   currentSalonSlug = data.salons?.slug || null;
 
-  document.getElementById("tenantLabel").textContent =
-    `${data.salons?.name || "-"} / ${data.role || "-"}`;
+  setText("tenantLabel", `${data.salons?.name || "-"} / ${data.role || "-"}`);
 }
 
 async function refreshAll(showSpinner = false) {
@@ -730,7 +729,7 @@ function getFilteredBookings() {
   const { start, end } = getCurrentRange();
 
   items = items.filter((item) => {
-    const date = item.booking_date;
+    const date = String(item.booking_date || "").slice(0, 10);
     return date >= start && date <= end;
   });
 
@@ -781,7 +780,7 @@ function renderWeekView(items, mount) {
   const groups = new Map();
 
   items.forEach((item) => {
-    const date = item.booking_date;
+    const date = String(item.booking_date || "").slice(0, 10);
     if (!groups.has(date)) groups.set(date, []);
     groups.get(date).push(item);
   });
@@ -834,7 +833,7 @@ function renderMonthView(items, mount) {
 
   for (let i = 0; i < 42; i++) {
     const date = addDays(firstVisibleDate, i);
-    const count = items.filter((x) => x.booking_date === date).length;
+    const count = items.filter((x) => String(x.booking_date || "").slice(0, 10) === date).length;
 
     const cell = document.createElement("button");
     cell.type = "button";
@@ -884,7 +883,7 @@ function buildBookingCard(item) {
       <div class="booking-time">
         <div class="booking-time-main">${escapeHtml(formatTime(item.start_time || "--:--"))}</div>
         <div class="booking-time-sub">
-          ${escapeHtml(item.booking_date || "-")}
+          ${escapeHtml(String(item.booking_date || "-").slice(0, 10))}
           ${item.end_time ? ` / ${escapeHtml(formatTime(item.end_time))}` : ""}
         </div>
       </div>
