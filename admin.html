@@ -13,6 +13,7 @@
   <script src="./src/env.js"></script>
   <script src="./src/supabase-client.js"></script>
 </head>
+
 <body>
   <div id="loadingOverlay" class="loading-overlay active">
     <div class="loading-card">
@@ -181,7 +182,7 @@
           <div class="staff-header">
             <div>
               <div class="section-title">スタッフ一覧</div>
-              <div class="section-subtitle">スタッフ情報を管理できます</div>
+              <div class="section-subtitle">スタッフ情報・担当サービスを管理できます</div>
             </div>
             <button id="addStaffBtn" class="btn btn-primary">＋ スタッフ追加</button>
           </div>
@@ -191,26 +192,50 @@
       </section>
     </main>
   </div>
-<div id="staffModal" class="modal hidden">
-  <div class="modal-content">
-    <h3 id="modalTitle">スタッフ追加</h3>
 
-    <input id="staffName" placeholder="名前" class="text-input" />
-    <input id="staffPhoto" placeholder="Фото URL" class="text-input" />
+  <div id="staffModal" class="modal hidden">
+    <div class="modal-content">
+      <div class="modal-head">
+        <div>
+          <div class="eyebrow">Staff</div>
+          <h3 id="staffModalTitle">スタッフ追加</h3>
+        </div>
+        <button id="closeStaffModalBtn" class="modal-close" type="button">×</button>
+      </div>
 
-    <div id="servicesCheckboxes"></div>
+      <div class="form-grid">
+        <div class="form-field">
+          <label class="field-label" for="staffNameInput">名前</label>
+          <input id="staffNameInput" class="text-input" type="text" placeholder="例: Sakura" />
+        </div>
 
-    <label>
-      <input type="checkbox" id="staffActive" checked />
-      Active
-    </label>
+        <div class="form-field">
+          <label class="field-label" for="staffPhotoInput">写真URL</label>
+          <input id="staffPhotoInput" class="text-input" type="url" placeholder="https://..." />
+        </div>
 
-    <div class="modal-actions">
-      <button id="saveStaffBtn" class="btn btn-primary">保存</button>
-      <button id="closeModalBtn" class="btn">閉じる</button>
+        <div class="form-field">
+          <label class="field-label" for="staffActiveInput">表示状態</label>
+          <label class="switch-row">
+            <input id="staffActiveInput" type="checkbox" checked />
+            <span>Active / 表示する</span>
+          </label>
+        </div>
+
+        <div class="form-field">
+          <label class="field-label">担当サービス</label>
+          <div id="servicesCheckboxes" class="checkbox-list"></div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="saveStaffBtn" class="btn btn-primary" type="button">保存</button>
+        <button id="deleteStaffBtn" class="btn btn-danger hidden" type="button">削除</button>
+        <button id="cancelStaffModalBtn" class="btn btn-secondary" type="button">キャンセル</button>
+      </div>
     </div>
   </div>
-</div>
+
   <script src="./admin.js"></script>
 </body>
 </html>

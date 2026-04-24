@@ -5,124 +5,15 @@ let currentSalonId = null;
 let currentUser = null;
 let refreshTimer = null;
 let realtimeChannel = null;
+
 let allBookings = [];
 let allStaff = [];
+let allServices = [];
 let currentTab = "bookings";
-let servicesList = [];
 let editingStaffId = null;
 
-async function loadServices() {
-  const { data, error } = await sb
-    .from("services")
-    .select("id, name")
-    .eq("salon_id", currentSalonId);
-
-  if (error) {
-    console.error(error);
-    return;
-  }
-
-  servicesList = data || [];
-}
-
-function renderServiceCheckboxes(selected = []) {
-  const container = document.getElementById("servicesCheckboxes");
-  container.innerHTML = "";
-
-  servicesList.forEach(service => {
-    const checked = selected.includes(service.id);
-
-    const el = document.createElement("label");
-    el.innerHTML = `
-      <input type="checkbox" value="${service.id}" ${checked ? "checked" : ""}/>
-      ${service.name}
-    `;
-
-    container.appendChild(el);
-  });
-}
-
-function openStaffModal(staff = null) {
-  editingStaffId = staff?.id || null;
-
-  document.getElementById("staffName").value = staff?.name || "";
-  document.getElementById("staffPhoto").value = staff?.photo_url || "";
-  document.getElementById("staffActive").checked = staff?.is_active ?? true;
-
-  renderServiceCheckboxes(staff?.services || []);
-
-  document.getElementById("staffModal").classList.remove("hidden");
-}
-
-function closeStaffModal() {
-  document.getElementById("staffModal").classList.add("hidden");
-}
-
-async function saveStaff() {
-  const name = document.getElementById("staffName").value;
-  const photo = document.getElementById("staffPhoto").value;
-  const active = document.getElementById("staffActive").checked;
-
-  const serviceIds = Array.from(
-    document.querySelectorAll("#servicesCheckboxes input:checked")
-  ).map(el => el.value);
-
-  let staffId = editingStaffId;
-
-  if (!staffId) {
-    const { data, error } = await sb
-      .from("staff")
-      .insert({
-        name,
-        photo_url: photo,
-        is_active: active,
-        salon_id: currentSalonId,
-      })
-      .select()
-      .single();
-
-    if (error) return console.error(error);
-
-    staffId = data.id;
-  } else {
-    await sb
-      .from("staff")
-      .update({
-        name,
-        photo_url: photo,
-        is_active: active,
-      })
-      .eq("id", staffId);
-  }
-
-  // удалить старые связи
-  await sb.from("staff_services").delete().eq("staff_id", staffId);
-
-  // вставить новые
-  const rows = serviceIds.map(sid => ({
-    staff_id: staffId,
-    service_id: sid,
-  }));
-
-  if (rows.length) {
-    await sb.from("staff_services").insert(rows);
-  }
-
-  closeStaffModal();
-  await loadStaff();
-}
-
-async function deleteStaff(id) {
-  if (!confirm("削除しますか？")) return;
-
-  await sb.from("staff").delete().eq("id", id);
-  await sb.from("staff_services").delete().eq("staff_id", id);
-
-  await loadStaff();
-}
-
 const bookingState = {
-  view: "today", // today | day | week | month
+  view: "today",
   selectedDate: getTodayString(),
   statusFilter: "",
   staffFilter: "",
@@ -144,9 +35,7 @@ async function initAdmin() {
   }
 
   const { data, error } = await sb.auth.getSession();
-  if (error) {
-    console.error(error);
-  }
+  if (error) console.error(error);
 
   await applySession(data?.session || null);
 
@@ -155,12 +44,8 @@ async function initAdmin() {
   });
 }
 
-/* -------------------- init / auth -------------------- */
-
 function bindAdminUi() {
-  document
-    .getElementById("sendMagicLinkBtn")
-    ?.addEventListener("click", sendMagicLink);
+  document.getElementById("sendMagicLinkBtn")?.addEventListener("click", sendMagicLink);
 
   document.getElementById("signOutBtn")?.addEventListener("click", async () => {
     try {
@@ -172,8 +57,7 @@ function bindAdminUi() {
   });
 
   document.getElementById("refreshBtn")?.addEventListener("click", async () => {
-    await loadBookings(true);
-    await loadStaff();
+    await refreshAll(true);
   });
 
   document.getElementById("selectedDate")?.addEventListener("change", (e) => {
@@ -197,13 +81,8 @@ function bindAdminUi() {
     renderBookings();
   });
 
-  document.getElementById("prevRangeBtn")?.addEventListener("click", () => {
-    shiftRange(-1);
-  });
-
-  document.getElementById("nextRangeBtn")?.addEventListener("click", () => {
-    shiftRange(1);
-  });
+  document.getElementById("prevRangeBtn")?.addEventListener("click", () => shiftRange(-1));
+  document.getElementById("nextRangeBtn")?.addEventListener("click", () => shiftRange(1));
 
   document.getElementById("jumpTodayBtn")?.addEventListener("click", () => {
     bookingState.selectedDate = getTodayString();
@@ -217,9 +96,7 @@ function bindAdminUi() {
   document.querySelectorAll(".view-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       bookingState.view = btn.dataset.view;
-      if (bookingState.view === "today") {
-        bookingState.selectedDate = getTodayString();
-      }
+      if (bookingState.view === "today") bookingState.selectedDate = getTodayString();
       syncSelectedDateInput();
       syncViewButtons();
       renderRangeLabel();
@@ -228,21 +105,22 @@ function bindAdminUi() {
   });
 
   document.querySelectorAll(".tab-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      switchTab(btn.dataset.tab);
-    });
+    btn.addEventListener("click", () => switchTab(btn.dataset.tab));
   });
 
-  document.getElementById("addStaffBtn")?.addEventListener("click", () => {
-    toast("次のステップで Staff CRUD を追加します");
+  document.getElementById("addStaffBtn")?.addEventListener("click", () => openStaffModal());
+  document.getElementById("closeStaffModalBtn")?.addEventListener("click", closeStaffModal);
+  document.getElementById("cancelStaffModalBtn")?.addEventListener("click", closeStaffModal);
+  document.getElementById("saveStaffBtn")?.addEventListener("click", saveStaff);
+  document.getElementById("deleteStaffBtn")?.addEventListener("click", deleteEditingStaff);
+
+  document.getElementById("staffModal")?.addEventListener("click", (event) => {
+    if (event.target.id === "staffModal") closeStaffModal();
   });
 
   document.addEventListener("visibilitychange", async () => {
     if (document.hidden) return;
-    if (currentSalonId) {
-      await loadBookings(true);
-      await loadStaff();
-    }
+    if (currentSalonId) await refreshAll(false);
   });
 }
 
@@ -259,8 +137,7 @@ async function sendMagicLink() {
     const { error } = await sb.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo:
-          env.ADMIN_REDIRECT_TO || `${window.location.origin}/admin.html`,
+        emailRedirectTo: env.ADMIN_REDIRECT_TO || `${window.location.origin}/admin.html`,
       },
     });
 
@@ -286,6 +163,7 @@ async function applySession(session) {
     currentSalonId = null;
     allBookings = [];
     allStaff = [];
+    allServices = [];
     stopRefresh();
     unsubscribeRealtime();
     populateStaffFilter([]);
@@ -298,12 +176,9 @@ async function applySession(session) {
   setLoading(true, "読み込み中...", "管理者権限を確認しています");
 
   try {
-    document.getElementById("whoAmI").textContent =
-      currentUser.email || currentUser.id;
-
+    document.getElementById("whoAmI").textContent = currentUser.email || currentUser.id;
     await resolveSalonMembership();
-    await loadBookings(true);
-    await loadStaff();
+    await refreshAll(false);
     subscribeRealtime();
     startRefresh();
   } catch (error) {
@@ -331,32 +206,38 @@ async function resolveSalonMembership() {
     `${data.salons?.name || "-"} / ${data.role || "-"}`;
 }
 
-/* -------------------- tabs -------------------- */
+async function refreshAll(showSpinner = false) {
+  if (!currentSalonId) return;
 
-function switchTab(tab) {
-  currentTab = tab;
+  if (showSpinner) setLoading(true, "読み込み中...", "データを更新しています");
 
-  document.querySelectorAll(".tab-btn").forEach((btn) => {
-    btn.classList.toggle("is-active", btn.dataset.tab === tab);
-  });
-
-  document.getElementById("bookingsSection")?.classList.toggle("hidden", tab !== "bookings");
-  document.getElementById("staffSection")?.classList.toggle("hidden", tab !== "staff");
-
-  const pageTitle = document.getElementById("pageTitle");
-  if (pageTitle) {
-    pageTitle.textContent = tab === "bookings" ? "Bookings" : "Staff";
+  try {
+    await loadServices();
+    await loadBookings(false);
+    await loadStaff();
+  } finally {
+    if (showSpinner) setLoading(false);
   }
 }
 
-/* -------------------- data loading -------------------- */
+function switchTab(tab) {
+  currentTab = tab || "bookings";
+
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.tab === currentTab);
+  });
+
+  document.getElementById("bookingsSection")?.classList.toggle("hidden", currentTab !== "bookings");
+  document.getElementById("staffSection")?.classList.toggle("hidden", currentTab !== "staff");
+
+  const pageTitle = document.getElementById("pageTitle");
+  if (pageTitle) pageTitle.textContent = currentTab === "bookings" ? "Bookings" : "Staff";
+}
 
 async function loadBookings(showSpinner = false) {
   if (!currentSalonId) return;
 
-  if (showSpinner) {
-    setLoading(true, "読み込み中...", "予約一覧を更新しています");
-  }
+  if (showSpinner) setLoading(true, "読み込み中...", "予約一覧を更新しています");
 
   try {
     const { data, error } = await sb
@@ -371,9 +252,10 @@ async function loadBookings(showSpinner = false) {
     allBookings = Array.isArray(data) ? data : [];
     hydrateStaffFilterFromBookings();
 
-    document.getElementById(
-      "lastUpdated"
-    ).textContent = `最終更新: ${new Date().toLocaleString("ja-JP")}`;
+    const lastUpdated = document.getElementById("lastUpdated");
+    if (lastUpdated) {
+      lastUpdated.textContent = `最終更新: ${new Date().toLocaleString("ja-JP")}`;
+    }
 
     renderBookings();
   } catch (error) {
@@ -384,19 +266,62 @@ async function loadBookings(showSpinner = false) {
   }
 }
 
-async function loadStaff() {
+async function loadServices() {
   if (!currentSalonId) return;
 
   try {
     const { data, error } = await sb
+      .from("services")
+      .select("id, name")
+      .eq("salon_id", currentSalonId)
+      .order("name", { ascending: true });
+
+    if (error) throw error;
+    allServices = Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error(error);
+    toast("サービス取得エラー");
+    allServices = [];
+  }
+}
+
+async function loadStaff() {
+  if (!currentSalonId) return;
+
+  try {
+    const { data: staffRows, error: staffError } = await sb
       .from("staff")
       .select("*")
       .eq("salon_id", currentSalonId)
       .order("created_at", { ascending: true });
 
-    if (error) throw error;
+    if (staffError) throw staffError;
 
-    allStaff = Array.isArray(data) ? data : [];
+    const staffList = Array.isArray(staffRows) ? staffRows : [];
+    const staffIds = staffList.map((item) => item.id);
+
+    let links = [];
+    if (staffIds.length) {
+      const { data: linkRows, error: linkError } = await sb
+        .from("staff_services")
+        .select("staff_id, service_id")
+        .in("staff_id", staffIds);
+
+      if (linkError) throw linkError;
+      links = Array.isArray(linkRows) ? linkRows : [];
+    }
+
+    allStaff = staffList.map((member) => {
+      const serviceIds = links
+        .filter((link) => String(link.staff_id) === String(member.id))
+        .map((link) => String(link.service_id));
+
+      return {
+        ...member,
+        serviceIds,
+      };
+    });
+
     renderStaff(allStaff);
   } catch (error) {
     console.error(error);
@@ -412,9 +337,7 @@ function hydrateStaffFilterFromBookings() {
     const id = String(item.staff_id || item.staff_name || "");
     const name = item.staff_name || "担当者";
     if (!id) return;
-    if (!map.has(id)) {
-      map.set(id, { id, name });
-    }
+    if (!map.has(id)) map.set(id, { id, name });
   });
 
   const filterStaff = Array.from(map.values()).sort((a, b) =>
@@ -445,8 +368,6 @@ function populateStaffFilter(staffList) {
     bookingState.staffFilter = "";
   }
 }
-
-/* -------------------- realtime -------------------- */
 
 function subscribeRealtime() {
   unsubscribeRealtime();
@@ -483,8 +404,7 @@ function startRefresh() {
   stopRefresh();
   refreshTimer = setInterval(async () => {
     if (document.hidden || !currentSalonId) return;
-    await loadBookings(false);
-    await loadStaff();
+    await refreshAll(false);
   }, 30000);
 }
 
@@ -492,8 +412,6 @@ function stopRefresh() {
   if (refreshTimer) clearInterval(refreshTimer);
   refreshTimer = null;
 }
-
-/* -------------------- render root -------------------- */
 
 function renderBookings() {
   syncViewButtons();
@@ -541,36 +459,206 @@ function renderStaff(list) {
     card.className = "staff-card";
 
     const photo = item.photo_url
-      ? escapeHtml(item.photo_url)
-      : "https://via.placeholder.com/60?text=Staff";
+      ? escapeAttr(item.photo_url)
+      : "https://via.placeholder.com/120x120.png?text=Staff";
+
+    const serviceNames = (item.serviceIds || [])
+      .map((id) => allServices.find((service) => String(service.id) === String(id))?.name)
+      .filter(Boolean);
+
+    const tagsHtml = serviceNames.length
+      ? serviceNames.map((name) => `<span class="service-tag">${escapeHtml(name)}</span>`).join("")
+      : `<span class="service-tag">サービス未設定</span>`;
 
     card.innerHTML = `
       <div class="staff-left">
-        <img src="${photo}" alt="${escapeHtml(item.name || "staff")}" />
+        <img src="${photo}" alt="${escapeAttr(item.name || "staff")}" />
         <div>
           <div class="staff-name">${escapeHtml(item.name || "-")}</div>
-          <div class="staff-status">
-            ${item.is_active ? "🟢 Active" : "⚪ Inactive"}
-          </div>
+          <div class="staff-status">${item.is_active ? "🟢 Active" : "⚪ Inactive"}</div>
+          <div class="staff-service-tags">${tagsHtml}</div>
         </div>
       </div>
 
       <div class="staff-actions">
-        <button data-id="${escapeHtml(String(item.id))}" class="edit-btn">編集</button>
-        <button data-id="${escapeHtml(String(item.id))}" class="delete-btn">削除</button>
+        <button type="button" data-action="edit">編集</button>
+        <button type="button" data-action="delete">削除</button>
       </div>
     `;
 
-    card.querySelector(".edit-btn")?.addEventListener("click", () => {
-      toast(`編集: ${item.name || "-"}`);
+    card.querySelector('[data-action="edit"]')?.addEventListener("click", () => {
+      openStaffModal(item);
     });
 
-    card.querySelector(".delete-btn")?.addEventListener("click", () => {
-      toast(`削除は次のステップで追加します`);
+    card.querySelector('[data-action="delete"]')?.addEventListener("click", async () => {
+      await deleteStaff(item.id);
     });
 
     mount.appendChild(card);
   });
+}
+
+function openStaffModal(staff = null) {
+  editingStaffId = staff?.id || null;
+
+  document.getElementById("staffModalTitle").textContent = editingStaffId
+    ? "スタッフ編集"
+    : "スタッフ追加";
+
+  document.getElementById("staffNameInput").value = staff?.name || "";
+  document.getElementById("staffPhotoInput").value = staff?.photo_url || "";
+  document.getElementById("staffActiveInput").checked = staff?.is_active ?? true;
+
+  document.getElementById("deleteStaffBtn")?.classList.toggle("hidden", !editingStaffId);
+
+  renderServiceCheckboxes(staff?.serviceIds || []);
+  document.getElementById("staffModal")?.classList.remove("hidden");
+}
+
+function closeStaffModal() {
+  editingStaffId = null;
+  document.getElementById("staffModal")?.classList.add("hidden");
+}
+
+function renderServiceCheckboxes(selectedIds = []) {
+  const container = document.getElementById("servicesCheckboxes");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  if (!allServices.length) {
+    container.innerHTML = `<div class="muted">サービスがまだありません</div>`;
+    return;
+  }
+
+  allServices.forEach((service) => {
+    const label = document.createElement("label");
+    label.className = "checkbox-item";
+
+    const checked = selectedIds.map(String).includes(String(service.id));
+
+    label.innerHTML = `
+      <input type="checkbox" value="${escapeAttr(service.id)}" ${checked ? "checked" : ""} />
+      <span>${escapeHtml(service.name || "-")}</span>
+    `;
+
+    container.appendChild(label);
+  });
+}
+
+async function saveStaff() {
+  if (!currentSalonId) return;
+
+  const name = document.getElementById("staffNameInput")?.value.trim();
+  const photoUrl = document.getElementById("staffPhotoInput")?.value.trim();
+  const isActive = document.getElementById("staffActiveInput")?.checked ?? true;
+
+  const serviceIds = Array.from(
+    document.querySelectorAll("#servicesCheckboxes input[type='checkbox']:checked")
+  ).map((input) => input.value);
+
+  if (!name) {
+    toast("スタッフ名を入力してください");
+    return;
+  }
+
+  setLoading(true, "保存中...", "スタッフ情報を保存しています");
+
+  try {
+    let staffId = editingStaffId;
+
+    if (!staffId) {
+      const { data, error } = await sb
+        .from("staff")
+        .insert({
+          salon_id: currentSalonId,
+          name,
+          photo_url: photoUrl || null,
+          is_active: isActive,
+        })
+        .select("id")
+        .single();
+
+      if (error) throw error;
+      staffId = data.id;
+    } else {
+      const { error } = await sb
+        .from("staff")
+        .update({
+          name,
+          photo_url: photoUrl || null,
+          is_active: isActive,
+        })
+        .eq("id", staffId)
+        .eq("salon_id", currentSalonId);
+
+      if (error) throw error;
+    }
+
+    const { error: deleteLinkError } = await sb
+      .from("staff_services")
+      .delete()
+      .eq("staff_id", staffId);
+
+    if (deleteLinkError) throw deleteLinkError;
+
+    if (serviceIds.length) {
+      const rows = serviceIds.map((serviceId) => ({
+        staff_id: staffId,
+        service_id: serviceId,
+      }));
+
+      const { error: insertLinkError } = await sb
+        .from("staff_services")
+        .insert(rows);
+
+      if (insertLinkError) throw insertLinkError;
+    }
+
+    toast("保存しました");
+    closeStaffModal();
+    await loadStaff();
+  } catch (error) {
+    console.error(error);
+    toast("保存に失敗しました");
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function deleteEditingStaff() {
+  if (!editingStaffId) return;
+  await deleteStaff(editingStaffId);
+  closeStaffModal();
+}
+
+async function deleteStaff(staffId) {
+  if (!staffId) return;
+
+  const ok = confirm("このスタッフを削除しますか？");
+  if (!ok) return;
+
+  setLoading(true, "削除中...", "スタッフを削除しています");
+
+  try {
+    await sb.from("staff_services").delete().eq("staff_id", staffId);
+
+    const { error } = await sb
+      .from("staff")
+      .delete()
+      .eq("id", staffId)
+      .eq("salon_id", currentSalonId);
+
+    if (error) throw error;
+
+    toast("削除しました");
+    await loadStaff();
+  } catch (error) {
+    console.error(error);
+    toast("削除に失敗しました");
+  } finally {
+    setLoading(false);
+  }
 }
 
 function getFilteredBookings() {
@@ -589,8 +677,7 @@ function getFilteredBookings() {
   if (bookingState.staffFilter) {
     items = items.filter(
       (item) =>
-        String(item.staff_id || item.staff_name || "") ===
-        String(bookingState.staffFilter)
+        String(item.staff_id || item.staff_name || "") === String(bookingState.staffFilter)
     );
   }
 
@@ -617,8 +704,6 @@ function getFilteredBookings() {
 
   return items;
 }
-
-/* -------------------- day / week / month views -------------------- */
 
 function renderDayView(items, mount) {
   const list = document.createElement("div");
@@ -694,13 +779,8 @@ function renderMonthView(items, mount) {
     cell.type = "button";
     cell.className = "month-cell";
 
-    if (date < monthStart || date > monthEnd) {
-      cell.classList.add("is-other");
-    }
-
-    if (date === bookingState.selectedDate) {
-      cell.classList.add("is-selected");
-    }
+    if (date < monthStart || date > monthEnd) cell.classList.add("is-other");
+    if (date === bookingState.selectedDate) cell.classList.add("is-selected");
 
     cell.innerHTML = `
       <div class="month-day">${escapeHtml(String(parseDateLocal(date).getDate()))}</div>
@@ -721,8 +801,6 @@ function renderMonthView(items, mount) {
 
   mount.appendChild(grid);
 }
-
-/* -------------------- booking card -------------------- */
 
 function buildBookingCard(item) {
   const card = document.createElement("article");
@@ -789,27 +867,19 @@ function buildActionButtons(item) {
   const buttons = [];
 
   if (status !== "confirmed" && status !== "completed" && status !== "cancelled") {
-    buttons.push(
-      `<button class="action-btn is-success" data-action="confirmed">確認済み</button>`
-    );
+    buttons.push(`<button class="action-btn is-success" data-action="confirmed">確認済み</button>`);
   }
 
   if (status !== "cancelled") {
-    buttons.push(
-      `<button class="action-btn is-danger" data-action="cancelled">キャンセル</button>`
-    );
+    buttons.push(`<button class="action-btn is-danger" data-action="cancelled">キャンセル</button>`);
   }
 
   if (status !== "completed" && status !== "cancelled") {
-    buttons.push(
-      `<button class="action-btn is-dark" data-action="completed">完了</button>`
-    );
+    buttons.push(`<button class="action-btn is-dark" data-action="completed">完了</button>`);
   }
 
   return buttons.join("");
 }
-
-/* -------------------- update booking -------------------- */
 
 async function updateBookingStatus(bookingId, nextStatus) {
   if (!currentSalonId) return;
@@ -819,13 +889,8 @@ async function updateBookingStatus(bookingId, nextStatus) {
   try {
     const patch = { status: nextStatus };
 
-    if (nextStatus === "cancelled") {
-      patch.cancelled_by = "admin";
-    }
-
-    if (nextStatus === "confirmed") {
-      patch.confirmed_at = new Date().toISOString();
-    }
+    if (nextStatus === "cancelled") patch.cancelled_by = "admin";
+    if (nextStatus === "confirmed") patch.confirmed_at = new Date().toISOString();
 
     const { error } = await sb
       .from("bookings")
@@ -845,33 +910,12 @@ async function updateBookingStatus(bookingId, nextStatus) {
   }
 }
 
-/* -------------------- metrics -------------------- */
-
 function updateMetrics(items) {
-  const metricCount = document.getElementById("metricCount");
-  const metricPending = document.getElementById("metricPending");
-  const metricRisk = document.getElementById("metricRisk");
-  const metricCancelled = document.getElementById("metricCancelled");
-
-  if (metricCount) metricCount.textContent = String(items.length);
-  if (metricPending) {
-    metricPending.textContent = String(
-      items.filter((x) => x.status === "pending").length
-    );
-  }
-  if (metricRisk) {
-    metricRisk.textContent = String(
-      items.filter((x) => x.status === "risk").length
-    );
-  }
-  if (metricCancelled) {
-    metricCancelled.textContent = String(
-      items.filter((x) => x.status === "cancelled").length
-    );
-  }
+  setText("metricCount", String(items.length));
+  setText("metricPending", String(items.filter((x) => x.status === "pending").length));
+  setText("metricRisk", String(items.filter((x) => x.status === "risk").length));
+  setText("metricCancelled", String(items.filter((x) => x.status === "cancelled").length));
 }
-
-/* -------------------- range / dates -------------------- */
 
 function setInitialDate() {
   bookingState.selectedDate = getTodayString();
@@ -960,8 +1004,6 @@ function shiftRange(direction) {
   renderBookings();
 }
 
-/* -------------------- utils -------------------- */
-
 function setLoading(on, title = "読み込み中...", text = "少々お待ちください") {
   const overlay = document.getElementById("loadingOverlay");
   if (!overlay) return;
@@ -987,29 +1029,25 @@ function toast(text) {
   setTimeout(() => el.remove(), 2600);
 }
 
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
 function formatStatusLabel(status) {
   switch (String(status || "")) {
-    case "pending":
-      return "未確認";
-    case "confirmed":
-      return "確認済み";
-    case "risk":
-      return "要確認";
-    case "cancelled":
-      return "キャンセル";
-    case "completed":
-      return "完了";
-    default:
-      return status || "-";
+    case "pending": return "未確認";
+    case "confirmed": return "確認済み";
+    case "risk": return "要確認";
+    case "cancelled": return "キャンセル";
+    case "completed": return "完了";
+    default: return status || "-";
   }
 }
 
 function getTodayString() {
   const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  return toDateString(d);
 }
 
 function parseDateLocal(dateStr) {
@@ -1079,6 +1117,10 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value);
 }
 
 function escapeClass(value) {
