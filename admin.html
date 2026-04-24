@@ -191,7 +191,26 @@
       </section>
     </main>
   </div>
+<div id="staffModal" class="modal hidden">
+  <div class="modal-content">
+    <h3 id="modalTitle">スタッフ追加</h3>
 
+    <input id="staffName" placeholder="名前" class="text-input" />
+    <input id="staffPhoto" placeholder="Фото URL" class="text-input" />
+
+    <div id="servicesCheckboxes"></div>
+
+    <label>
+      <input type="checkbox" id="staffActive" checked />
+      Active
+    </label>
+
+    <div class="modal-actions">
+      <button id="saveStaffBtn" class="btn btn-primary">保存</button>
+      <button id="closeModalBtn" class="btn">閉じる</button>
+    </div>
+  </div>
+</div>
   <script src="./admin.js"></script>
 </body>
 </html>

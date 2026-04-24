@@ -8,6 +8,118 @@ let realtimeChannel = null;
 let allBookings = [];
 let allStaff = [];
 let currentTab = "bookings";
+let servicesList = [];
+let editingStaffId = null;
+
+async function loadServices() {
+  const { data, error } = await sb
+    .from("services")
+    .select("id, name")
+    .eq("salon_id", currentSalonId);
+
+  if (error) {
+    console.error(error);
+    return;
+  }
+
+  servicesList = data || [];
+}
+
+function renderServiceCheckboxes(selected = []) {
+  const container = document.getElementById("servicesCheckboxes");
+  container.innerHTML = "";
+
+  servicesList.forEach(service => {
+    const checked = selected.includes(service.id);
+
+    const el = document.createElement("label");
+    el.innerHTML = `
+      <input type="checkbox" value="${service.id}" ${checked ? "checked" : ""}/>
+      ${service.name}
+    `;
+
+    container.appendChild(el);
+  });
+}
+
+function openStaffModal(staff = null) {
+  editingStaffId = staff?.id || null;
+
+  document.getElementById("staffName").value = staff?.name || "";
+  document.getElementById("staffPhoto").value = staff?.photo_url || "";
+  document.getElementById("staffActive").checked = staff?.is_active ?? true;
+
+  renderServiceCheckboxes(staff?.services || []);
+
+  document.getElementById("staffModal").classList.remove("hidden");
+}
+
+function closeStaffModal() {
+  document.getElementById("staffModal").classList.add("hidden");
+}
+
+async function saveStaff() {
+  const name = document.getElementById("staffName").value;
+  const photo = document.getElementById("staffPhoto").value;
+  const active = document.getElementById("staffActive").checked;
+
+  const serviceIds = Array.from(
+    document.querySelectorAll("#servicesCheckboxes input:checked")
+  ).map(el => el.value);
+
+  let staffId = editingStaffId;
+
+  if (!staffId) {
+    const { data, error } = await sb
+      .from("staff")
+      .insert({
+        name,
+        photo_url: photo,
+        is_active: active,
+        salon_id: currentSalonId,
+      })
+      .select()
+      .single();
+
+    if (error) return console.error(error);
+
+    staffId = data.id;
+  } else {
+    await sb
+      .from("staff")
+      .update({
+        name,
+        photo_url: photo,
+        is_active: active,
+      })
+      .eq("id", staffId);
+  }
+
+  // удалить старые связи
+  await sb.from("staff_services").delete().eq("staff_id", staffId);
+
+  // вставить новые
+  const rows = serviceIds.map(sid => ({
+    staff_id: staffId,
+    service_id: sid,
+  }));
+
+  if (rows.length) {
+    await sb.from("staff_services").insert(rows);
+  }
+
+  closeStaffModal();
+  await loadStaff();
+}
+
+async function deleteStaff(id) {
+  if (!confirm("削除しますか？")) return;
+
+  await sb.from("staff").delete().eq("id", id);
+  await sb.from("staff_services").delete().eq("staff_id", id);
+
+  await loadStaff();
+}
 
 const bookingState = {
   view: "today", // today | day | week | month
