@@ -2,6 +2,7 @@ const sb = window.supabaseClient;
 const env = window.__APP_ENV__ || window.appEnv || {};
 
 let currentSalonId = null;
+let currentSalonSlug = null;
 let currentUser = null;
 let refreshTimer = null;
 let realtimeChannel = null;
@@ -118,6 +119,10 @@ function bindAdminUi() {
     if (event.target.id === "staffModal") closeStaffModal();
   });
 
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeStaffModal();
+  });
+
   document.addEventListener("visibilitychange", async () => {
     if (document.hidden) return;
     if (currentSalonId) await refreshAll(false);
@@ -145,8 +150,8 @@ async function sendMagicLink() {
     if (error) throw error;
     toast("ログインリンクを送信しました");
   } catch (error) {
-    console.error(error);
-    toast("ログインリンク送信に失敗しました");
+    console.error("sendMagicLink error:", error);
+    toast(error.message || "ログインリンク送信に失敗しました");
   } finally {
     setLoading(false);
   }
@@ -162,6 +167,7 @@ async function applySession(session) {
     document.getElementById("whoAmI").textContent = "-";
     document.getElementById("tenantLabel").textContent = "-";
     currentSalonId = null;
+    currentSalonSlug = null;
     allBookings = [];
     allStaff = [];
     allServices = [];
@@ -183,8 +189,8 @@ async function applySession(session) {
     subscribeRealtime();
     startRefresh();
   } catch (error) {
-    console.error(error);
-    toast("このアカウントにはサロン権限がありません");
+    console.error("applySession error:", error);
+    toast(error.message || "このアカウントにはサロン権限がありません");
   } finally {
     setLoading(false);
   }
@@ -203,6 +209,7 @@ async function resolveSalonMembership() {
   if (!data) throw new Error("membership_not_found");
 
   currentSalonId = data.salon_id;
+  currentSalonSlug = data.salons?.slug || null;
 
   document.getElementById("tenantLabel").textContent =
     `${data.salons?.name || "-"} / ${data.role || "-"}`;
@@ -236,8 +243,6 @@ function switchTab(tab) {
   if (pageTitle) pageTitle.textContent = currentTab === "bookings" ? "Bookings" : "Staff";
 }
 
-/* -------------------- loading data -------------------- */
-
 async function loadBookings(showSpinner = false) {
   if (!currentSalonId) return;
 
@@ -257,14 +262,12 @@ async function loadBookings(showSpinner = false) {
     hydrateStaffFilterFromBookings();
 
     const lastUpdated = document.getElementById("lastUpdated");
-    if (lastUpdated) {
-      lastUpdated.textContent = `最終更新: ${new Date().toLocaleString("ja-JP")}`;
-    }
+    if (lastUpdated) lastUpdated.textContent = `最終更新: ${new Date().toLocaleString("ja-JP")}`;
 
     renderBookings();
   } catch (error) {
     console.error("loadBookings error:", error);
-    toast("予約読み込みに失敗しました");
+    toast(error.message || "予約読み込みに失敗しました");
   } finally {
     if (showSpinner) setLoading(false);
   }
@@ -274,29 +277,38 @@ async function loadServices() {
   if (!currentSalonId) return;
 
   try {
-    let res = await sb
+    const { data, error } = await sb
       .from("services")
-      .select("id, name, salon_id")
+      .select("id, salon_id, code, name, description, duration_minutes, price_jpy, category, sort_order, is_active")
       .eq("salon_id", currentSalonId)
+      .order("sort_order", { ascending: true })
       .order("name", { ascending: true });
 
-    if (res.error) {
-      console.warn("services basic query failed:", res.error);
+    if (error) throw error;
 
-      res = await sb
-        .from("services")
-        .select("*")
-        .eq("salon_id", currentSalonId);
+    allServices = Array.isArray(data) ? data : [];
+
+    if (!allServices.length && currentSalonSlug) {
+      const { data: catalog, error: catalogError } = await sb.rpc("public_catalog", {
+        p_salon_slug: currentSalonSlug,
+      });
+
+      if (!catalogError && Array.isArray(catalog?.services)) {
+        allServices = catalog.services
+          .map((service) => ({
+            id: service.id || service.service_id || service.serviceId,
+            name: service.name || service.service_name || "サービス",
+            salon_id: currentSalonId,
+            is_active: true,
+          }))
+          .filter((service) => service.id);
+      }
     }
-
-    if (res.error) throw res.error;
-
-    allServices = Array.isArray(res.data) ? res.data : [];
 
     console.log("Loaded services:", allServices);
   } catch (error) {
     console.error("loadServices error:", error);
-    toast("サービス取得エラー");
+    toast(error.message || "サービス取得エラー");
     allServices = [];
   }
 }
@@ -321,7 +333,7 @@ async function loadStaff() {
     if (staffIds.length) {
       const { data: linkRows, error: linkError } = await sb
         .from("staff_service_map")
-        .select("*")
+        .select("staff_id, service_id, salon_id")
         .eq("salon_id", currentSalonId)
         .in("staff_id", staffIds);
 
@@ -343,12 +355,10 @@ async function loadStaff() {
     renderStaff(allStaff);
   } catch (error) {
     console.error("loadStaff error:", error);
-    toast("スタッフ取得エラー");
+    toast(error.message || "スタッフ取得エラー");
     renderStaff([]);
   }
 }
-
-/* -------------------- staff CRUD -------------------- */
 
 function renderStaff(list) {
   const mount = document.getElementById("staffList");
@@ -377,14 +387,17 @@ function renderStaff(list) {
       ? serviceNames.map((name) => `<span class="service-tag">${escapeHtml(name)}</span>`).join("")
       : `<span class="service-tag">サービス未設定</span>`;
 
+    const scheduleText = item.start_time && item.end_time
+      ? ` / ${formatTime(item.start_time)} - ${formatTime(item.end_time)}`
+      : "";
+
     card.innerHTML = `
       <div class="staff-left">
         <img src="${photo}" alt="${escapeAttr(item.name || "staff")}" />
         <div>
           <div class="staff-name">${escapeHtml(item.name || "-")}</div>
           <div class="staff-status">
-            ${item.is_active === false ? "⚪ Inactive" : "🟢 Active"}
-            ${item.start_time && item.end_time ? ` / ${escapeHtml(item.start_time)} - ${escapeHtml(item.end_time)}` : ""}
+            ${item.is_active === false ? "⚪ Inactive" : "🟢 Active"}${scheduleText}
           </div>
           <div class="staff-service-tags">${tagsHtml}</div>
         </div>
@@ -411,13 +424,16 @@ function renderStaff(list) {
 function openStaffModal(staff = null) {
   editingStaffId = staff?.id || null;
 
-  document.getElementById("staffModalTitle").textContent = editingStaffId
-    ? "スタッフ編集"
-    : "スタッフ追加";
+  const titleEl = document.getElementById("staffModalTitle");
+  if (titleEl) titleEl.textContent = editingStaffId ? "スタッフ編集" : "スタッフ追加";
 
-  document.getElementById("staffNameInput").value = staff?.name || "";
-  document.getElementById("staffPhotoInput").value = staff?.photo_url || "";
-  document.getElementById("staffActiveInput").checked = staff?.is_active !== false;
+  const nameInput = document.getElementById("staffNameInput");
+  const photoInput = document.getElementById("staffPhotoInput");
+  const activeInput = document.getElementById("staffActiveInput");
+
+  if (nameInput) nameInput.value = staff?.name || "";
+  if (photoInput) photoInput.value = staff?.photo_url || "";
+  if (activeInput) activeInput.checked = staff?.is_active !== false;
 
   document.getElementById("deleteStaffBtn")?.classList.toggle("hidden", !editingStaffId);
 
@@ -491,6 +507,9 @@ async function saveStaff() {
           name,
           photo_url: photoUrl || null,
           is_active: isActive,
+          slot_minutes: 30,
+          start_time: "10:00",
+          end_time: "19:00",
         })
         .select("id")
         .single();
@@ -582,8 +601,6 @@ async function deleteStaff(staffId) {
     setLoading(false);
   }
 }
-
-/* -------------------- booking UI -------------------- */
 
 function hydrateStaffFilterFromBookings() {
   const map = new Map();
@@ -865,10 +882,10 @@ function buildBookingCard(item) {
   card.innerHTML = `
     <div class="booking-top">
       <div class="booking-time">
-        <div class="booking-time-main">${escapeHtml(item.start_time || "--:--")}</div>
+        <div class="booking-time-main">${escapeHtml(formatTime(item.start_time || "--:--"))}</div>
         <div class="booking-time-sub">
           ${escapeHtml(item.booking_date || "-")}
-          ${item.end_time ? ` / ${escapeHtml(item.end_time)}` : ""}
+          ${item.end_time ? ` / ${escapeHtml(formatTime(item.end_time))}` : ""}
         </div>
       </div>
       <div class="badges">
@@ -947,14 +964,12 @@ async function updateBookingStatus(bookingId, nextStatus) {
     toast("更新しました");
     await loadBookings(false);
   } catch (error) {
-    console.error(error);
-    toast("更新に失敗しました");
+    console.error("updateBookingStatus error:", error);
+    toast(error.message || "更新に失敗しました");
   } finally {
     setLoading(false);
   }
 }
-
-/* -------------------- helpers -------------------- */
 
 function updateMetrics(items) {
   setText("metricCount", String(items.length));
@@ -1099,6 +1114,12 @@ function formatStatusLabel(status) {
     case "completed": return "完了";
     default: return status || "-";
   }
+}
+
+function formatTime(value) {
+  const str = String(value || "");
+  if (!str) return "";
+  return str.slice(0, 5);
 }
 
 function getTodayString() {
