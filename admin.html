@@ -2,19 +2,18 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Salon Admin</title>
+
   <link rel="stylesheet" href="./admin.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./src/env.js"></script>
-  <script src="./src/supabase-client.js"></script>
 </head>
+
 <body>
   <div id="loadingOverlay" class="loading-overlay active">
     <div class="loading-card">
       <div class="spinner"></div>
-      <div class="loading-title">読み込み中...</div>
-      <div class="loading-text">管理画面を準備しています</div>
+      <div id="loadingTitle" class="loading-title">読み込み中...</div>
+      <div id="loadingText" class="loading-text">管理画面を準備しています</div>
     </div>
   </div>
 
@@ -26,66 +25,102 @@
         <p>予約・スタッフ・サービスを管理できます</p>
       </div>
 
-      <section id="authLoggedOut" class="auth-card">
+      <div id="authLoggedOut" class="auth-card">
         <h2>管理者ログイン</h2>
         <p class="muted">メールアドレスにログインリンクを送信します</p>
-        <label class="field-label" for="adminEmail">管理者メール</label>
-        <input id="adminEmail" class="text-input" type="email" placeholder="owner@example.com" autocomplete="email" />
-        <button id="sendMagicLinkBtn" class="btn btn-primary btn-block">ログインリンクを送る</button>
-      </section>
 
-      <section id="authLoggedIn" class="auth-card hidden">
+        <label class="field-label" for="adminEmail">管理者メール</label>
+        <input id="adminEmail" class="text-input" type="email" placeholder="owner@example.com" />
+
+        <button id="sendMagicLinkBtn" class="btn btn-primary btn-block" type="button">
+          ログインリンクを送る
+        </button>
+      </div>
+
+      <div id="authLoggedIn" class="auth-card hidden">
         <div class="whoami">
           <div class="whoami-label">ログイン中</div>
           <div id="whoAmI" class="whoami-value">-</div>
         </div>
+
         <div class="tenant-box">
           <div class="whoami-label">サロン / 権限</div>
           <div id="tenantLabel" class="tenant-value">-</div>
         </div>
-        <div class="side-actions">
-          <button id="refreshBtn" class="btn btn-secondary">更新</button>
-          <button id="signOutBtn" class="btn btn-ghost">ログアウト</button>
-        </div>
-      </section>
 
-      <section class="metrics-grid">
-        <div class="metric-card"><div class="metric-value" id="metricCount">0</div><div class="metric-label">表示件数</div></div>
-        <div class="metric-card"><div class="metric-value" id="metricPending">0</div><div class="metric-label">未確認</div></div>
-        <div class="metric-card"><div class="metric-value" id="metricRisk">0</div><div class="metric-label">要確認</div></div>
-        <div class="metric-card"><div class="metric-value" id="metricCancelled">0</div><div class="metric-label">キャンセル</div></div>
-      </section>
+        <div class="side-actions">
+          <button id="refreshBtn" class="btn btn-secondary" type="button">更新</button>
+          <button id="signOutBtn" class="btn btn-ghost" type="button">ログアウト</button>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div id="metricTotal" class="metric-value">0</div>
+          <div class="metric-label">表示件数</div>
+        </div>
+
+        <div class="metric-card">
+          <div id="metricPending" class="metric-value">0</div>
+          <div class="metric-label">未確認</div>
+        </div>
+
+        <div class="metric-card">
+          <div id="metricRisk" class="metric-value">0</div>
+          <div class="metric-label">要確認</div>
+        </div>
+
+        <div class="metric-card">
+          <div id="metricCancelled" class="metric-value">0</div>
+          <div class="metric-label">キャンセル</div>
+        </div>
+      </div>
+
+      <div class="legend-card">
+        <h3>ステータス</h3>
+        <div class="legend-list">
+          <div class="legend-item"><span class="legend-dot is-pending"></span>未確認</div>
+          <div class="legend-item"><span class="legend-dot is-confirmed"></span>確認済み</div>
+          <div class="legend-item"><span class="legend-dot is-risk"></span>要確認</div>
+          <div class="legend-item"><span class="legend-dot is-cancelled"></span>キャンセル</div>
+          <div class="legend-item"><span class="legend-dot is-completed"></span>完了</div>
+        </div>
+      </div>
     </aside>
 
     <main class="main-panel">
-      <header class="topbar">
+      <section class="topbar">
         <div>
           <div class="eyebrow">Salon Admin</div>
           <h2 id="pageTitle">Bookings</h2>
+
           <div class="tabs">
-            <button class="tab-btn is-active" data-tab="bookings">Bookings</button>
-            <button class="tab-btn" data-tab="staff">Staff</button>
-            <button class="tab-btn" data-tab="services">Services</button>
+            <button class="tab-btn is-active" type="button" data-tab="bookings">Bookings</button>
+            <button class="tab-btn" type="button" data-tab="staff">Staff</button>
+            <button class="tab-btn" type="button" data-tab="services">Services</button>
           </div>
+
           <p class="muted">予約・スタッフ・サービス管理</p>
         </div>
+
         <div id="lastUpdated" class="last-updated">最終更新: --</div>
-      </header>
+      </section>
 
       <section id="bookingsSection">
-        <section class="toolbar-card">
+        <div class="toolbar-card">
           <div class="toolbar-row">
             <div class="view-switch">
-              <button class="view-btn is-active" data-view="today">今日</button>
-              <button class="view-btn" data-view="day">日</button>
-              <button class="view-btn" data-view="week">週</button>
-              <button class="view-btn" data-view="month">月</button>
+              <button class="view-btn is-active" type="button" data-view="today">今日</button>
+              <button class="view-btn" type="button" data-view="day">日</button>
+              <button class="view-btn" type="button" data-view="week">週</button>
+              <button class="view-btn" type="button" data-view="month">月</button>
             </div>
+
             <div class="date-nav">
-              <button id="prevRangeBtn" class="icon-btn">←</button>
-              <button id="jumpTodayBtn" class="btn btn-secondary">今日へ</button>
+              <button id="prevRangeBtn" class="icon-btn" type="button">←</button>
+              <button id="jumpTodayBtn" class="btn btn-secondary" type="button">今日へ</button>
               <div id="rangeLabel" class="range-label">--</div>
-              <button id="nextRangeBtn" class="icon-btn">→</button>
+              <button id="nextRangeBtn" class="icon-btn" type="button">→</button>
             </div>
           </div>
 
@@ -94,10 +129,14 @@
               <label class="field-label" for="selectedDate">基準日</label>
               <input id="selectedDate" class="text-input" type="date" />
             </div>
+
             <div class="filter-group">
               <label class="field-label" for="staffFilter">担当者</label>
-              <select id="staffFilter" class="select-input"><option value="">全担当者</option></select>
+              <select id="staffFilter" class="select-input">
+                <option value="">全担当者</option>
+              </select>
             </div>
+
             <div class="filter-group">
               <label class="field-label" for="statusFilter">ステータス</label>
               <select id="statusFilter" class="select-input">
@@ -109,43 +148,48 @@
                 <option value="completed">完了</option>
               </select>
             </div>
+
             <div class="filter-group search-group">
               <label class="field-label" for="searchText">検索</label>
-              <input id="searchText" class="text-input" type="text" placeholder="名前・電話・サービス・担当者" />
+              <input id="searchText" class="text-input" type="search" placeholder="名前・電話・サービス・担当者" />
             </div>
           </div>
-        </section>
+        </div>
 
-        <section class="content-card">
+        <div class="content-card">
           <div id="bookingsMount"></div>
-          <div id="emptyState" class="empty-state hidden">条件に一致する予約はありません</div>
-        </section>
+          <div id="emptyState" class="empty-state">条件に一致する予約はありません</div>
+        </div>
       </section>
 
       <section id="staffSection" class="hidden">
-        <section class="content-card">
+        <div class="content-card">
           <div class="section-header">
             <div>
               <div class="section-title">スタッフ一覧</div>
               <div class="section-subtitle">スタッフ情報・勤務時間・担当サービスを管理できます</div>
             </div>
-            <button id="addStaffBtn" class="btn btn-primary">＋ スタッフ追加</button>
+
+            <button id="addStaffBtn" class="btn btn-primary" type="button">＋ スタッフ追加</button>
           </div>
+
           <div id="staffList"></div>
-        </section>
+        </div>
       </section>
 
       <section id="servicesSection" class="hidden">
-        <section class="content-card">
+        <div class="content-card">
           <div class="section-header">
             <div>
               <div class="section-title">サービス一覧</div>
               <div class="section-subtitle">メニュー名・時間・価格・表示状態を管理できます</div>
             </div>
-            <button id="addServiceBtn" class="btn btn-primary">＋ サービス追加</button>
+
+            <button id="addServiceBtn" class="btn btn-primary" type="button">＋ サービス追加</button>
           </div>
+
           <div id="servicesList"></div>
-        </section>
+        </div>
       </section>
     </main>
   </div>
@@ -153,24 +197,54 @@
   <div id="staffModal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-head">
-        <div><div class="eyebrow">Staff</div><h3 id="staffModalTitle">スタッフ追加</h3></div>
+        <div>
+          <div class="eyebrow">Staff</div>
+          <h3 id="staffModalTitle">スタッフ追加</h3>
+        </div>
         <button id="closeStaffModalBtn" class="modal-close" type="button">×</button>
       </div>
 
       <div class="form-grid">
-        <div class="form-field"><label class="field-label" for="staffNameInput">名前</label><input id="staffNameInput" class="text-input" type="text" placeholder="例: Sakura" /></div>
-        <div class="form-field"><label class="field-label" for="staffPhotoInput">写真URL</label><input id="staffPhotoInput" class="text-input" type="url" placeholder="https://..." /></div>
-        <div class="form-field"><label class="field-label" for="staffStartTimeInput">勤務開始</label><input id="staffStartTimeInput" class="text-input" type="time" value="10:00" /></div>
-        <div class="form-field"><label class="field-label" for="staffEndTimeInput">勤務終了</label><input id="staffEndTimeInput" class="text-input" type="time" value="19:00" /></div>
-        <div class="form-field"><label class="field-label" for="staffSlotMinutesInput">予約間隔（分）</label><input id="staffSlotMinutesInput" class="text-input" type="number" min="5" step="5" value="30" /></div>
-        <div class="form-field"><label class="field-label">表示状態</label><label class="switch-row"><input id="staffActiveInput" type="checkbox" checked /><span>Active / 表示する</span></label></div>
-        <div class="form-field form-field-full"><label class="field-label">担当サービス</label><div id="servicesCheckboxes" class="checkbox-list"></div></div>
+        <div class="form-field-full">
+          <label class="field-label" for="staffNameInput">名前</label>
+          <input id="staffNameInput" class="text-input" type="text" placeholder="例: Yamada" />
+        </div>
+
+        <div class="form-field-full">
+          <label class="field-label" for="staffPhotoInput">写真URL</label>
+          <input id="staffPhotoInput" class="text-input" type="url" placeholder="https://example.com/photo.jpg" />
+        </div>
+
+        <div>
+          <label class="field-label" for="staffStartTimeInput">勤務開始</label>
+          <input id="staffStartTimeInput" class="text-input" type="time" value="10:00" />
+        </div>
+
+        <div>
+          <label class="field-label" for="staffEndTimeInput">勤務終了</label>
+          <input id="staffEndTimeInput" class="text-input" type="time" value="19:00" />
+        </div>
+
+        <div>
+          <label class="field-label" for="staffSlotMinutesInput">予約間隔（分）</label>
+          <input id="staffSlotMinutesInput" class="text-input" type="number" min="5" step="5" value="30" />
+        </div>
+
+        <label class="switch-row">
+          <input id="staffActiveInput" type="checkbox" checked />
+          <span>表示状態 Active / 表示する</span>
+        </label>
+
+        <div class="form-field-full">
+          <label class="field-label">担当サービス</label>
+          <div id="servicesCheckboxes" class="checkbox-list"></div>
+        </div>
       </div>
 
       <div class="modal-actions">
         <button id="saveStaffBtn" class="btn btn-primary" type="button">保存</button>
         <button id="deleteStaffBtn" class="btn btn-danger hidden" type="button">削除</button>
-        <button id="cancelStaffModalBtn" class="btn btn-secondary" type="button">キャンセル</button>
+        <button id="cancelStaffModalBtn" class="btn btn-ghost" type="button">キャンセル</button>
       </div>
     </div>
   </div>
@@ -178,29 +252,68 @@
   <div id="serviceModal" class="modal hidden">
     <div class="modal-content">
       <div class="modal-head">
-        <div><div class="eyebrow">Service</div><h3 id="serviceModalTitle">サービス追加</h3></div>
+        <div>
+          <div class="eyebrow">Service</div>
+          <h3 id="serviceModalTitle">サービス追加</h3>
+        </div>
         <button id="closeServiceModalBtn" class="modal-close" type="button">×</button>
       </div>
 
       <div class="form-grid">
-        <div class="form-field"><label class="field-label" for="serviceNameInput">サービス名</label><input id="serviceNameInput" class="text-input" type="text" placeholder="例: カット" /></div>
-        <div class="form-field"><label class="field-label" for="serviceCodeInput">コード</label><input id="serviceCodeInput" class="text-input" type="text" placeholder="未入力なら自動作成" /></div>
-        <div class="form-field"><label class="field-label" for="serviceCategoryInput">カテゴリ</label><input id="serviceCategoryInput" class="text-input" type="text" placeholder="Hair / Nail など" /></div>
-        <div class="form-field"><label class="field-label" for="serviceDurationInput">施術時間（分）</label><input id="serviceDurationInput" class="text-input" type="number" min="5" step="5" value="60" /></div>
-        <div class="form-field"><label class="field-label" for="servicePriceInput">価格（円）</label><input id="servicePriceInput" class="text-input" type="number" min="0" step="100" value="0" /></div>
-        <div class="form-field"><label class="field-label" for="serviceSortInput">表示順</label><input id="serviceSortInput" class="text-input" type="number" min="0" step="1" value="1" /></div>
-        <div class="form-field"><label class="field-label">表示状態</label><label class="switch-row"><input id="serviceActiveInput" type="checkbox" checked /><span>Active / 表示する</span></label></div>
-        <div class="form-field form-field-full"><label class="field-label" for="serviceDescriptionInput">説明</label><textarea id="serviceDescriptionInput" class="text-input" rows="4" placeholder="サービス説明"></textarea></div>
+        <div class="form-field-full">
+          <label class="field-label" for="serviceNameInput">サービス名</label>
+          <input id="serviceNameInput" class="text-input" type="text" placeholder="例: カット" />
+        </div>
+
+        <div>
+          <label class="field-label" for="serviceCodeInput">コード</label>
+          <input id="serviceCodeInput" class="text-input" type="text" placeholder="cut" />
+        </div>
+
+        <div>
+          <label class="field-label" for="serviceCategoryInput">カテゴリ</label>
+          <input id="serviceCategoryInput" class="text-input" type="text" placeholder="Hair" />
+        </div>
+
+        <div>
+          <label class="field-label" for="serviceDurationInput">施術時間（分）</label>
+          <input id="serviceDurationInput" class="text-input" type="number" min="5" step="5" value="60" />
+        </div>
+
+        <div>
+          <label class="field-label" for="servicePriceInput">価格（円）</label>
+          <input id="servicePriceInput" class="text-input" type="number" min="0" step="100" value="0" />
+        </div>
+
+        <div>
+          <label class="field-label" for="serviceSortInput">表示順</label>
+          <input id="serviceSortInput" class="text-input" type="number" step="1" value="100" />
+        </div>
+
+        <label class="switch-row">
+          <input id="serviceActiveInput" type="checkbox" checked />
+          <span>表示状態 Active / 表示する</span>
+        </label>
+
+        <div class="form-field-full">
+          <label class="field-label" for="serviceDescriptionInput">説明</label>
+          <textarea id="serviceDescriptionInput" class="text-input textarea-input" rows="4" placeholder="サービス説明"></textarea>
+        </div>
       </div>
 
       <div class="modal-actions">
         <button id="saveServiceBtn" class="btn btn-primary" type="button">保存</button>
         <button id="deleteServiceBtn" class="btn btn-danger hidden" type="button">削除</button>
-        <button id="cancelServiceModalBtn" class="btn btn-secondary" type="button">キャンセル</button>
+        <button id="cancelServiceModalBtn" class="btn btn-ghost" type="button">キャンセル</button>
       </div>
     </div>
   </div>
 
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./src/env.js"></script>
+  <script src="./src/supabase-client.js"></script>
   <script src="./admin.js"></script>
 </body>
 </html>
