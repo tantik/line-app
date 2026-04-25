@@ -1,1007 +1,569 @@
-:root {
-  --bg: #0e1716;
-  --bg-panel: rgba(21, 31, 30, 0.92);
-  --text: #ecf7f4;
-  --text-soft: #9cb6b1;
-  --text-muted: #7f9792;
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.12);
-  --primary: #2bb39a;
-  --primary-strong: #1e8f7b;
-  --primary-soft: rgba(43, 179, 154, 0.14);
-  --secondary: #5f88ff;
-  --secondary-soft: rgba(95, 136, 255, 0.16);
-  --success: #2ec27e;
-  --success-soft: rgba(46, 194, 126, 0.16);
-  --warning: #f5b83d;
-  --warning-soft: rgba(245, 184, 61, 0.16);
-  --danger: #ef6b73;
-  --danger-soft: rgba(239, 107, 115, 0.16);
-  --neutral: #8d9aa8;
-  --neutral-soft: rgba(141, 154, 168, 0.16);
-  --purple: #8b7cff;
-  --purple-soft: rgba(139, 124, 255, 0.16);
-  --shadow-sm: 0 10px 24px rgba(0, 0, 0, 0.18);
-  --shadow-md: 0 18px 46px rgba(0, 0, 0, 0.24);
-  --shadow-lg: 0 28px 80px rgba(0, 0, 0, 0.3);
-  --radius-lg: 22px;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-  min-height: 100%;
-  font-family: Inter, "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  color: var(--text);
-  background:
-    radial-gradient(circle at top left, rgba(43, 179, 154, 0.1), transparent 24%),
-    radial-gradient(circle at bottom right, rgba(95, 136, 255, 0.1), transparent 22%),
-    linear-gradient(180deg, #0a1211 0%, #0f1918 100%);
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.65;
-  transform: none !important;
-}
-
-.hidden {
-  display: none !important;
-}
-
-.muted {
-  color: var(--text-soft);
-}
-
-.app-shell {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  min-height: 100vh;
-}
-
-.side-panel {
-  border-right: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(17, 27, 26, 0.96) 0%, rgba(13, 22, 21, 0.96) 100%);
-  backdrop-filter: blur(12px);
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.main-panel {
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.brand-box,
-.auth-card,
-.legend-card,
-.metric-card,
-.toolbar-card,
-.content-card {
-  background: var(--bg-panel);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-md);
-  backdrop-filter: blur(12px);
-}
-
-.brand-box,
-.auth-card,
-.legend-card,
-.toolbar-card,
-.content-card {
-  border-radius: var(--radius-lg);
-  padding: 18px;
-}
-
-.metric-card {
-  border-radius: 20px;
-  padding: 16px;
-}
-
-.brand-box {
-  position: relative;
-  overflow: hidden;
-  background:
-    linear-gradient(135deg, rgba(43, 179, 154, 0.12) 0%, rgba(95, 136, 255, 0.1) 100%),
-    rgba(18, 29, 28, 0.96);
-}
-
-.brand-badge {
-  display: inline-flex;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: var(--primary-soft);
-  color: #89efdc;
-  font-weight: 800;
-  font-size: 12px;
-  margin-bottom: 12px;
-}
-
-.brand-box h1,
-.topbar h2,
-.auth-card h2 {
-  margin: 0 0 6px;
-  letter-spacing: -0.02em;
-}
-
-.brand-box p,
-.topbar p,
-.auth-card p {
-  margin: 0;
-  line-height: 1.5;
-}
-
-.field-label {
-  display: block;
-  font-size: 12px;
-  color: var(--text-soft);
-  margin: 0 0 6px;
-  font-weight: 700;
-}
-
-.text-input,
-.select-input {
-  width: 100%;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 14px;
-  padding: 12px 14px;
-  color: var(--text);
-  outline: none;
-}
-
-.textarea-input {
-  resize: vertical;
-  min-height: 110px;
-}
-
-.select-input option {
-  color: #111;
-}
-
-.text-input::placeholder {
-  color: #7d9691;
-}
-
-.text-input:focus,
-.select-input:focus {
-  border-color: rgba(43, 179, 154, 0.42);
-  box-shadow: 0 0 0 4px rgba(43, 179, 154, 0.1);
-}
-
-.btn,
-.icon-btn,
-.view-btn,
-.action-btn,
-.tab-btn,
-.modal-close {
-  border: none;
-  cursor: pointer;
-  transition: transform 0.12s ease, background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.btn:hover,
-.icon-btn:hover,
-.view-btn:hover,
-.action-btn:hover,
-.tab-btn:hover,
-.modal-close:hover {
-  transform: translateY(-1px);
-}
-
-.btn {
-  min-height: 42px;
-  border-radius: 14px;
-  padding: 0 14px;
-  font-weight: 800;
-}
-
-.btn-block {
-  width: 100%;
-  margin-top: 12px;
-}
-
-.btn-primary {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
-  color: #081210;
-  box-shadow: 0 10px 24px rgba(43, 179, 154, 0.18);
-}
-
-.btn-secondary {
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-  border: 1px solid var(--line);
-}
-
-.btn-ghost {
-  background: transparent;
-  color: var(--text-soft);
-  border: 1px solid var(--line);
-}
-
-.btn-danger {
-  background: var(--danger-soft);
-  color: #ff9aa0;
-  border: 1px solid rgba(239, 107, 115, 0.18);
-}
-
-.icon-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--line);
-  color: var(--text);
-}
-
-.side-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.whoami,
-.tenant-box {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--line);
-  margin-bottom: 10px;
-}
-
-.whoami-label {
-  font-size: 12px;
-  color: var(--text-soft);
-  margin-bottom: 4px;
-  font-weight: 700;
-}
-
-.whoami-value,
-.tenant-value {
-  font-weight: 800;
-  word-break: break-word;
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.metric-value {
-  font-size: 30px;
-  font-weight: 900;
-  line-height: 1;
-  margin-bottom: 8px;
-}
-
-.metric-label {
-  color: var(--text-soft);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.legend-card h3 {
-  margin: 0 0 12px;
-  font-size: 15px;
-}
-
-.legend-list {
-  display: grid;
-  gap: 10px;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--text-soft);
-  font-size: 14px;
-}
-
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.is-pending {
-  background: var(--warning);
-}
-
-.is-confirmed {
-  background: var(--success);
-}
-
-.is-risk {
-  background: var(--danger);
-}
-
-.is-cancelled {
-  background: var(--neutral);
-}
-
-.is-completed {
-  background: var(--purple);
-}
-
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.eyebrow {
-  color: #7cebd5;
-  font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.last-updated {
-  color: var(--text-soft);
-  font-size: 13px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  padding: 10px 14px;
-  white-space: nowrap;
-}
-
-.tabs {
-  display: flex;
-  gap: 8px;
-  margin: 12px 0 6px;
-  flex-wrap: wrap;
-}
-
-.tab-btn {
-  min-height: 38px;
-  padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.04);
-  color: var(--text-soft);
-  font-weight: 800;
-}
-
-.tab-btn.is-active,
-.view-btn.is-active {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
-  color: #081210;
-}
-
-.toolbar-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.filters-row {
-  margin-top: 14px;
-  align-items: end;
-}
-
-.view-switch {
-  display: inline-flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 6px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--line);
-}
-
-.view-btn {
-  min-width: 58px;
-  height: 40px;
-  border-radius: 999px;
-  background: transparent;
-  color: var(--text-soft);
-  padding: 0 14px;
-  font-weight: 800;
-}
-
-.date-nav {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.range-label {
-  min-width: 220px;
-  text-align: center;
-  font-weight: 900;
-}
-
-.filter-group {
-  min-width: 140px;
-  flex: 0 0 auto;
-}
-
-.search-group {
-  flex: 1 1 280px;
-}
-
-.content-card {
-  min-height: 420px;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 56px 16px;
-  color: var(--text-soft);
-  font-weight: 700;
-}
-
-.day-list,
-.week-list {
-  display: grid;
-  gap: 14px;
-}
-
-.week-group,
-.booking-card,
-.staff-card,
-.service-card {
-  border: 1px solid var(--line);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.03) 100%);
-  border-radius: 20px;
-  box-shadow: var(--shadow-sm);
-}
-
-.week-group {
-  overflow: hidden;
-}
-
-.week-group-head {
-  padding: 14px 16px;
-  font-weight: 900;
-  background: linear-gradient(180deg, rgba(43, 179, 154, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%);
-  border-bottom: 1px solid var(--line);
-}
-
-.week-group-body {
-  padding: 14px;
-  display: grid;
-  gap: 12px;
-}
-
-.booking-card {
-  padding: 16px;
-  display: grid;
-  gap: 12px;
-}
-
-.booking-top {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: flex-start;
-}
-
-.booking-time-main {
-  font-size: 22px;
-  font-weight: 900;
-}
-
-.booking-time-sub,
-.booking-phone,
-.booking-meta-line {
-  color: var(--text-soft);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.badges,
-.booking-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  border-radius: 999px;
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.badge-status-pending {
-  background: var(--warning-soft);
-  color: #ffd27e;
-}
-
-.badge-status-confirmed {
-  background: var(--success-soft);
-  color: #84e2b2;
-}
-
-.badge-status-risk {
-  background: var(--danger-soft);
-  color: #ff9ea4;
-}
-
-.badge-status-cancelled {
-  background: var(--neutral-soft);
-  color: #b2c0ce;
-}
-
-.badge-status-completed {
-  background: var(--purple-soft);
-  color: #c0b6ff;
-}
-
-.badge-risk {
-  background: rgba(239, 107, 115, 0.14);
-  color: #ff9aa0;
-}
-
-.booking-main {
-  display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  gap: 14px;
-}
-
-.booking-block {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px;
-}
-
-.booking-block-label {
-  font-size: 12px;
-  color: var(--text-soft);
-  margin-bottom: 6px;
-  font-weight: 800;
-}
-
-.booking-name {
-  font-size: 17px;
-  font-weight: 900;
-  margin-bottom: 6px;
-}
-
-.action-btn {
-  min-height: 38px;
-  border-radius: 12px;
-  padding: 0 12px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-  font-weight: 800;
-}
-
-.action-btn.is-danger {
-  background: var(--danger-soft);
-  color: #ff9aa0;
-}
-
-.action-btn.is-success {
-  background: var(--success-soft);
-  color: #84e2b2;
-}
-
-.action-btn.is-dark {
-  background: var(--secondary-soft);
-  color: #aac2ff;
-}
-
-.month-grid {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.month-weekday {
-  text-align: center;
-  color: var(--text-soft);
-  font-size: 12px;
-  font-weight: 900;
-}
-
-.month-cell {
-  min-height: 104px;
-  border-radius: 18px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.04);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  cursor: pointer;
-  color: var(--text);
-  text-align: left;
-}
-
-.month-cell.is-other {
-  opacity: 0.42;
-}
-
-.month-cell.is-selected {
-  border-color: rgba(43, 179, 154, 0.46);
-  box-shadow: 0 0 0 4px rgba(43, 179, 154, 0.08);
-}
-
-.month-day {
-  font-weight: 900;
-}
-
-.month-count {
-  margin-top: auto;
-  font-size: 13px;
-  color: var(--text-soft);
-  font-weight: 800;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 18px;
-}
-
-.section-title {
-  font-size: 20px;
-  font-weight: 900;
-}
-
-.section-subtitle {
-  color: var(--text-soft);
-  font-size: 14px;
-  margin-top: 4px;
-}
-
-#staffList,
-#servicesList {
-  display: grid;
-  gap: 12px;
-}
-
-.staff-card,
-.service-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 14px;
-  padding: 16px;
-}
-
-.staff-left {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  min-width: 0;
-}
-
-.staff-photo {
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid var(--line-strong);
-  background: rgba(255, 255, 255, 0.04);
-}
-
-.staff-photo-placeholder {
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line-strong);
-  background: var(--primary-soft);
-  color: #89efdc;
-  font-weight: 900;
-}
-
-.staff-name,
-.service-name {
-  font-weight: 900;
-  font-size: 17px;
-}
-
-.staff-status,
-.service-meta,
-.service-description {
-  font-size: 14px;
-  color: var(--text-soft);
-  margin-top: 6px;
-  font-weight: 650;
-}
-
-.staff-service-tags,
-.service-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.service-tag {
-  display: inline-flex;
-  align-items: center;
-  min-height: 24px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: var(--primary-soft);
-  color: #89efdc;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.service-tag.is-muted {
-  color: var(--text-soft);
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.staff-actions,
-.service-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.staff-actions button,
-.service-actions button {
-  min-height: 38px;
-  padding: 0 12px;
-  border-radius: 12px;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-  cursor: pointer;
-  font-weight: 800;
-}
-
-.modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(7, 12, 11, 0.72);
-  backdrop-filter: blur(8px);
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-
-.modal-content {
-  width: min(620px, 100%);
-  max-height: calc(100vh - 40px);
-  overflow: auto;
-  background: rgba(20, 30, 29, 0.98);
-  border: 1px solid var(--line);
-  border-radius: 24px;
-  box-shadow: var(--shadow-lg);
-  padding: 20px;
-}
+const sb = window.supabaseClient;
 
-.modal-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  align-items: flex-start;
-  margin-bottom: 16px;
-}
+let currentSalonId = null;
+let currentUser = null;
+let allServices = [];
+let allStaff = [];
+let allBookings = [];
 
-.modal-head h3 {
-  margin: 0;
-  font-size: 22px;
-}
+document.addEventListener("DOMContentLoaded", initAdmin);
 
-.modal-close {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--text);
-  border: 1px solid var(--line);
-  font-size: 22px;
-}
+async function initAdmin() {
+  bindUI();
 
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
+  if (!sb) {
+    showToast("Supabase client не загружен");
+    hideLoading();
+    return;
+  }
 
-.form-field-full {
-  grid-column: 1 / -1;
-}
+  const { data, error } = await sb.auth.getSession();
 
-.switch-row {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  color: var(--text-soft);
-  font-weight: 800;
-}
+  if (error) {
+    console.error("getSession error:", error);
+    showToast("Ошибка входа");
+    hideLoading();
+    return;
+  }
 
-.checkbox-list {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-}
+  await applySession(data?.session || null);
 
-.checkbox-item {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  color: var(--text);
-  font-weight: 700;
+  sb.auth.onAuthStateChange(async (_event, session) => {
+    await applySession(session);
+  });
 }
 
-.modal-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 18px;
-}
+/* =========================
+   AUTH
+========================= */
 
-.loading-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(7, 12, 11, 0.66);
-  backdrop-filter: blur(8px);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-}
+async function applySession(session) {
+  currentUser = session?.user || null;
 
-.loading-overlay.active {
-  display: flex;
-}
+  const loggedOut = document.getElementById("authLoggedOut");
+  const loggedIn = document.getElementById("authLoggedIn");
 
-.loading-card {
-  width: min(320px, calc(100vw - 32px));
-  background: rgba(20, 30, 29, 0.96);
-  border-radius: 24px;
-  padding: 24px;
-  box-shadow: var(--shadow-lg);
-  text-align: center;
-  border: 1px solid var(--line);
-}
+  if (!currentUser) {
+    loggedOut?.classList.remove("hidden");
+    loggedIn?.classList.add("hidden");
 
-.spinner {
-  width: 42px;
-  height: 42px;
-  margin: 0 auto 12px;
-  border-radius: 50%;
-  border: 3px solid rgba(43, 179, 154, 0.16);
-  border-top-color: var(--primary);
-  animation: spin 0.9s linear infinite;
-}
+    hideLoading();
+    return;
+  }
 
-.loading-title {
-  font-size: 18px;
-  font-weight: 900;
-  margin-bottom: 6px;
-}
+  loggedOut?.classList.add("hidden");
+  loggedIn?.classList.remove("hidden");
 
-.loading-text {
-  color: var(--text-soft);
-  font-size: 14px;
-  font-weight: 600;
-}
+  setText("whoAmI", currentUser.email || currentUser.id);
 
-.toast {
-  position: fixed;
-  left: 50%;
-  bottom: 20px;
-  transform: translateX(-50%);
-  background: rgba(18, 28, 27, 0.96);
-  color: #fff;
-  padding: 12px 16px;
-  border-radius: 999px;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.26);
-  z-index: 10001;
-  font-weight: 800;
-  border: 1px solid var(--line);
-  max-width: calc(100vw - 32px);
-}
+  try {
+    await resolveSalon();
+    await loadAll();
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+    hideLoading();
+  } catch (error) {
+    console.error("applySession error:", error);
+    showToast("管理者データの読み込みに失敗しました");
+    hideLoading();
   }
 }
 
-@media (max-width: 1100px) {
-  .app-shell {
-    grid-template-columns: 1fr;
+async function resolveSalon() {
+  const { data, error } = await sb
+    .from("salon_members")
+    .select("salon_id, role, salons(name, slug)")
+    .eq("user_id", currentUser.id)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!data) throw new Error("salon_members not found");
+
+  currentSalonId = data.salon_id;
+
+  const salonName = data.salons?.name || "Salon";
+  const role = data.role || "admin";
+
+  setText("tenantLabel", `${salonName} / ${role}`);
+}
+
+/* =========================
+   LOAD ALL
+========================= */
+
+async function loadAll() {
+  if (!currentSalonId) return;
+
+  await loadServices();
+  await loadStaff();
+  await loadBookings();
+
+  setText("lastUpdated", `最終更新: ${new Date().toLocaleString("ja-JP")}`);
+}
+
+/* =========================
+   BOOKINGS
+========================= */
+
+async function loadBookings() {
+  const mount = document.getElementById("bookingsMount");
+  const empty = document.getElementById("emptyState");
+
+  if (!mount) return;
+
+  const { data, error } = await sb
+    .from("admin_booking_view")
+    .select("*")
+    .eq("salon_id", currentSalonId)
+    .order("booking_date", { ascending: true })
+    .order("start_time", { ascending: true });
+
+  if (error) {
+    console.error("loadBookings error:", error);
+    mount.innerHTML = `<div class="empty-state">予約の読み込みに失敗しました</div>`;
+    return;
   }
 
-  .side-panel {
-    border-right: none;
-    border-bottom: 1px solid var(--line);
+  allBookings = data || [];
+
+  renderBookings();
+
+  if (empty) {
+    empty.classList.toggle("hidden", allBookings.length > 0);
   }
 }
 
-@media (max-width: 760px) {
-  .main-panel,
-  .side-panel {
-    padding: 16px;
+function renderBookings() {
+  const mount = document.getElementById("bookingsMount");
+  if (!mount) return;
+
+  mount.innerHTML = "";
+
+  if (!allBookings.length) {
+    mount.innerHTML = `<div class="empty-state">予約はまだありません</div>`;
+    updateMetrics([]);
+    return;
   }
 
-  .booking-main {
-    grid-template-columns: 1fr;
+  updateMetrics(allBookings);
+
+  const wrap = document.createElement("div");
+  wrap.className = "day-list";
+
+  allBookings.forEach((b) => {
+    const card = document.createElement("div");
+    card.className = "booking-card";
+
+    card.innerHTML = `
+      <div class="booking-top">
+        <div>
+          <div class="booking-time-main">${safe(formatTime(b.start_time))}</div>
+          <div class="booking-time-sub">${safe(b.booking_date || "")}</div>
+        </div>
+
+        <div class="badges">
+          <span class="badge badge-status-${safeClass(b.status || "pending")}">
+            ${statusLabel(b.status)}
+          </span>
+        </div>
+      </div>
+
+      <div class="booking-main">
+        <div class="booking-block">
+          <div class="booking-block-label">お客様</div>
+          <div class="booking-name">${safe(b.customer_name || "-")}</div>
+          <div class="booking-phone">${safe(b.customer_phone || "-")}</div>
+        </div>
+
+        <div class="booking-block">
+          <div class="booking-block-label">予約内容</div>
+          <div class="booking-meta-line">✂ ${safe(b.service_name || "-")}</div>
+          <div class="booking-meta-line">👤 ${safe(b.staff_name || "-")}</div>
+        </div>
+      </div>
+    `;
+
+    wrap.appendChild(card);
+  });
+
+  mount.appendChild(wrap);
+}
+
+function updateMetrics(items) {
+  setText("metricTotal", String(items.length));
+  setText("metricPending", String(items.filter((x) => x.status === "pending").length));
+  setText("metricRisk", String(items.filter((x) => x.status === "risk").length));
+  setText("metricCancelled", String(items.filter((x) => x.status === "cancelled").length));
+}
+
+/* =========================
+   SERVICES
+========================= */
+
+async function loadServices() {
+  const { data, error } = await sb
+    .from("services")
+    .select("*")
+    .eq("salon_id", currentSalonId)
+    .order("sort_order", { ascending: true });
+
+  if (error) {
+    console.error("loadServices error:", error);
+    showToast("サービス取得エラー");
+    return;
   }
 
-  .topbar {
-    flex-direction: column;
-    align-items: stretch;
+  allServices = data || [];
+  renderServices();
+}
+
+function renderServices() {
+  const el = document.getElementById("servicesList");
+  if (!el) return;
+
+  el.innerHTML = "";
+
+  if (!allServices.length) {
+    el.innerHTML = `<div class="empty-state">サービスがありません</div>`;
+    return;
   }
 
-  .last-updated {
-    white-space: normal;
+  allServices.forEach((s) => {
+    const div = document.createElement("div");
+    div.className = "service-card";
+
+    div.innerHTML = `
+      <div>
+        <div class="service-name">${safe(s.name || "-")}</div>
+        <div class="service-meta">
+          ${s.is_active === false ? "⚪ Inactive" : "🟢 Active"}
+          / ${safe(s.duration_minutes || 0)}分
+          / ¥${Number(s.price_jpy || 0).toLocaleString("ja-JP")}
+        </div>
+        <div class="service-tags">
+          <span class="service-tag">code: ${safe(s.code || "-")}</span>
+          <span class="service-tag">sort: ${safe(s.sort_order ?? 100)}</span>
+        </div>
+      </div>
+
+      <div class="service-actions">
+        <button type="button" data-edit-service="${safeAttr(s.id)}">編集</button>
+        <button type="button" data-delete-service="${safeAttr(s.id)}">削除</button>
+      </div>
+    `;
+
+    div.querySelector("[data-delete-service]")?.addEventListener("click", () => deleteService(s.id));
+
+    el.appendChild(div);
+  });
+}
+
+async function createService() {
+  if (!currentSalonId) return;
+
+  const name = prompt("サービス名を入力してください");
+  if (!name) return;
+
+  const { error } = await sb.from("services").insert({
+    salon_id: currentSalonId,
+    name,
+    code: makeCode(name),
+    duration_minutes: 60,
+    price_jpy: 0,
+    sort_order: 100,
+    is_active: true,
+  });
+
+  if (error) {
+    console.error("createService error:", error);
+    showToast("サービス追加に失敗しました");
+    return;
   }
 
-  .range-label {
-    min-width: 0;
-    text-align: left;
+  await loadServices();
+}
+
+async function deleteService(id) {
+  if (!confirm("このサービスを削除しますか？")) return;
+
+  await sb
+    .from("staff_service_map")
+    .delete()
+    .eq("salon_id", currentSalonId)
+    .eq("service_id", id);
+
+  const { error } = await sb
+    .from("services")
+    .delete()
+    .eq("salon_id", currentSalonId)
+    .eq("id", id);
+
+  if (error) {
+    console.error("deleteService error:", error);
+    showToast("サービス削除に失敗しました");
+    return;
   }
 
-  .month-grid {
-    gap: 8px;
+  await loadServices();
+}
+
+/* =========================
+   STAFF
+========================= */
+
+async function loadStaff() {
+  const { data, error } = await sb
+    .from("staff")
+    .select("*")
+    .eq("salon_id", currentSalonId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("loadStaff error:", error);
+    showToast("スタッフ取得エラー");
+    return;
   }
 
-  .month-cell {
-    min-height: 86px;
-    padding: 8px;
+  allStaff = data || [];
+  renderStaff();
+  renderStaffFilter();
+}
+
+function renderStaff() {
+  const el = document.getElementById("staffList");
+  if (!el) return;
+
+  el.innerHTML = "";
+
+  if (!allStaff.length) {
+    el.innerHTML = `<div class="empty-state">スタッフがいません</div>`;
+    return;
   }
 
-  .staff-card,
-  .service-card {
-    flex-direction: column;
-    align-items: stretch;
+  allStaff.forEach((s) => {
+    const div = document.createElement("div");
+    div.className = "staff-card";
+
+    div.innerHTML = `
+      <div class="staff-left">
+        <div class="staff-photo-placeholder">${safe((s.name || "?").slice(0, 1))}</div>
+        <div>
+          <div class="staff-name">${safe(s.name || "-")}</div>
+          <div class="staff-status">
+            ${s.is_active === false ? "⚪ Inactive" : "🟢 Active"}
+            / ${safe(formatTime(s.start_time))} - ${safe(formatTime(s.end_time))}
+            / ${safe(s.slot_minutes || 30)}分
+          </div>
+        </div>
+      </div>
+
+      <div class="staff-actions">
+        <button type="button" data-delete-staff="${safeAttr(s.id)}">削除</button>
+      </div>
+    `;
+
+    div.querySelector("[data-delete-staff]")?.addEventListener("click", () => deleteStaff(s.id));
+
+    el.appendChild(div);
+  });
+}
+
+function renderStaffFilter() {
+  const select = document.getElementById("staffFilter");
+  if (!select) return;
+
+  select.innerHTML = `<option value="">全担当者</option>`;
+
+  allStaff.forEach((s) => {
+    const option = document.createElement("option");
+    option.value = s.id;
+    option.textContent = s.name || "-";
+    select.appendChild(option);
+  });
+}
+
+async function createStaff() {
+  if (!currentSalonId) return;
+
+  const name = prompt("スタッフ名を入力してください");
+  if (!name) return;
+
+  const { error } = await sb.from("staff").insert({
+    salon_id: currentSalonId,
+    name,
+    code: makeCode(name),
+    start_time: "10:00",
+    end_time: "19:00",
+    slot_minutes: 30,
+    is_active: true,
+  });
+
+  if (error) {
+    console.error("createStaff error:", error);
+    showToast("スタッフ追加に失敗しました");
+    return;
   }
 
-  .form-grid {
-    grid-template-columns: 1fr;
+  await loadStaff();
+}
+
+async function deleteStaff(id) {
+  if (!confirm("このスタッフを削除しますか？")) return;
+
+  await sb
+    .from("staff_service_map")
+    .delete()
+    .eq("salon_id", currentSalonId)
+    .eq("staff_id", id);
+
+  const { error } = await sb
+    .from("staff")
+    .delete()
+    .eq("salon_id", currentSalonId)
+    .eq("id", id);
+
+  if (error) {
+    console.error("deleteStaff error:", error);
+    showToast("スタッフ削除に失敗しました");
+    return;
   }
 
-  .filter-group {
-    flex: 1 1 100%;
+  await loadStaff();
+}
+
+/* =========================
+   UI
+========================= */
+
+function bindUI() {
+  document.getElementById("refreshBtn")?.addEventListener("click", loadAll);
+
+  document.getElementById("signOutBtn")?.addEventListener("click", async () => {
+    await sb.auth.signOut();
+    window.location.reload();
+  });
+
+  document.getElementById("sendMagicLinkBtn")?.addEventListener("click", sendMagicLink);
+
+  document.getElementById("addServiceBtn")?.addEventListener("click", createService);
+  document.getElementById("addStaffBtn")?.addEventListener("click", createStaff);
+
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+
+      document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("is-active"));
+      btn.classList.add("is-active");
+
+      document.getElementById("bookingsSection")?.classList.toggle("hidden", tab !== "bookings");
+      document.getElementById("staffSection")?.classList.toggle("hidden", tab !== "staff");
+      document.getElementById("servicesSection")?.classList.toggle("hidden", tab !== "services");
+
+      setText("pageTitle", tab === "staff" ? "Staff" : tab === "services" ? "Services" : "Bookings");
+    });
+  });
+}
+
+async function sendMagicLink() {
+  const email = document.getElementById("adminEmail")?.value.trim();
+
+  if (!email) {
+    showToast("メールを入力してください");
+    return;
   }
 
-  .view-switch,
-  .date-nav {
-    width: 100%;
+  const { error } = await sb.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${window.location.origin}/admin.html`,
+    },
+  });
+
+  if (error) {
+    console.error("sendMagicLink error:", error);
+    showToast("ログインリンク送信に失敗しました");
+    return;
   }
 
-  .view-btn {
-    flex: 1;
+  showToast("ログインリンクを送信しました");
+}
+
+/* =========================
+   HELPERS
+========================= */
+
+function hideLoading() {
+  document.getElementById("loadingOverlay")?.classList.remove("active");
+}
+
+function showLoading() {
+  document.getElementById("loadingOverlay")?.classList.add("active");
+}
+
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function showToast(message) {
+  const toast = document.getElementById("toast");
+
+  if (!toast) {
+    alert(message);
+    return;
   }
+
+  toast.textContent = message;
+  toast.classList.remove("hidden");
+
+  clearTimeout(showToast.timer);
+  showToast.timer = setTimeout(() => {
+    toast.classList.add("hidden");
+  }, 3000);
+}
+
+function formatTime(value) {
+  if (!value) return "--:--";
+  return String(value).slice(0, 5);
+}
+
+function statusLabel(status) {
+  const map = {
+    pending: "未確認",
+    confirmed: "確認済み",
+    risk: "要確認",
+    cancelled: "キャンセル",
+    completed: "完了",
+  };
+
+  return map[status] || status || "未確認";
+}
+
+function makeCode(value) {
+  return String(value || "item")
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 50) || `item-${Date.now()}`;
+}
+
+function safe(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function safeAttr(value) {
+  return safe(value);
+}
+
+function safeClass(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
 }
