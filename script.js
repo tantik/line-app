@@ -6,6 +6,7 @@ const CONFIG = {
   LOAD_MORE_DAYS_STEP: 14,
   SAME_DAY_BLOCK_MINUTES: 20,
   CACHE_TTL_MS: 3 * 60 * 1000,
+  FALLBACK_SALON_ID: "e840e2b0-2d49-4899-b6d2-f2afe895ad1e",
 };
 
 const cacheStore = {
@@ -15,33 +16,16 @@ const cacheStore = {
 
 let userId = "";
 let displayName = "";
-
+let salonId = "";
 let services = [];
 let staff = [];
-
 let selectedService = null;
 let selectedStaff = null;
 let selectedDate = "";
 let selectedTime = "";
-
 let visibleDaysCount = CONFIG.INITIAL_VISIBLE_DAYS;
 let initDone = false;
 
-/**
- * availableSlotsState:
- * {
- *   date: "2026-04-23",
- *   serviceId: "...",
- *   preferredStaffId: "...|''",
- *   slots: [
- *     {
- *       time: "10:00",
- *       staffIds: ["..."],
- *       staffMap: Map<string, staffObj>
- *     }
- *   ]
- * }
- */
 let availableSlotsState = {
   date: "",
   serviceId: "",
@@ -54,8 +38,6 @@ document.addEventListener("DOMContentLoaded", () => {
   init();
 });
 
-/* -------------------- init -------------------- */
-
 async function init() {
   if (initDone) return;
   initDone = true;
@@ -63,17 +45,14 @@ async function init() {
   setLoading(true, "読み込み中...", "予約情報を準備しています");
 
   try {
-    const isLocalhost =
-      location.hostname === "127.0.0.1" || location.hostname === "localhost";
+    const isLocalhost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
 
-    if (isLocalhost) {
-      console.log("DEV MODE: localhost detected, LINE login bypass enabled");
+    if (isLocalhost || typeof liff === "undefined") {
+      console.log("DEV MODE: LIFF login bypass enabled");
       userId = "dev-user";
       displayName = "Dev User";
-
       fillInitialProfileFields();
       bindPhoneInput();
-
       await loadCatalog(true);
       renderAllBookingState();
       showScreen("screenWelcome");
@@ -93,12 +72,11 @@ async function init() {
 
     fillInitialProfileFields();
     bindPhoneInput();
-
     await loadCatalog(true);
     renderAllBookingState();
     showScreen("screenWelcome");
   } catch (error) {
-    console.log("LIFF init error:", error);
+    console.error("init error:", error);
     alert("初期化エラーが発生しました");
   } finally {
     setLoading(false);
@@ -113,8 +91,6 @@ function fillInitialProfileFields() {
   if (leadOwnerName) leadOwnerName.value = displayName || "";
 }
 
-/* -------------------- bindings -------------------- */
-
 function bindStaticEvents() {
   document.getElementById("btnStartDemo")?.addEventListener("click", startDemoFlow);
   document.getElementById("btnOpenInfo")?.addEventListener("click", () => showScreen("screenInfo"));
@@ -122,21 +98,21 @@ function bindStaticEvents() {
   document.getElementById("btnOpenAdmin")?.addEventListener("click", openAdminDemo);
   document.getElementById("btnInfoStartDemo")?.addEventListener("click", startDemoFlow);
   document.getElementById("btnSubmitLead")?.addEventListener("click", submitLeadForm);
-
-  document.getElementById("btnClearStaffInline")?.addEventListener("click", () => {
-    selectedStaff = null;
-    selectedTime = "";
-    invalidateSlotsSelection();
-    reconcileSelectionState();
-    renderAllBookingState();
-  });
-
   document.getElementById("btnGoDateTime")?.addEventListener("click", goDateTimeStep);
   document.getElementById("btnGoConfirm")?.addEventListener("click", goConfirmStep);
   document.getElementById("btnSubmitBooking")?.addEventListener("click", submitBooking);
   document.getElementById("btnSuccessLead")?.addEventListener("click", openLeadScreen);
   document.getElementById("btnSuccessRestart")?.addEventListener("click", resetAndGoWelcome);
   document.getElementById("loadMoreDatesBtn")?.addEventListener("click", loadMoreDates);
+
+  document.getElementById("btnClearStaffInline")?.addEventListener("click", async () => {
+    selectedStaff = null;
+    selectedTime = "";
+    invalidateSlotsSelection();
+    await reloadSlotsIfReady(false);
+    reconcileSelectionState();
+    renderAllBookingState();
+  });
 
   document.querySelectorAll("[data-back]").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -145,8 +121,6 @@ function bindStaticEvents() {
     });
   });
 }
-
-/* -------------------- screen nav -------------------- */
 
 function showScreen(id) {
   document.querySelectorAll(".screen").forEach((screen) => {
@@ -169,10 +143,9 @@ function openLeadScreen() {
   if (leadOwnerName && !leadOwnerName.value) {
     leadOwnerName.value = displayName || "";
   }
+
   showScreen("screenLead");
 }
-
-/* -------------------- loading / toast -------------------- */
 
 function setLoading(show, title = "読み込み中...", text = "少々お待ちください") {
   const overlay = document.getElementById("loadingOverlay");
@@ -184,7 +157,7 @@ function setLoading(show, title = "読み込み中...", text = "少々お待ち�
   if (titleEl) titleEl.textContent = title;
   if (textEl) textEl.textContent = text;
 
-  overlay.classList.toggle("active", !!show);
+  overlay.classList.toggle("active", Boolean(show));
 }
 
 function setInlineTimeLoading(show, text = "空き状況を確認中...") {
@@ -192,7 +165,6 @@ function setInlineTimeLoading(show, text = "空き状況を確認中...") {
   if (!box) return;
 
   box.style.display = show ? "flex" : "none";
-
   const textNode = box.querySelector("div:last-child");
   if (textNode) textNode.textContent = text;
 }
@@ -211,44 +183,56 @@ function toast(message) {
   }, 2500);
 }
 
-/* -------------------- cache -------------------- */
+function getSupabase() {
+  return window.supabaseClient || null;
+}
+
+function getEnv() {
+  return window.__APP_ENV__ || window.appEnv || {};
+}
+
+function getSalonSlug() {
+  return getEnv().SALON_SLUG || "mirawi-demo";
+}
 
 function getCache(key) {
-  if (key === "catalog") {
-    const item = cacheStore.catalog;
-    if (!item?.data) return null;
-    if (Date.now() - item.ts > CONFIG.CACHE_TTL_MS) return null;
-    return item.data;
-  }
+  if (key !== "catalog") return null;
 
-  return null;
+  const item = cacheStore.catalog;
+  if (!item?.data) return null;
+  if (Date.now() - item.ts > CONFIG.CACHE_TTL_MS) return null;
+
+  return item.data;
 }
 
 function setCache(key, data) {
-  if (key === "catalog") {
-    cacheStore.catalog = {
-      data,
-      ts: Date.now(),
-    };
-  }
+  if (key !== "catalog") return;
+
+  cacheStore.catalog = {
+    data,
+    ts: Date.now(),
+  };
 }
 
-function getSlotsCacheKey({ date, serviceId, staffId }) {
+function getSlotsCacheKey(params) {
   return JSON.stringify({
-    date: String(date || ""),
-    serviceId: String(serviceId || ""),
-    staffId: String(staffId || "ALL"),
+    date: String(params.date || ""),
+    serviceId: String(params.serviceId || ""),
+    staffId: String(params.staffId || "ALL"),
   });
 }
 
 function getSlotsCache(params) {
   const key = getSlotsCacheKey(params);
   const item = cacheStore.slots.get(key);
+
   if (!item?.data) return null;
+
   if (Date.now() - item.ts > CONFIG.CACHE_TTL_MS) {
     cacheStore.slots.delete(key);
     return null;
   }
+
   return item.data;
 }
 
@@ -264,159 +248,88 @@ function clearSlotsCache() {
   cacheStore.slots.clear();
 }
 
-/* -------------------- env / supabase -------------------- */
-
-function getSupabase() {
-  return window.supabaseClient || null;
-}
-
-function getEnv() {
-  return window.__APP_ENV__ || window.appEnv || null;
-}
-
-function getSalonSlug() {
-  return getEnv()?.SALON_SLUG || "mirawi-demo";
-}
-
-/* -------------------- mappers -------------------- */
-
 function normalizeServiceRow(row) {
   return {
-    serviceId:
-      row.id ??
-      row.service_id ??
-      row.serviceId ??
-      null,
-    name:
-      row.name ??
-      row.service_name ??
-      "サービス",
-    description:
-      row.description ??
-      row.note ??
-      "",
-    duration:
-      Number(
-        row.durationMinutes ??
-          row.duration_minutes ??
-          row.duration ??
-          row.minutes ??
-          30
-      ) || 30,
-    price:
-      Number(
-        row.priceJpy ??
-          row.price_jpy ??
-          row.price ??
-          row.base_price ??
-          row.amount ??
-          0
-      ) || 0,
-    category:
-      row.category ?? null,
-    image:
-      row.imageUrl ??
-      row.image_url ??
-      row.image ??
-      row.photo ??
-      null,
+    serviceId: row.id ?? row.service_id ?? row.serviceId ?? null,
+    name: row.name ?? row.service_name ?? "サービス",
+    description: row.description ?? row.note ?? "",
+    duration: Number(row.durationMinutes ?? row.duration_minutes ?? row.duration ?? row.minutes ?? 30) || 30,
+    price: Number(row.priceJpy ?? row.price_jpy ?? row.price ?? row.base_price ?? row.amount ?? 0) || 0,
+    category: row.category ?? null,
+    image: row.imageUrl ?? row.image_url ?? row.image ?? row.photo ?? row.photo_url ?? null,
+    isActive: row.is_active !== false,
   };
 }
 
 function normalizeStaffRow(row) {
   return {
-    staffId:
-      row.id ??
-      row.staff_id ??
-      row.staffId ??
-      null,
-    name:
-      row.name ??
-      row.staff_name ??
-      "Staff",
-    startTime: normalizeTime(
-      row.startTime ??
-        row.start_time ??
-        row.work_start ??
-        "10:00"
-    ),
-    endTime: normalizeTime(
-      row.endTime ??
-        row.end_time ??
-        row.work_end ??
-        "19:00"
-    ),
-    workDays:
-      row.workDays ??
-      row.work_days ??
-      row.working_days ??
-      "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
+    staffId: row.id ?? row.staff_id ?? row.staffId ?? null,
+    name: row.name ?? row.staff_name ?? "Staff",
+    startTime: normalizeTime(row.startTime ?? row.start_time ?? row.work_start ?? "10:00"),
+    endTime: normalizeTime(row.endTime ?? row.end_time ?? row.work_end ?? "19:00"),
+    workDays: row.workDays ?? row.work_days ?? row.working_days ?? "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
     services: normalizeStaffServiceIds(row),
-    image:
-      row.photoUrl ??
-      row.photo_url ??
-      row.image ??
-      row.image_url ??
-      row.photo ??
-      null,
-    slotMinutes:
-      Number(row.slotMinutes ?? row.slot_minutes ?? 30) || 30,
+    image: row.photoUrl ?? row.photo_url ?? row.image ?? row.image_url ?? row.photo ?? null,
+    slotMinutes: Number(row.slotMinutes ?? row.slot_minutes ?? 30) || 30,
+    isActive: row.is_active !== false,
   };
 }
 
 function normalizeStaffServiceIds(row) {
-  if (Array.isArray(row.serviceIds)) return row.serviceIds;
-  if (Array.isArray(row.service_ids)) return row.service_ids;
-  if (Array.isArray(row.services)) return row.services;
+  if (Array.isArray(row.serviceIds)) return row.serviceIds.map(String);
+  if (Array.isArray(row.service_ids)) return row.service_ids.map(String);
+  if (Array.isArray(row.services)) return row.services.map(String);
 
   if (typeof row.services === "string") {
     return row.services
       .split(",")
-      .map((v) => v.trim())
+      .map((value) => value.trim())
       .filter(Boolean);
   }
 
   return [];
 }
 
-function normalizeSlotRow(row) {
-  const time =
-    normalizeTime(
-      row.time ??
-        row.slot_time ??
-        row.start_time ??
-        row.startTime ??
-        ""
-    ) || "";
+async function resolveSalonIdFromDatabase() {
+  if (salonId) return salonId;
 
-  const staffIdsRaw =
-    row.staff_ids ??
-    row.staffIds ??
-    row.available_staff_ids ??
-    row.matching_staff_ids ??
-    row.staff_id ??
-    row.staffId ??
-    [];
-
-  let staffIds = [];
-
-  if (Array.isArray(staffIdsRaw)) {
-    staffIds = staffIdsRaw.map(String);
-  } else if (staffIdsRaw) {
-    staffIds = [String(staffIdsRaw)];
+  const envSalonId = getEnv().SALON_ID;
+  if (envSalonId) {
+    salonId = envSalonId;
+    return salonId;
   }
 
-  return {
-    time,
-    staffIds,
-  };
-}
+  const sb = getSupabase();
+  if (!sb) {
+    salonId = CONFIG.FALLBACK_SALON_ID;
+    return salonId;
+  }
 
-/* -------------------- catalog loading -------------------- */
+  try {
+    const { data, error } = await sb
+      .from("salons")
+      .select("id")
+      .eq("slug", getSalonSlug())
+      .limit(1)
+      .maybeSingle();
+
+    if (!error && data?.id) {
+      salonId = data.id;
+      return salonId;
+    }
+  } catch (error) {
+    console.warn("resolveSalonId fallback:", error);
+  }
+
+  salonId = CONFIG.FALLBACK_SALON_ID;
+  return salonId;
+}
 
 async function loadCatalog(useCache = true) {
   const cached = useCache ? getCache("catalog") : null;
+
   if (cached) {
+    salonId = cached.salonId || salonId;
     services = cached.services || [];
     staff = cached.staff || [];
     return;
@@ -431,92 +344,62 @@ async function loadCatalog(useCache = true) {
     p_salon_slug: getSalonSlug(),
   });
 
-  if (error) {
-    throw error;
-  }
+  if (error) throw error;
 
-  const serviceList = Array.isArray(data?.services)
-    ? data.services
-    : Array.isArray(data)
-    ? data
-    : [];
-
-  const staffList = Array.isArray(data?.staff)
+  const rawServices = Array.isArray(data?.services) ? data.services : Array.isArray(data) ? data : [];
+  const rawStaff = Array.isArray(data?.staff)
     ? data.staff
     : Array.isArray(data?.staff_members)
-    ? data.staff_members
-    : [];
+      ? data.staff_members
+      : [];
 
-  services = serviceList.map(normalizeServiceRow);
-  staff = staffList.map(normalizeStaffRow);
+  salonId = data?.salon?.id || data?.salon_id || data?.salonId || salonId || "";
+
+  if (!salonId) {
+    await resolveSalonIdFromDatabase();
+  }
+
+  services = rawServices.map(normalizeServiceRow).filter((service) => service.serviceId && service.isActive);
+  staff = rawStaff.map(normalizeStaffRow).filter((member) => member.staffId && member.isActive);
 
   setCache("catalog", {
+    salonId,
     services,
     staff,
   });
 }
 
-/* -------------------- available slots -------------------- */
+async function fetchAvailableSlotsForStaff(member) {
+  if (!selectedService || !selectedDate || !member?.staffId) return [];
 
-async function fetchAvailableSlotsForStaff(sb, staffId) {
-  const payloadCandidates = [
-    {
-      p_salon_slug: getSalonSlug(),
-      p_service_id: selectedService.serviceId,
-      p_staff_id: staffId,
-      p_date: selectedDate,
-    },
-    {
-      p_salon_slug: getSalonSlug(),
-      p_service_id: selectedService.serviceId,
-      p_staff_id: staffId,
-      p_booking_date: selectedDate,
-    },
-  ];
+  const sb = getSupabase();
+  if (!sb) throw new Error("Supabase client is not available");
 
-  let lastError = null;
-  let data = null;
+  const activeSalonId = await resolveSalonIdFromDatabase();
 
-  for (const payload of payloadCandidates) {
-    const res = await sb.rpc("available_slots", payload);
-    if (!res.error) {
-      data = res.data;
-      lastError = null;
-      break;
-    }
-    lastError = res.error;
-  }
+  const { data, error } = await sb.rpc("available_slots_v2", {
+    p_salon_id: activeSalonId,
+    p_staff_id: member.staffId,
+    p_service_id: selectedService.serviceId,
+    p_date: selectedDate,
+  });
 
-  if (lastError) {
-    throw lastError;
-  }
+  if (error) throw error;
 
-  const rawSlots = Array.isArray(data?.slots)
-    ? data.slots
-    : Array.isArray(data)
-    ? data
-    : [];
+  const rawSlots = Array.isArray(data?.slots) ? data.slots : Array.isArray(data) ? data : [];
 
   return rawSlots
-    .map(normalizeSlotRow)
-    .filter((slot) => !!slot.time)
-    .map((slot) => ({
-      time: slot.time,
-      staffIds:
-        slot.staffIds && slot.staffIds.length
-          ? slot.staffIds
-          : [String(staffId)],
+    .map((item) => normalizeTime(typeof item === "string" ? item : item?.time || item?.start_time || ""))
+    .filter(Boolean)
+    .map((time) => ({
+      time,
+      staffIds: [String(member.staffId)],
     }));
 }
 
 async function ensureAvailableSlotsLoaded(force = false, silent = false) {
   if (!selectedService || !selectedDate) {
-    availableSlotsState = {
-      date: "",
-      serviceId: "",
-      preferredStaffId: "",
-      slots: [],
-    };
+    invalidateSlotsSelection();
     return;
   }
 
@@ -532,56 +415,47 @@ async function ensureAvailableSlotsLoaded(force = false, silent = false) {
     return;
   }
 
-  const sb = getSupabase();
-  if (!sb) {
-    throw new Error("Supabase client is not available");
-  }
-
   if (!silent) {
     setInlineTimeLoading(true, "空き状況を確認中...");
   }
 
   try {
-    const candidateStaff = selectedStaff
+    const candidates = selectedStaff
       ? [selectedStaff]
-      : getCandidateStaffForSelectedService().filter((member) =>
-          isStaffWorkingOnDate(member, selectedDate)
-        );
+      : getCandidateStaffForSelectedService().filter((member) => isStaffWorkingOnDate(member, selectedDate));
 
     const staffMapById = new Map(staff.map((member) => [String(member.staffId), member]));
     const mergedByTime = new Map();
 
-    for (const member of candidateStaff) {
-      const memberSlots = await fetchAvailableSlotsForStaff(sb, member.staffId);
+    for (const member of candidates) {
+      const memberSlots = await fetchAvailableSlotsForStaff(member);
 
       memberSlots.forEach((slot) => {
-        const time = slot.time;
-        if (!mergedByTime.has(time)) {
-          mergedByTime.set(time, new Set());
+        if (!mergedByTime.has(slot.time)) {
+          mergedByTime.set(slot.time, new Set());
         }
-        const staffSet = mergedByTime.get(time);
+
+        const staffSet = mergedByTime.get(slot.time);
         slot.staffIds.forEach((id) => staffSet.add(String(id)));
         staffSet.add(String(member.staffId));
       });
     }
 
-    const enrichedSlots = Array.from(mergedByTime.entries())
+    const slots = Array.from(mergedByTime.entries())
       .sort((a, b) => timeToMinutes(a[0]) - timeToMinutes(b[0]))
       .map(([time, staffIdSet]) => {
-        const uniqueStaffIds = Array.from(staffIdSet);
-        const slotStaffMap = new Map();
+        const staffIds = Array.from(staffIdSet);
+        const staffMap = new Map();
 
-        uniqueStaffIds.forEach((id) => {
+        staffIds.forEach((id) => {
           const member = staffMapById.get(String(id));
-          if (member) {
-            slotStaffMap.set(String(id), member);
-          }
+          if (member) staffMap.set(String(id), member);
         });
 
         return {
           time,
-          staffIds: uniqueStaffIds,
-          staffMap: slotStaffMap,
+          staffIds,
+          staffMap,
         };
       });
 
@@ -589,14 +463,12 @@ async function ensureAvailableSlotsLoaded(force = false, silent = false) {
       date: selectedDate,
       serviceId: String(selectedService.serviceId),
       preferredStaffId: selectedStaff?.staffId ? String(selectedStaff.staffId) : "",
-      slots: enrichedSlots,
+      slots,
     };
 
     setSlotsCache(params, availableSlotsState);
   } finally {
-    if (!silent) {
-      setInlineTimeLoading(false);
-    }
+    if (!silent) setInlineTimeLoading(false);
   }
 }
 
@@ -609,19 +481,30 @@ function invalidateSlotsSelection() {
   };
 }
 
+async function reloadSlotsIfReady(force = false) {
+  if (!selectedService || !selectedDate) {
+    invalidateSlotsSelection();
+    return;
+  }
+
+  try {
+    await ensureAvailableSlotsLoaded(force, false);
+  } catch (error) {
+    console.error("available_slots_v2 error:", error);
+    invalidateSlotsSelection();
+    toast("空き状況の取得に失敗しました");
+  }
+}
+
 function getAvailableTimes() {
   if (!Array.isArray(availableSlotsState.slots)) return [];
 
-  const list = availableSlotsState.slots;
-
   if (!selectedStaff) {
-    return list.map((slot) => slot.time);
+    return availableSlotsState.slots.map((slot) => slot.time);
   }
 
-  return list
-    .filter((slot) =>
-      slot.staffIds.map(String).includes(String(selectedStaff.staffId))
-    )
+  return availableSlotsState.slots
+    .filter((slot) => slot.staffIds.map(String).includes(String(selectedStaff.staffId)))
     .map((slot) => slot.time);
 }
 
@@ -630,7 +513,7 @@ function getSlotByTime(time) {
 }
 
 function isTimeAvailable(time) {
-  return !!getSlotByTime(time);
+  return Boolean(getSlotByTime(time));
 }
 
 function getAvailableStaffForSelectedTime() {
@@ -640,6 +523,7 @@ function getAvailableStaffForSelectedTime() {
   if (!slot) return [];
 
   const result = [];
+
   slot.staffIds.forEach((id) => {
     const member = slot.staffMap.get(String(id));
     if (member) result.push(member);
@@ -647,8 +531,6 @@ function getAvailableStaffForSelectedTime() {
 
   return result;
 }
-
-/* -------------------- state helpers -------------------- */
 
 function startDemoFlow() {
   clearBookingState();
@@ -679,21 +561,13 @@ function clearBookingState() {
 }
 
 function reconcileSelectionState() {
-  if (
-    selectedService &&
-    selectedStaff &&
-    !staffCanDoService(selectedStaff, selectedService.serviceId)
-  ) {
+  if (selectedService && selectedStaff && !staffCanDoService(selectedStaff, selectedService.serviceId)) {
     selectedStaff = null;
     selectedTime = "";
     invalidateSlotsSelection();
   }
 
-  if (
-    selectedStaff &&
-    selectedDate &&
-    !isStaffWorkingOnDate(selectedStaff, selectedDate)
-  ) {
+  if (selectedStaff && selectedDate && !isStaffWorkingOnDate(selectedStaff, selectedDate)) {
     selectedDate = "";
     selectedTime = "";
     invalidateSlotsSelection();
@@ -728,13 +602,12 @@ function renderAllBookingState() {
   updateSummary();
 }
 
-/* -------------------- phone helpers -------------------- */
-
 function normalizePhone(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
 
   let cleaned = raw.replace(/[^\d+]/g, "");
+
   if (cleaned.includes("+")) {
     cleaned = (cleaned.startsWith("+") ? "+" : "") + cleaned.replace(/\+/g, "");
   }
@@ -757,8 +630,6 @@ function bindPhoneInput() {
   });
 }
 
-/* -------------------- step routing -------------------- */
-
 function goDateTimeStep() {
   if (!selectedService) {
     alert("サービスを選択してください");
@@ -779,14 +650,12 @@ async function goConfirmStep() {
   try {
     await ensureAvailableSlotsLoaded(true, false);
   } catch (error) {
-    console.log("available_slots reload error:", error);
+    console.error("available_slots reload error:", error);
     alert("空き状況の確認に失敗しました");
     return;
   }
 
-  const availableStaffIds = getAvailableStaffForSelectedTime().map((member) =>
-    String(member.staffId)
-  );
+  const availableStaffIds = getAvailableStaffForSelectedTime().map((member) => String(member.staffId));
 
   if (!availableStaffIds.includes(String(selectedStaff.staffId))) {
     selectedTime = "";
@@ -796,32 +665,23 @@ async function goConfirmStep() {
     return;
   }
 
-  document.getElementById("confirmService").textContent =
-    `${selectedService.name} ¥${selectedService.price}`;
-  document.getElementById("confirmStaff").textContent = selectedStaff.name || "-";
-  document.getElementById("confirmDate").textContent = selectedDate || "-";
-  document.getElementById("confirmTime").textContent = selectedTime || "-";
+  setTextContent("confirmService", `${selectedService.name} ¥${selectedService.price}`);
+  setTextContent("confirmStaff", selectedStaff.name || "-");
+  setTextContent("confirmDate", selectedDate || "-");
+  setTextContent("confirmTime", selectedTime || "-");
 
   showScreen("screenBookingStep3");
 }
 
-/* -------------------- derived data -------------------- */
-
 function getCandidateServicesForSelectedStaff() {
   if (!selectedStaff) return [...services];
-  return services.filter((service) =>
-    staffCanDoService(selectedStaff, service.serviceId)
-  );
+  return services.filter((service) => staffCanDoService(selectedStaff, service.serviceId));
 }
 
 function getCandidateStaffForSelectedService() {
   if (!selectedService) return [...staff];
-  return staff.filter((member) =>
-    staffCanDoService(member, selectedService.serviceId)
-  );
+  return staff.filter((member) => staffCanDoService(member, selectedService.serviceId));
 }
-
-/* -------------------- step 1 render -------------------- */
 
 function renderStep1() {
   renderServices();
@@ -840,43 +700,40 @@ function renderServices() {
     const card = document.createElement("div");
     card.className = "service-card";
 
-    if (
-      selectedService &&
-      String(selectedService.serviceId) === String(service.serviceId)
-    ) {
+    if (selectedService && String(selectedService.serviceId) === String(service.serviceId)) {
       card.classList.add("active");
     }
 
-    const imageUrl = service.image || "";
+    const imageUrl = getSafeImageUrl(service.image);
     const visual = imageUrl
-      ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(service.name || "")}">`
-      : `${escapeHtml(getServiceVisual(service.name))}`;
+      ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(service.name || "service")}" loading="lazy">`
+      : `<span>${escapeHtml(getServiceVisual(service.name))}</span>`;
 
     card.innerHTML = `
       <div class="service-visual">${visual}</div>
-      <div class="service-meta">✂ サービス</div>
+      <div class="card-kicker">✂ サービス</div>
       <h3>${escapeHtml(service.name || "-")}</h3>
-      <div class="service-sub">${escapeHtml(String(service.duration || 0))}分</div>
-      <div class="service-price">¥${escapeHtml(String(service.price || 0))}</div>
+      <div class="card-meta">
+        <span>${escapeHtml(String(service.duration || 0))}分</span>
+        <span>¥${escapeHtml(String(service.price || 0))}</span>
+      </div>
     `;
 
-    card.addEventListener("click", () => {
-      const isSame =
-        selectedService &&
-        String(selectedService.serviceId) === String(service.serviceId);
-
+    card.addEventListener("click", async () => {
+      const isSame = selectedService && String(selectedService.serviceId) === String(service.serviceId);
       selectedService = isSame ? null : service;
 
-      if (
-        selectedStaff &&
-        selectedService &&
-        !staffCanDoService(selectedStaff, selectedService.serviceId)
-      ) {
+      if (selectedStaff && selectedService && !staffCanDoService(selectedStaff, selectedService.serviceId)) {
         selectedStaff = null;
       }
 
       selectedTime = "";
       invalidateSlotsSelection();
+
+      if (selectedDate && selectedService) {
+        await reloadSlotsIfReady(true);
+      }
+
       reconcileSelectionState();
       renderAllBookingState();
     });
@@ -885,9 +742,7 @@ function renderServices() {
   });
 
   if (!filtered.length) {
-    el.innerHTML = `
-      <div class="empty-state">この担当者が対応できるサービスがありません</div>
-    `;
+    el.innerHTML = `<div class="empty-state">この担当者が対応できるサービスがありません</div>`;
   }
 }
 
@@ -905,32 +760,31 @@ function renderStaffStep1() {
     card.type = "button";
     card.className = "staff-card";
 
-    if (
-      selectedStaff &&
-      String(member.staffId) === String(selectedStaff.staffId)
-    ) {
+    if (selectedStaff && String(member.staffId) === String(selectedStaff.staffId)) {
       card.classList.add("active");
     }
 
-    const imageUrl = member.image || "";
+    const imageUrl = getSafeImageUrl(member.image);
     const avatar = imageUrl
-      ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(member.name || "")}">`
-      : `<div class="staff-initial">${escapeHtml((member.name || "S").slice(0, 1))}</div>`;
+      ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(member.name || "staff")}" loading="lazy">`
+      : `<div class="staff-avatar-placeholder">${escapeHtml((member.name || "S").slice(0, 1))}</div>`;
 
     card.innerHTML = `
       <div class="staff-avatar">${avatar}</div>
-      <div class="staff-name">${escapeHtml(member.name || "-")}</div>
-      <div class="staff-hours">${escapeHtml(member.startTime || "-")} - ${escapeHtml(member.endTime || "-")}</div>
+      <strong>${escapeHtml(member.name || "-")}</strong>
+      <small>${escapeHtml(member.startTime || "-")} - ${escapeHtml(member.endTime || "-")}</small>
     `;
 
-    card.addEventListener("click", () => {
-      const isSame =
-        selectedStaff &&
-        String(member.staffId) === String(selectedStaff.staffId);
-
+    card.addEventListener("click", async () => {
+      const isSame = selectedStaff && String(member.staffId) === String(selectedStaff.staffId);
       selectedStaff = isSame ? null : member;
       selectedTime = "";
       invalidateSlotsSelection();
+
+      if (selectedDate && selectedService) {
+        await reloadSlotsIfReady(true);
+      }
+
       reconcileSelectionState();
       renderAllBookingState();
     });
@@ -939,11 +793,10 @@ function renderStaffStep1() {
   });
 
   if (!filtered.length) {
-    box.innerHTML = `<div class="empty-state">このサービスに対応できる担当者がいません</div>`;
+    box.className = "empty-state";
+    box.innerHTML = "このサービスに対応できる担当者がいません";
   }
 }
-
-/* -------------------- dates -------------------- */
 
 function renderDateOptions() {
   const box = document.getElementById("dateList");
@@ -958,15 +811,11 @@ function renderDateOptions() {
   const today = new Date();
   const count = Math.min(visibleDaysCount, CONFIG.DATE_RANGE_DAYS);
 
-  for (let i = 0; i < count; i++) {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
+  for (let i = 0; i < count; i += 1) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
 
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const value = `${yyyy}-${mm}-${dd}`;
-
+    const value = toDateStringLocal(date);
     const item = document.createElement("div");
     item.className = "date-item";
 
@@ -976,8 +825,8 @@ function renderDateOptions() {
     if (!selectable) item.classList.add("disabled");
 
     item.innerHTML = `
-      <div class="date-week">${weekdays[d.getDay()]}</div>
-      <div class="date-main">${mm}/${dd}</div>
+      <strong>${weekdays[date.getDay()]}</strong>
+      <span>${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}</span>
     `;
 
     item.addEventListener("click", async () => {
@@ -986,7 +835,6 @@ function renderDateOptions() {
       const isSame = selectedDate === value;
       selectedDate = isSame ? "" : value;
       selectedTime = "";
-
       invalidateSlotsSelection();
 
       if (!selectedDate) {
@@ -998,13 +846,7 @@ function renderDateOptions() {
       const slotHint = document.getElementById("slotHint");
       if (slotHint) slotHint.textContent = "空き状況を確認しています";
 
-      try {
-        await ensureAvailableSlotsLoaded(false, false);
-      } catch (error) {
-        console.log("available_slots error:", error);
-        alert("空き状況の取得に失敗しました");
-        invalidateSlotsSelection();
-      }
+      await reloadSlotsIfReady(false);
 
       if (slotHint) {
         slotHint.textContent = selectedStaff
@@ -1020,16 +862,14 @@ function renderDateOptions() {
   }
 
   if (countLabel) countLabel.textContent = `${count}日表示`;
-  if (moreBtn) {
-    moreBtn.classList.toggle("hidden", count >= CONFIG.DATE_RANGE_DAYS);
-  }
+  if (moreBtn) moreBtn.classList.toggle("hidden", count >= CONFIG.DATE_RANGE_DAYS);
 }
 
 function isDateSelectable(dateValue) {
   if (!selectedService) return true;
 
   const candidates = selectedStaff
-    ? staff.filter((m) => String(m.staffId) === String(selectedStaff.staffId))
+    ? staff.filter((member) => String(member.staffId) === String(selectedStaff.staffId))
     : getCandidateStaffForSelectedService();
 
   if (!candidates.length) return false;
@@ -1038,15 +878,9 @@ function isDateSelectable(dateValue) {
 }
 
 function loadMoreDates() {
-  visibleDaysCount = Math.min(
-    visibleDaysCount + CONFIG.LOAD_MORE_DAYS_STEP,
-    CONFIG.DATE_RANGE_DAYS
-  );
-
+  visibleDaysCount = Math.min(visibleDaysCount + CONFIG.LOAD_MORE_DAYS_STEP, CONFIG.DATE_RANGE_DAYS);
   renderDateOptions();
 }
-
-/* -------------------- step 2 idle -------------------- */
 
 function renderStep2IdleState() {
   const timeBox = document.getElementById("timeList");
@@ -1056,21 +890,15 @@ function renderStep2IdleState() {
   if (slotHint) slotHint.textContent = "日付を選択してください";
 
   if (timeBox) {
-    timeBox.innerHTML = `先に日付を選択してください`;
+    timeBox.innerHTML = "先に日付を選択してください";
     timeBox.classList.add("empty-state");
   }
 
   if (staffBox) {
-    if (!selectedService) {
-      staffBox.innerHTML = `先にサービスを選択してください`;
-    } else {
-      staffBox.innerHTML = `時間を選ぶと表示されます`;
-    }
+    staffBox.innerHTML = selectedService ? "時間を選ぶと表示されます" : "先にサービスを選択してください";
     staffBox.className = "empty-state";
   }
 }
-
-/* -------------------- times -------------------- */
 
 function renderTimeOptions() {
   const box = document.getElementById("timeList");
@@ -1095,7 +923,7 @@ function renderTimeOptions() {
   const times = getAvailableTimes().filter((time) => !isTimeBlockedByNow(selectedDate, time));
 
   if (!times.length) {
-    box.innerHTML = `この日に利用できる時間がありません`;
+    box.innerHTML = "この日に利用できる時間がありません";
     box.classList.add("empty-state");
     return;
   }
@@ -1116,8 +944,8 @@ function renderTimeOptions() {
     if (time === selectedTime) item.classList.add("active");
 
     item.innerHTML = `
-      <div class="time-main">${time}</div>
-      <div class="time-sub">${status}</div>
+      <strong>${escapeHtml(time)}</strong>
+      <span>${status}</span>
     `;
 
     item.addEventListener("click", () => {
@@ -1146,8 +974,6 @@ function renderTimeOptions() {
   });
 }
 
-/* -------------------- step 2 available staff -------------------- */
-
 function renderStaffStep2() {
   const box = document.getElementById("staffListStep2");
   if (!box) return;
@@ -1175,29 +1001,23 @@ function renderStaffStep2() {
     card.type = "button";
     card.className = "staff-card";
 
-    if (
-      selectedStaff &&
-      String(member.staffId) === String(selectedStaff.staffId)
-    ) {
+    if (selectedStaff && String(member.staffId) === String(selectedStaff.staffId)) {
       card.classList.add("active");
     }
 
-    const imageUrl = member.image || "";
+    const imageUrl = getSafeImageUrl(member.image);
     const avatar = imageUrl
-      ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(member.name || "")}">`
-      : `<div class="staff-initial">${escapeHtml((member.name || "S").slice(0, 1))}</div>`;
+      ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(member.name || "staff")}" loading="lazy">`
+      : `<div class="staff-avatar-placeholder">${escapeHtml((member.name || "S").slice(0, 1))}</div>`;
 
     card.innerHTML = `
       <div class="staff-avatar">${avatar}</div>
-      <div class="staff-name">${escapeHtml(member.name || "-")}</div>
-      <div class="staff-hours">${escapeHtml(member.startTime || "-")} - ${escapeHtml(member.endTime || "-")}</div>
+      <strong>${escapeHtml(member.name || "-")}</strong>
+      <small>${escapeHtml(member.startTime || "-")} - ${escapeHtml(member.endTime || "-")}</small>
     `;
 
     card.addEventListener("click", () => {
-      const isSame =
-        selectedStaff &&
-        String(member.staffId) === String(selectedStaff.staffId);
-
+      const isSame = selectedStaff && String(member.staffId) === String(selectedStaff.staffId);
       selectedStaff = isSame ? null : member;
       reconcileSelectionState();
       renderAllBookingState();
@@ -1212,32 +1032,21 @@ function renderStaffStep2() {
   }
 }
 
-/* -------------------- summary -------------------- */
-
 function updateSummary() {
-  const serviceText = selectedService
-    ? `${selectedService.name} ¥${selectedService.price}`
-    : "-";
-
+  const serviceText = selectedService ? `${selectedService.name} ¥${selectedService.price}` : "-";
   const staffText = selectedStaff ? selectedStaff.name : "未選択";
-
   let dateTimeText = "-";
+
   if (selectedDate && selectedTime) {
     dateTimeText = `${selectedDate} / ${selectedTime}`;
   } else if (selectedDate) {
     dateTimeText = selectedDate;
   }
 
-  const s1 = document.getElementById("liveSummaryService");
-  const s2 = document.getElementById("liveSummaryStaff");
-  const s3 = document.getElementById("liveSummaryDateTime");
-
-  if (s1) s1.textContent = serviceText;
-  if (s2) s2.textContent = staffText;
-  if (s3) s3.textContent = dateTimeText;
+  setTextContent("liveSummaryService", serviceText);
+  setTextContent("liveSummaryStaff", staffText);
+  setTextContent("liveSummaryDateTime", dateTimeText);
 }
-
-/* -------------------- submit booking: Supabase -------------------- */
 
 async function submitBooking() {
   const name = (document.getElementById("name")?.value || "").trim();
@@ -1245,7 +1054,7 @@ async function submitBooking() {
   const phone = normalizePhone(phoneInput?.value || "");
 
   if (!selectedService || !selectedStaff || !selectedDate || !selectedTime) {
-    alert("サービス・担当者・日付・時間を選択してください");
+    alert("先に予約内容を選択してください");
     return;
   }
 
@@ -1276,6 +1085,16 @@ async function submitBooking() {
 
   try {
     setLoading(true, "送信中...", "予約内容を確定しています");
+    await ensureAvailableSlotsLoaded(true, true);
+
+    const availableStaffIds = getAvailableStaffForSelectedTime().map((member) => String(member.staffId));
+    if (!availableStaffIds.includes(String(selectedStaff.staffId))) {
+      selectedTime = "";
+      reconcileSelectionState();
+      renderAllBookingState();
+      alert("この時間は予約できません。別の時間を選んでください。");
+      return;
+    }
 
     const { data, error } = await sb.rpc("create_public_booking", {
       p_salon_slug: getSalonSlug(),
@@ -1294,11 +1113,8 @@ async function submitBooking() {
     if (error) {
       const message = String(error.message || "");
 
-      if (
-        message.includes("slot_unavailable") ||
-        message.includes("duplicate_booking") ||
-        message.includes("overlapping")
-      ) {
+      if (message.includes("slot_unavailable") || message.includes("duplicate_booking")) {
+        clearSlotsCache();
         await ensureAvailableSlotsLoaded(true, true);
         selectedTime = "";
         reconcileSelectionState();
@@ -1311,22 +1127,20 @@ async function submitBooking() {
       return;
     }
 
-    document.getElementById("successDate").textContent = selectedDate;
-    document.getElementById("successTime").textContent = selectedTime;
-    document.getElementById("successService").textContent = selectedService.name;
-    document.getElementById("successStaff").textContent = selectedStaff.name;
+    setTextContent("successDate", selectedDate);
+    setTextContent("successTime", selectedTime);
+    setTextContent("successService", selectedService.name);
+    setTextContent("successStaff", selectedStaff.name);
 
-    await ensureAvailableSlotsLoaded(true, true);
+    clearSlotsCache();
     showScreen("screenSuccess");
-  } catch (err) {
-    console.log("Submit error:", err);
+  } catch (error) {
+    console.error("submitBooking error:", error);
     alert("送信エラー");
   } finally {
     setLoading(false);
   }
 }
-
-/* -------------------- submit lead: Supabase -------------------- */
 
 async function submitLeadForm() {
   const salonName = (document.getElementById("leadSalonName")?.value || "").trim();
@@ -1361,15 +1175,15 @@ async function submitLeadForm() {
     });
 
     if (error) {
-      console.log("create_public_lead error:", error);
+      console.error("create_public_lead error:", error);
       alert(`送信に失敗しました: ${error.message}`);
       return;
     }
 
     clearLeadForm();
     showScreen("screenLeadSuccess");
-  } catch (err) {
-    console.log("Lead submit error:", err);
+  } catch (error) {
+    console.error("submitLeadForm error:", error);
     alert("送信エラー");
   } finally {
     setLoading(false);
@@ -1377,43 +1191,31 @@ async function submitLeadForm() {
 }
 
 function clearLeadForm() {
-  const ids = [
-    "leadSalonName",
-    "leadOwnerName",
-    "leadContact",
-    "leadBusinessType",
-    "leadNeeds",
-  ];
+  const ids = ["leadSalonName", "leadOwnerName", "leadContact", "leadBusinessType", "leadNeeds"];
 
   ids.forEach((id) => {
     const el = document.getElementById(id);
     if (!el) return;
-
-    if (id === "leadOwnerName") {
-      el.value = displayName || "";
-    } else {
-      el.value = "";
-    }
+    el.value = id === "leadOwnerName" ? displayName || "" : "";
   });
 }
 
-/* -------------------- business logic -------------------- */
-
 function staffCanDoService(member, serviceId) {
   const arr = Array.isArray(member.services) ? member.services : [];
+  if (!arr.length) return true;
   return arr.map(String).includes(String(serviceId));
 }
 
 function isStaffWorkingOnDate(member, date) {
   const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const d = new Date(`${date}T00:00:00`);
-  const dayCode = daysMap[d.getDay()];
-
+  const dateObj = new Date(`${date}T00:00:00`);
+  const dayCode = daysMap[dateObj.getDay()];
   const workDays = String(member.workDays || "")
     .split(",")
-    .map((x) => x.trim())
+    .map((value) => value.trim())
     .filter(Boolean);
 
+  if (!workDays.length) return true;
   return workDays.includes(dayCode);
 }
 
@@ -1422,14 +1224,13 @@ function isTimeBlockedByNow(dateStr, timeStr) {
   if (dateStr !== today) return false;
 
   const now = new Date();
-  const [hh, mm] = normalizeTime(timeStr).split(":").map(Number);
-
+  const [hours, minutes] = normalizeTime(timeStr).split(":").map(Number);
   const selectedDateTime = new Date(
     now.getFullYear(),
     now.getMonth(),
     now.getDate(),
-    hh,
-    mm,
+    hours,
+    minutes,
     0,
     0
   );
@@ -1438,49 +1239,73 @@ function isTimeBlockedByNow(dateStr, timeStr) {
   return diffMinutes < CONFIG.SAME_DAY_BLOCK_MINUTES;
 }
 
-/* -------------------- utils -------------------- */
-
-function normalizeTime(value) {
-  const str = String(value || "").trim();
-  if (!str) return "";
-  if (/^\d:\d{2}$/.test(str)) return `0${str}`;
-  return str.slice(0, 5);
+function minutesToTime(minutesValue) {
+  const hours = String(Math.floor(minutesValue / 60)).padStart(2, "0");
+  const minutes = String(minutesValue % 60).padStart(2, "0");
+  return `${hours}:${minutes}`;
 }
 
 function timeToMinutes(value) {
   const normalized = normalizeTime(value);
-  if (!normalized) return 0;
+  if (!normalized || !normalized.includes(":")) return 0;
 
-  const [h, m] = normalized.split(":").map(Number);
-  return h * 60 + m;
+  const [hours, minutes] = normalized.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
+function normalizeTime(value) {
+  const str = String(value || "").trim();
+  if (!str) return "";
+
+  const match = str.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return "";
+
+  return `${String(Number(match[1])).padStart(2, "0")}:${match[2]}`;
 }
 
 function getTodayString() {
-  const d = new Date();
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
+  return toDateStringLocal(new Date());
+}
+
+function toDateStringLocal(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getServiceVisual(name) {
-  const n = String(name || "");
-  if (n.includes("カット")) return "✂️";
-  if (n.includes("カラー")) return "🎨";
-  if (n.includes("ネイル")) return "💅";
-  if (n.includes("パーマ")) return "✨";
-  if (n.includes("トリートメント")) return "🫧";
-  if (n.includes("ヘッドスパ")) return "💆";
+  const value = String(name || "");
+
+  if (value.includes("カット")) return "✂️";
+  if (value.includes("カラー")) return "🎨";
+  if (value.includes("ネイル")) return "💅";
+  if (value.includes("パーマ")) return "✨";
+  if (value.includes("トリートメント")) return "🫧";
+  if (value.includes("ヘッドスパ")) return "🌿";
+
   return "✦";
 }
 
+function getSafeImageUrl(value) {
+  const url = String(value || "").trim();
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return "";
+}
+
+function setTextContent(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
 function escapeHtml(value) {
-  return String(value)
+  return String(value ?? "")
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+    .replaceAll("'", "&#039;");
 }
 
 function escapeAttr(value) {
