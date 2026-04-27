@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Salon Admin</title>
-
   <link rel="stylesheet" href="./admin.css" />
 </head>
 
@@ -211,8 +210,13 @@
         </div>
 
         <div class="form-field-full">
+          <label class="field-label" for="staffPhotoFile">写真アップロード</label>
+          <input id="staffPhotoFile" class="text-input" type="file" accept="image/jpeg,image/png,image/webp" />
+        </div>
+
+        <div class="form-field-full">
           <label class="field-label" for="staffPhotoInput">写真URL</label>
-          <input id="staffPhotoInput" class="text-input" type="url" placeholder="https://example.com/photo.jpg" />
+          <input id="staffPhotoInput" class="text-input" type="url" placeholder="アップロード後に自動入力されます" />
         </div>
 
         <div>
