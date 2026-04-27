@@ -1,5 +1,6 @@
 const sb = window.supabaseClient;
 const STORAGE_BUCKET = "salon-assets";
+const APP_ENV = window.__APP_ENV__ || {};
 
 let currentSalonId = null;
 let currentUser = null;
@@ -38,6 +39,17 @@ async function initAdmin() {
   }
 
   try {
+    // DEMO MODE: bypass auth for localhost
+    if (APP_ENV.ADMIN_DEMO_MODE) {
+      console.log("[ADMIN] DEMO MODE: Auth bypassed for localhost");
+      await applyDemoSession();
+      sb.auth.onAuthStateChange(async (_event, session) => {
+        await applySession(session);
+      });
+      return;
+    }
+
+    // PRODUCTION: normal auth flow
     const { data, error } = await sb.auth.getSession();
 
     if (error) {
@@ -62,6 +74,61 @@ async function initAdmin() {
 /* =========================
    AUTH
 ========================= */
+
+async function applyDemoSession() {
+  // Create a mock user for demo purposes
+  currentUser = {
+    id: "demo-admin-" + Date.now(),
+    email: APP_ENV.DEMO_ADMIN_EMAIL || "demo@mirawi.local",
+    user_metadata: { demo: true },
+  };
+
+  document.getElementById("authLoggedOut")?.classList.add("hidden");
+  document.getElementById("authLoggedIn")?.classList.remove("hidden");
+
+  setText("whoAmI", `${currentUser.email} [DEMO]");
+
+  try {
+    isLoadingInitialData = true;
+    showLoading("読み込み中...", "デモ管理者データを読み込んでいます");
+    await applyDemoTenant();
+    await loadAll();
+    subscribeRealtime();
+    startRefresh();
+  } catch (error) {
+    console.error("applyDemoSession error:", error);
+    showToast("デモデータの読み込みに失敗しました");
+  } finally {
+    isLoadingInitialData = false;
+    hideLoading();
+  }
+}
+
+async function applyDemoTenant() {
+  // In demo mode, use predefined demo salon
+  currentSalonId = APP_ENV.DEMO_SALON_ID;
+
+  if (!currentSalonId) {
+    throw new Error("DEMO_SALON_ID not configured");
+  }
+
+  try {
+    const { data, error } = await sb
+      .from("salons")
+      .select("name, slug")
+      .eq("id", currentSalonId)
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) throw new Error("Demo salon not found");
+
+    setText("tenantLabel", `${data.name || "Demo Salon"} / salon_admin [DEMO]`);
+  } catch (error) {
+    console.error("applyDemoTenant error:", error);
+    setText("tenantLabel", "Demo Salon / salon_admin [DEMO]");
+  }
+}
 
 async function applySession(session) {
   currentUser = session?.user || null;
@@ -155,6 +222,13 @@ async function sendMagicLink() {
 
 async function signOut() {
   try {
+    if (APP_ENV.ADMIN_DEMO_MODE) {
+      // Demo mode: just reload
+      window.location.reload();
+      return;
+    }
+
+    // Production: sign out from Supabase Auth
     await sb.auth.signOut();
     window.location.reload();
   } catch (error) {
