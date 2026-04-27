@@ -86,7 +86,7 @@ async function applyDemoSession() {
   document.getElementById("authLoggedOut")?.classList.add("hidden");
   document.getElementById("authLoggedIn")?.classList.remove("hidden");
 
-  setText("whoAmI", `${currentUser.email} [DEMO]");
+  setText("whoAmI", `${currentUser.email} [DEMO]`);
 
   try {
     isLoadingInitialData = true;
