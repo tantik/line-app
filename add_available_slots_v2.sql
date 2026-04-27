@@ -30,6 +30,11 @@ begin
     return;
   end if;
 
+  -- Check if staff works on this day of the week
+  if not (extract(dow from p_date) = any(v_staff.work_days)) then
+    return;
+  end if;
+
   if not exists (
     select 1 from public.staff_service_map
     where staff_id = p_staff_id and service_id = p_service_id and salon_id = v_salon.id
