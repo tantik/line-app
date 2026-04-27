@@ -123,7 +123,7 @@ async function applyDemoTenant() {
     if (error) throw error;
     if (!data) throw new Error("Demo salon not found");
 
-    setText("tenantLabel", `${data.name || "Demo Salon"} / salon_admin [DEMO]`);
+    setText("tenantLabel", `${ data.name || "Demo Salon" } / salon_admin[DEMO]`);
   } catch (error) {
     console.error("applyDemoTenant error:", error);
     setText("tenantLabel", "Demo Salon / salon_admin [DEMO]");
@@ -189,7 +189,7 @@ async function resolveSalon() {
 
   currentSalonId = data.salon_id;
   const salon = Array.isArray(data.salons) ? data.salons[0] : data.salons;
-  setText("tenantLabel", `${salon?.name || "Salon"} / ${data.role || "admin"}`);
+  setText("tenantLabel", `${ salon?.name || "Salon"} / ${data.role || "admin"}`);
 }
 
 async function sendMagicLink() {
@@ -619,11 +619,10 @@ function renderStaff() {
 
     card.innerHTML = `
       <div class="staff-left">
-        ${
-          photoUrl
-            ? `<img class="staff-photo" src="${safeAttr(photoUrl)}" alt="${safeAttr(staff.name || "staff")}" loading="lazy">`
-            : `<div class="staff-photo-placeholder">${safe(firstLetter)}</div>`
-        }
+        ${photoUrl
+        ? `<img class="staff-photo" src="${safeAttr(photoUrl)}" alt="${safeAttr(staff.name || "staff")}" loading="lazy">`
+        : `<div class="staff-photo-placeholder">${safe(firstLetter)}</div>`
+      }
 
         <div>
           <div class="staff-name">${safe(staff.name || "-")}</div>
