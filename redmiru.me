@@ -1,3 +1,12 @@
+востановить Если удалили staff/services, восстанови SQL скриптом:
+INSERT INTO public.staff_service_map (staff_id, service_id, salon_id)
+SELECT st.id, svc.id, st.salon_id
+FROM public.staff st
+CROSS JOIN public.services svc
+WHERE st.salon_id = 'e840e2b0-2d49-4899-b6d2-f2afe895ad1e'
+  AND svc.salon_id = 'e840e2b0-2d49-4899-b6d2-f2afe895ad1e'
+ON CONFLICT DO NOTHING;
+
 полностью рабочая демо-версия LINE Mini App SaaS для записи в салоны в Японии,
  чтобы показывать клиентам и быстро превращать демо в коммерческий продукт.
 

@@ -39,17 +39,32 @@ async function initAdmin() {
   }
 
   try {
-    // DEMO MODE: bypass auth for localhost
+    // OPTION 1: DEMO MODE (localhost) - bypass auth completely
     if (APP_ENV.ADMIN_DEMO_MODE) {
-      console.log("[ADMIN] DEMO MODE: Auth bypassed for localhost");
+      console.log("[ADMIN] LOCALHOST DEMO MODE: Auth bypassed");
       await applyDemoSession();
       sb.auth.onAuthStateChange(async (_event, session) => {
-        await applySession(session);
+        if (session?.user) await applySession(session);
       });
       return;
     }
 
-    // PRODUCTION: normal auth flow
+    // OPTION 2: PUBLIC DEMO MODE (any host) - allow everyone without email magic link
+    if (APP_ENV.PUBLIC_DEMO_MODE) {
+      console.log("[ADMIN] PUBLIC DEMO MODE: Anyone can view");
+      await applyDemoSession();
+      sb.auth.onAuthStateChange(async (_event, session) => {
+        if (session?.user) await applySession(session);
+      });
+      return;
+    }
+
+    // OPTION 3: PRODUCTION - normal auth flow with email magic link
+    console.log("[ADMIN] PRODUCTION MODE: Normal auth required");
+
+    // Wait for Supabase to parse access_token from URL
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
     const { data, error } = await sb.auth.getSession();
 
     if (error) {
@@ -62,6 +77,7 @@ async function initAdmin() {
     await applySession(data?.session || null);
 
     sb.auth.onAuthStateChange(async (_event, session) => {
+      console.log("[ADMIN] Auth state changed:", _event, session?.user?.email);
       await applySession(session);
     });
   } catch (error) {
