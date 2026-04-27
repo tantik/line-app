@@ -8,6 +8,7 @@ const CONFIG = {
   CACHE_TTL_MS: 3 * 60 * 1000,
   FALLBACK_SALON_ID: "e840e2b0-2d49-4899-b6d2-f2afe895ad1e",
   FALLBACK_SALON_SLUG: "mirawi-demo",
+  DEBUG: true,
 };
 
 const cacheStore = {
@@ -49,7 +50,7 @@ async function init() {
     const isLocalhost = location.hostname === "127.0.0.1" || location.hostname === "localhost";
 
     if (isLocalhost || typeof liff === "undefined") {
-      console.log("DEV MODE: LIFF login bypass enabled");
+      debugLog("DEV MODE: LIFF login bypass enabled");
       userId = "dev-user";
       displayName = "Dev User";
       fillInitialProfileFields();
@@ -81,6 +82,12 @@ async function init() {
     showFriendlyInitError(error);
   } finally {
     setLoading(false);
+  }
+}
+
+function debugLog(...args) {
+  if (CONFIG.DEBUG) {
+    console.log("[Mirawi Debug]", ...args);
   }
 }
 
@@ -117,7 +124,8 @@ function bindStaticEvents() {
     selectedStaff = null;
     selectedTime = "";
     invalidateSlotsSelection();
-    await reloadSlotsIfReady(false);
+    clearSlotsCache();
+    await reloadSlotsIfReady(true);
     reconcileSelectionState();
     renderAllBookingState();
   });
@@ -340,6 +348,7 @@ async function loadCatalog(useCache = true) {
     salonId = cached.salonId || salonId;
     services = cached.services || [];
     staff = cached.staff || [];
+    debugLog("catalog from cache", { services, staff, salonId });
     return;
   }
 
@@ -352,6 +361,14 @@ async function loadCatalog(useCache = true) {
 
   services = services.filter((service) => service.serviceId && service.isActive);
   staff = staff.filter((member) => member.staffId && member.isActive);
+
+  debugLog("catalog loaded", {
+    salonId,
+    servicesCount: services.length,
+    staffCount: staff.length,
+    services,
+    staff,
+  });
 
   setCache("catalog", {
     salonId,
@@ -417,6 +434,30 @@ async function hydrateStaffServiceMap(sb) {
     ...member,
     services: mapByStaff.get(String(member.staffId)) || member.services || [],
   }));
+
+  debugLog("staff_service_map hydrated", staff);
+}
+
+function normalizeRpcSlots(data) {
+  if (Array.isArray(data)) {
+    return data;
+  }
+
+  if (Array.isArray(data?.slots)) {
+    return data.slots;
+  }
+
+  if (typeof data === "string") {
+    try {
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed?.slots)) return parsed.slots;
+    } catch (error) {
+      console.warn("Could not parse available_slots_v2 string response:", data, error);
+    }
+  }
+
+  return [];
 }
 
 async function fetchAvailableSlotsForStaff(member) {
@@ -427,6 +468,15 @@ async function fetchAvailableSlotsForStaff(member) {
 
   const activeSalonId = await resolveSalonIdFromDatabase();
 
+  debugLog("calling available_slots_v2", {
+    p_salon_id: activeSalonId,
+    p_staff_id: member.staffId,
+    staff_name: member.name,
+    p_service_id: selectedService.serviceId,
+    service_name: selectedService.name,
+    p_date: selectedDate,
+  });
+
   const { data, error } = await sb.rpc("available_slots_v2", {
     p_salon_id: activeSalonId,
     p_staff_id: member.staffId,
@@ -434,9 +484,15 @@ async function fetchAvailableSlotsForStaff(member) {
     p_date: selectedDate,
   });
 
+  debugLog("available_slots_v2 response", {
+    staff: member.name,
+    data,
+    error,
+  });
+
   if (error) throw error;
 
-  const rawSlots = Array.isArray(data) ? data : [];
+  const rawSlots = normalizeRpcSlots(data);
 
   return rawSlots
     .map((item) => normalizeTime(typeof item === "string" ? item : item?.time || item?.start_time || ""))
@@ -462,6 +518,7 @@ async function ensureAvailableSlotsLoaded(force = false, silent = false) {
   const cached = !force ? getSlotsCache(params) : null;
   if (cached) {
     availableSlotsState = cached;
+    debugLog("slots from cache", cached);
     return;
   }
 
@@ -471,6 +528,14 @@ async function ensureAvailableSlotsLoaded(force = false, silent = false) {
 
   try {
     const candidates = selectedStaff ? [selectedStaff] : getCandidateStaffForSelectedService();
+
+    debugLog("slot candidates", {
+      selectedService,
+      selectedStaff,
+      selectedDate,
+      candidates,
+    });
+
     const staffMapById = new Map(staff.map((member) => [String(member.staffId), member]));
     const mergedByTime = new Map();
 
@@ -512,6 +577,8 @@ async function ensureAvailableSlotsLoaded(force = false, silent = false) {
       preferredStaffId: selectedStaff?.staffId ? String(selectedStaff.staffId) : "",
       slots,
     };
+
+    debugLog("merged available slots", availableSlotsState);
 
     setSlotsCache(params, availableSlotsState);
   } finally {
@@ -770,6 +837,7 @@ function renderServices() {
 
       selectedTime = "";
       invalidateSlotsSelection();
+      clearSlotsCache();
 
       if (selectedDate && selectedService) {
         await reloadSlotsIfReady(true);
@@ -821,6 +889,7 @@ function renderStaffStep1() {
       selectedStaff = isSame ? null : member;
       selectedTime = "";
       invalidateSlotsSelection();
+      clearSlotsCache();
 
       if (selectedDate && selectedService) {
         await reloadSlotsIfReady(true);
@@ -872,6 +941,7 @@ function renderDateOptions() {
       selectedDate = isSame ? "" : value;
       selectedTime = "";
       invalidateSlotsSelection();
+      clearSlotsCache();
 
       if (!selectedDate) {
         reconcileSelectionState();
@@ -882,7 +952,7 @@ function renderDateOptions() {
       const slotHint = document.getElementById("slotHint");
       if (slotHint) slotHint.textContent = "空き状況を確認しています";
 
-      await reloadSlotsIfReady(false);
+      await reloadSlotsIfReady(true);
 
       if (slotHint) {
         slotHint.textContent = selectedStaff
@@ -945,6 +1015,14 @@ function renderTimeOptions() {
   }
 
   const times = getAvailableTimes().filter((time) => !isTimeBlockedByNow(selectedDate, time));
+
+  debugLog("renderTimeOptions", {
+    selectedDate,
+    selectedService,
+    selectedStaff,
+    availableSlotsState,
+    times,
+  });
 
   if (!times.length) {
     box.innerHTML = "この日に利用できる時間がありません";
@@ -1132,7 +1210,7 @@ async function submitBooking() {
       p_source: "mini_app",
     });
 
-    console.log("create_public_booking result:", data, error);
+    debugLog("create_public_booking result:", data, error);
 
     if (error) {
       const message = String(error.message || "");
