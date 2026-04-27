@@ -7,6 +7,7 @@ const CONFIG = {
   SAME_DAY_BLOCK_MINUTES: 20,
   CACHE_TTL_MS: 3 * 60 * 1000,
   FALLBACK_SALON_ID: "e840e2b0-2d49-4899-b6d2-f2afe895ad1e",
+  FALLBACK_SALON_SLUG: "mirawi-demo",
 };
 
 const cacheStore = {
@@ -53,7 +54,7 @@ async function init() {
       displayName = "Dev User";
       fillInitialProfileFields();
       bindPhoneInput();
-      await loadCatalog(true);
+      await loadCatalog(false);
       renderAllBookingState();
       showScreen("screenWelcome");
       return;
@@ -77,10 +78,17 @@ async function init() {
     showScreen("screenWelcome");
   } catch (error) {
     console.error("init error:", error);
-    alert("初期化エラーが発生しました");
+    showFriendlyInitError(error);
   } finally {
     setLoading(false);
   }
+}
+
+function showFriendlyInitError(error) {
+  const message = error?.message
+    ? `初期化エラーが発生しました: ${error.message}`
+    : "初期化エラーが発生しました";
+  alert(message);
 }
 
 function fillInitialProfileFields() {
@@ -192,7 +200,7 @@ function getEnv() {
 }
 
 function getSalonSlug() {
-  return getEnv().SALON_SLUG || "mirawi-demo";
+  return getEnv().SALON_SLUG || CONFIG.FALLBACK_SALON_SLUG;
 }
 
 function getCache(key) {
@@ -267,7 +275,7 @@ function normalizeStaffRow(row) {
     name: row.name ?? row.staff_name ?? "Staff",
     startTime: normalizeTime(row.startTime ?? row.start_time ?? row.work_start ?? "10:00"),
     endTime: normalizeTime(row.endTime ?? row.end_time ?? row.work_end ?? "19:00"),
-    workDays: row.workDays ?? row.work_days ?? row.working_days ?? "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
+    workDays: row.workDays ?? row.work_days ?? row.working_days ?? "",
     services: normalizeStaffServiceIds(row),
     image: row.photoUrl ?? row.photo_url ?? row.image ?? row.image_url ?? row.photo ?? null,
     slotMinutes: Number(row.slotMinutes ?? row.slot_minutes ?? 30) || 30,
@@ -340,33 +348,75 @@ async function loadCatalog(useCache = true) {
     throw new Error("Supabase client is not available");
   }
 
-  const { data, error } = await sb.rpc("public_catalog", {
-    p_salon_slug: getSalonSlug(),
-  });
+  await loadCatalogDirect(sb);
 
-  if (error) throw error;
-
-  const rawServices = Array.isArray(data?.services) ? data.services : Array.isArray(data) ? data : [];
-  const rawStaff = Array.isArray(data?.staff)
-    ? data.staff
-    : Array.isArray(data?.staff_members)
-      ? data.staff_members
-      : [];
-
-  salonId = data?.salon?.id || data?.salon_id || data?.salonId || salonId || "";
-
-  if (!salonId) {
-    await resolveSalonIdFromDatabase();
-  }
-
-  services = rawServices.map(normalizeServiceRow).filter((service) => service.serviceId && service.isActive);
-  staff = rawStaff.map(normalizeStaffRow).filter((member) => member.staffId && member.isActive);
+  services = services.filter((service) => service.serviceId && service.isActive);
+  staff = staff.filter((member) => member.staffId && member.isActive);
 
   setCache("catalog", {
     salonId,
     services,
     staff,
   });
+}
+
+async function loadCatalogDirect(sb) {
+  const activeSalonId = await resolveSalonIdFromDatabase();
+
+  const [{ data: serviceRows, error: serviceError }, { data: staffRows, error: staffError }] = await Promise.all([
+    sb
+      .from("services")
+      .select("*")
+      .eq("salon_id", activeSalonId)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
+    sb
+      .from("staff")
+      .select("*")
+      .eq("salon_id", activeSalonId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true }),
+  ]);
+
+  if (serviceError) throw serviceError;
+  if (staffError) throw staffError;
+
+  services = (serviceRows || []).map(normalizeServiceRow);
+  staff = (staffRows || []).map(normalizeStaffRow);
+
+  await hydrateStaffServiceMap(sb);
+}
+
+async function hydrateStaffServiceMap(sb) {
+  const activeSalonId = await resolveSalonIdFromDatabase();
+  const staffIds = staff.map((member) => member.staffId).filter(Boolean);
+
+  if (!staffIds.length) return;
+
+  const { data, error } = await sb
+    .from("staff_service_map")
+    .select("staff_id, service_id")
+    .eq("salon_id", activeSalonId)
+    .in("staff_id", staffIds);
+
+  if (error) {
+    console.warn("staff_service_map fallback warning:", error);
+    return;
+  }
+
+  const mapByStaff = new Map();
+
+  (data || []).forEach((row) => {
+    const rowStaffId = String(row.staff_id);
+    if (!mapByStaff.has(rowStaffId)) mapByStaff.set(rowStaffId, []);
+    mapByStaff.get(rowStaffId).push(String(row.service_id));
+  });
+
+  staff = staff.map((member) => ({
+    ...member,
+    services: mapByStaff.get(String(member.staffId)) || member.services || [],
+  }));
 }
 
 async function fetchAvailableSlotsForStaff(member) {
@@ -386,7 +436,7 @@ async function fetchAvailableSlotsForStaff(member) {
 
   if (error) throw error;
 
-  const rawSlots = Array.isArray(data?.slots) ? data.slots : Array.isArray(data) ? data : [];
+  const rawSlots = Array.isArray(data) ? data : [];
 
   return rawSlots
     .map((item) => normalizeTime(typeof item === "string" ? item : item?.time || item?.start_time || ""))
@@ -420,10 +470,7 @@ async function ensureAvailableSlotsLoaded(force = false, silent = false) {
   }
 
   try {
-    const candidates = selectedStaff
-      ? [selectedStaff]
-      : getCandidateStaffForSelectedService().filter((member) => isStaffWorkingOnDate(member, selectedDate));
-
+    const candidates = selectedStaff ? [selectedStaff] : getCandidateStaffForSelectedService();
     const staffMapById = new Map(staff.map((member) => [String(member.staffId), member]));
     const mergedByTime = new Map();
 
@@ -563,12 +610,6 @@ function clearBookingState() {
 function reconcileSelectionState() {
   if (selectedService && selectedStaff && !staffCanDoService(selectedStaff, selectedService.serviceId)) {
     selectedStaff = null;
-    selectedTime = "";
-    invalidateSlotsSelection();
-  }
-
-  if (selectedStaff && selectedDate && !isStaffWorkingOnDate(selectedStaff, selectedDate)) {
-    selectedDate = "";
     selectedTime = "";
     invalidateSlotsSelection();
   }
@@ -821,17 +862,12 @@ function renderDateOptions() {
 
     if (value === selectedDate) item.classList.add("active");
 
-    const selectable = isDateSelectable(value);
-    if (!selectable) item.classList.add("disabled");
-
     item.innerHTML = `
       <strong>${weekdays[date.getDay()]}</strong>
       <span>${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}</span>
     `;
 
     item.addEventListener("click", async () => {
-      if (!selectable) return;
-
       const isSame = selectedDate === value;
       selectedDate = isSame ? "" : value;
       selectedTime = "";
@@ -863,18 +899,6 @@ function renderDateOptions() {
 
   if (countLabel) countLabel.textContent = `${count}日表示`;
   if (moreBtn) moreBtn.classList.toggle("hidden", count >= CONFIG.DATE_RANGE_DAYS);
-}
-
-function isDateSelectable(dateValue) {
-  if (!selectedService) return true;
-
-  const candidates = selectedStaff
-    ? staff.filter((member) => String(member.staffId) === String(selectedStaff.staffId))
-    : getCandidateStaffForSelectedService();
-
-  if (!candidates.length) return false;
-
-  return candidates.some((member) => isStaffWorkingOnDate(member, dateValue));
 }
 
 function loadMoreDates() {
@@ -1206,25 +1230,15 @@ function staffCanDoService(member, serviceId) {
   return arr.map(String).includes(String(serviceId));
 }
 
-function isStaffWorkingOnDate(member, date) {
-  const daysMap = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const dateObj = new Date(`${date}T00:00:00`);
-  const dayCode = daysMap[dateObj.getDay()];
-  const workDays = String(member.workDays || "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  if (!workDays.length) return true;
-  return workDays.includes(dayCode);
-}
-
 function isTimeBlockedByNow(dateStr, timeStr) {
   const today = getTodayString();
   if (dateStr !== today) return false;
 
   const now = new Date();
-  const [hours, minutes] = normalizeTime(timeStr).split(":").map(Number);
+  const normalized = normalizeTime(timeStr);
+  if (!normalized) return true;
+
+  const [hours, minutes] = normalized.split(":").map(Number);
   const selectedDateTime = new Date(
     now.getFullYear(),
     now.getMonth(),
