@@ -460,6 +460,22 @@ function normalizeRpcSlots(data) {
   return [];
 }
 
+function extractSlotTime(item) {
+  if (typeof item === "string") return item;
+  if (!item || typeof item !== "object") return "";
+
+  return (
+    item.time ||
+    item.start_time ||
+    item.slot_time ||
+    item.available_slots_v2 ||
+    item.available_slot ||
+    item.slot ||
+    Object.values(item).find((value) => typeof value === "string" && /^\d{1,2}:\d{2}/.test(value)) ||
+    ""
+  );
+}
+
 async function fetchAvailableSlotsForStaff(member) {
   if (!selectedService || !selectedDate || !member?.staffId) return [];
 
@@ -486,7 +502,7 @@ async function fetchAvailableSlotsForStaff(member) {
 
   debugLog("available_slots_v2 response", {
     staff: member.name,
-    data,
+    rawData: data,
     error,
   });
 
@@ -494,13 +510,20 @@ async function fetchAvailableSlotsForStaff(member) {
 
   const rawSlots = normalizeRpcSlots(data);
 
-  return rawSlots
-    .map((item) => normalizeTime(typeof item === "string" ? item : item?.time || item?.start_time || ""))
+  const slots = rawSlots
+    .map((item) => normalizeTime(extractSlotTime(item)))
     .filter(Boolean)
     .map((time) => ({
       time,
       staffIds: [String(member.staffId)],
     }));
+
+  debugLog("normalized slots for staff", {
+    staff: member.name,
+    slots,
+  });
+
+  return slots;
 }
 
 async function ensureAvailableSlotsLoaded(force = false, silent = false) {
