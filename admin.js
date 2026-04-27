@@ -1,5 +1,4 @@
 const sb = window.supabaseClient;
-
 const STORAGE_BUCKET = "salon-assets";
 
 let currentSalonId = null;
@@ -14,6 +13,7 @@ let allServices = [];
 let editingStaffId = null;
 let editingServiceId = null;
 let currentTab = "bookings";
+let isLoadingInitialData = false;
 
 const bookingState = {
   view: "today",
@@ -37,20 +37,26 @@ async function initAdmin() {
     return;
   }
 
-  const { data, error } = await sb.auth.getSession();
+  try {
+    const { data, error } = await sb.auth.getSession();
 
-  if (error) {
-    console.error("getSession error:", error);
-    showToast("Ошибка входа");
+    if (error) {
+      console.error("getSession error:", error);
+      showToast("Ошибка входа");
+      hideLoading();
+      return;
+    }
+
+    await applySession(data?.session || null);
+
+    sb.auth.onAuthStateChange(async (_event, session) => {
+      await applySession(session);
+    });
+  } catch (error) {
+    console.error("initAdmin error:", error);
+    showToast("管理画面の初期化に失敗しました");
     hideLoading();
-    return;
   }
-
-  await applySession(data?.session || null);
-
-  sb.auth.onAuthStateChange(async (_event, session) => {
-    await applySession(session);
-  });
 }
 
 /* =========================
@@ -64,19 +70,7 @@ async function applySession(session) {
   document.getElementById("authLoggedIn")?.classList.toggle("hidden", !currentUser);
 
   if (!currentUser) {
-    currentSalonId = null;
-    allBookings = [];
-    allStaff = [];
-    allServices = [];
-    updateMetrics([]);
-    renderBookings();
-    renderStaff();
-    renderServices();
-    setText("whoAmI", "-");
-    setText("tenantLabel", "-");
-    setText("lastUpdated", "最終更新: --");
-    unsubscribeRealtime();
-    stopRefresh();
+    resetAdminState();
     hideLoading();
     return;
   }
@@ -84,6 +78,7 @@ async function applySession(session) {
   setText("whoAmI", currentUser.email || currentUser.id);
 
   try {
+    isLoadingInitialData = true;
     showLoading("読み込み中...", "管理者データを読み込んでいます");
     await resolveSalon();
     await loadAll();
@@ -93,8 +88,25 @@ async function applySession(session) {
     console.error("applySession error:", error);
     showToast("管理者データの読み込みに失敗しました");
   } finally {
+    isLoadingInitialData = false;
     hideLoading();
   }
+}
+
+function resetAdminState() {
+  currentSalonId = null;
+  allBookings = [];
+  allStaff = [];
+  allServices = [];
+  updateMetrics([]);
+  renderBookings();
+  renderStaff();
+  renderServices();
+  setText("whoAmI", "-");
+  setText("tenantLabel", "-");
+  setText("lastUpdated", "最終更新: --");
+  unsubscribeRealtime();
+  stopRefresh();
 }
 
 async function resolveSalon() {
@@ -167,86 +179,86 @@ async function loadAll() {
 async function loadBookings() {
   if (!currentSalonId) return;
 
-  const { data, error } = await sb
-    .from("admin_booking_view")
-    .select("*")
-    .eq("salon_id", currentSalonId)
-    .order("booking_date", { ascending: true })
-    .order("start_time", { ascending: true });
+  try {
+    const { data, error } = await sb
+      .from("admin_booking_view")
+      .select("*")
+      .eq("salon_id", currentSalonId)
+      .order("booking_date", { ascending: true })
+      .order("start_time", { ascending: true });
 
-  if (error) {
+    if (error) throw error;
+
+    allBookings = data || [];
+    renderBookings();
+    setText("lastUpdated", `最終更新: ${new Date().toLocaleString("ja-JP")}`);
+  } catch (error) {
     console.error("loadBookings error:", error);
     showToast("予約取得エラー");
-    return;
   }
-
-  allBookings = data || [];
-  renderBookings();
 }
 
 async function loadServices() {
   if (!currentSalonId) return;
 
-  const { data, error } = await sb
-    .from("services")
-    .select("*")
-    .eq("salon_id", currentSalonId)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  try {
+    const { data, error } = await sb
+      .from("services")
+      .select("*")
+      .eq("salon_id", currentSalonId)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true });
 
-  if (error) {
+    if (error) throw error;
+
+    allServices = data || [];
+    renderServices();
+  } catch (error) {
     console.error("loadServices error:", error);
     showToast("サービス取得エラー");
-    return;
   }
-
-  allServices = data || [];
-  renderServices();
 }
 
 async function loadStaff() {
   if (!currentSalonId) return;
 
-  const { data: staffRows, error: staffError } = await sb
-    .from("staff")
-    .select("*")
-    .eq("salon_id", currentSalonId)
-    .order("created_at", { ascending: true });
-
-  if (staffError) {
-    console.error("loadStaff error:", staffError);
-    showToast("スタッフ取得エラー");
-    return;
-  }
-
-  const staffList = staffRows || [];
-  const staffIds = staffList.map((staff) => staff.id);
-  let mapRows = [];
-
-  if (staffIds.length > 0) {
-    const { data, error } = await sb
-      .from("staff_service_map")
-      .select("staff_id, service_id")
+  try {
+    const { data: staffRows, error: staffError } = await sb
+      .from("staff")
+      .select("*")
       .eq("salon_id", currentSalonId)
-      .in("staff_id", staffIds);
+      .order("created_at", { ascending: true });
 
-    if (error) {
-      console.error("staff_service_map error:", error);
-      showToast("スタッフとサービスの紐付け取得エラー");
-    } else {
+    if (staffError) throw staffError;
+
+    const staffList = staffRows || [];
+    const staffIds = staffList.map((staff) => staff.id);
+    let mapRows = [];
+
+    if (staffIds.length > 0) {
+      const { data, error } = await sb
+        .from("staff_service_map")
+        .select("staff_id, service_id")
+        .eq("salon_id", currentSalonId)
+        .in("staff_id", staffIds);
+
+      if (error) throw error;
       mapRows = data || [];
     }
+
+    allStaff = staffList.map((staff) => ({
+      ...staff,
+      serviceIds: mapRows
+        .filter((row) => String(row.staff_id) === String(staff.id))
+        .map((row) => String(row.service_id)),
+    }));
+
+    renderStaff();
+    renderStaffFilter();
+  } catch (error) {
+    console.error("loadStaff error:", error);
+    showToast("スタッフ取得エラー");
   }
-
-  allStaff = staffList.map((staff) => ({
-    ...staff,
-    serviceIds: mapRows
-      .filter((row) => String(row.staff_id) === String(staff.id))
-      .map((row) => String(row.service_id)),
-  }));
-
-  renderStaff();
-  renderStaffFilter();
 }
 
 /* =========================
@@ -568,11 +580,11 @@ function openStaffModal(staff = null) {
 
   setText("staffModalTitle", editingStaffId ? "スタッフ編集" : "スタッフ追加");
   setInputValue("staffNameInput", staff?.name || "");
-  setInputValue("staffPhotoInput", getSafePhotoUrl(staff?.photo_url) || "");
   setInputValue("staffStartTimeInput", formatTime(staff?.start_time || "10:00"));
   setInputValue("staffEndTimeInput", formatTime(staff?.end_time || "19:00"));
   setInputValue("staffSlotMinutesInput", String(staff?.slot_minutes || 30));
   clearFileInput("staffPhotoFile");
+  setText("staffPhotoCurrent", getSafePhotoUrl(staff?.photo_url) ? "現在の写真: 登録済み" : "現在の写真: なし");
 
   const activeInput = document.getElementById("staffActiveInput");
   if (activeInput) activeInput.checked = staff?.is_active !== false;
@@ -614,8 +626,12 @@ function renderServiceCheckboxes(selectedIds = []) {
 async function saveStaff() {
   if (!currentSalonId) return;
 
+  const existingStaff = editingStaffId
+    ? allStaff.find((staff) => String(staff.id) === String(editingStaffId))
+    : null;
+
   const name = document.getElementById("staffNameInput")?.value.trim();
-  let photoUrl = getSafePhotoUrl(document.getElementById("staffPhotoInput")?.value.trim());
+  let photoUrl = getSafePhotoUrl(existingStaff?.photo_url) || null;
   const startTime = normalizeTime(document.getElementById("staffStartTimeInput")?.value || "10:00");
   const endTime = normalizeTime(document.getElementById("staffEndTimeInput")?.value || "19:00");
   const slotMinutes = Number(document.getElementById("staffSlotMinutesInput")?.value || 30);
@@ -648,7 +664,6 @@ async function saveStaff() {
       const uploadedUrl = await uploadStaffPhoto(photoFile);
       if (!uploadedUrl) throw new Error("photo_upload_failed");
       photoUrl = uploadedUrl;
-      setInputValue("staffPhotoInput", uploadedUrl);
     }
 
     let staffId = editingStaffId;
@@ -995,7 +1010,9 @@ function subscribeRealtime() {
         table: "bookings",
         filter: `salon_id=eq.${currentSalonId}`,
       },
-      () => loadBookings()
+      () => {
+        if (!isLoadingInitialData) loadBookings();
+      }
     )
     .subscribe();
 }
@@ -1016,7 +1033,7 @@ function startRefresh() {
   stopRefresh();
 
   refreshTimer = window.setInterval(() => {
-    if (!currentSalonId || document.hidden) return;
+    if (!currentSalonId || document.hidden || isLoadingInitialData) return;
     loadBookings();
   }, 60000);
 }
