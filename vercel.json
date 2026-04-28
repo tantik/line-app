@@ -1,0 +1,19 @@
+{
+  "functions": {
+    "api/line-webhook.js": {
+      "maxDuration": 10
+    },
+    "api/send-booking-confirmation.js": {
+      "maxDuration": 10
+    },
+    "api/process-reminders.js": {
+      "maxDuration": 30
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/process-reminders",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}
