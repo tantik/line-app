@@ -679,7 +679,7 @@ function openStaffModal(staff = null) {
   if (activeInput) activeInput.checked = staff?.is_active !== false;
 
   renderServiceCheckboxes(staff?.serviceIds || []);
-  renderWorkDayCheckboxes(staff?.work_days || [0,1,2,3,4,5,6]);
+  renderWorkDayCheckboxes(staff?.work_days || [0, 1, 2, 3, 4, 5, 6]);
   document.getElementById("deleteStaffBtn")?.classList.toggle("hidden", !editingStaffId);
   document.getElementById("staffModal")?.classList.remove("hidden");
 }
@@ -713,7 +713,7 @@ function renderServiceCheckboxes(selectedIds = []) {
   });
 }
 
-function renderWorkDayCheckboxes(selectedDays = [0,1,2,3,4,5,6]) {
+function renderWorkDayCheckboxes(selectedDays = [0, 1, 2, 3, 4, 5, 6]) {
   for (let i = 0; i < 7; i++) {
     const checkbox = document.getElementById(`workDay${i}`);
     if (checkbox) {

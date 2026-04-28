@@ -840,8 +840,8 @@ function renderServices() {
     const visual = iconUrl
       ? `<img src="${escapeAttr(iconUrl)}" alt="${escapeAttr(service.name || "service")}" loading="lazy">`
       : imageUrl
-      ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(service.name || "service")}" loading="lazy">`
-      : `<span>${escapeHtml(getServiceVisual(service.name))}</span>`;
+        ? `<img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(service.name || "service")}" loading="lazy">`
+        : `<span>${escapeHtml(getServiceVisual(service.name))}</span>`;
 
     card.innerHTML = `
       <div class="service-visual">${visual}</div>
