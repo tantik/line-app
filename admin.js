@@ -679,6 +679,7 @@ function openStaffModal(staff = null) {
   if (activeInput) activeInput.checked = staff?.is_active !== false;
 
   renderServiceCheckboxes(staff?.serviceIds || []);
+  renderWorkDayCheckboxes(staff?.work_days || [0,1,2,3,4,5,6]);
   document.getElementById("deleteStaffBtn")?.classList.toggle("hidden", !editingStaffId);
   document.getElementById("staffModal")?.classList.remove("hidden");
 }
@@ -712,6 +713,15 @@ function renderServiceCheckboxes(selectedIds = []) {
   });
 }
 
+function renderWorkDayCheckboxes(selectedDays = [0,1,2,3,4,5,6]) {
+  for (let i = 0; i < 7; i++) {
+    const checkbox = document.getElementById(`workDay${i}`);
+    if (checkbox) {
+      checkbox.checked = selectedDays.includes(i);
+    }
+  }
+}
+
 async function saveStaff() {
   if (!currentSalonId) return;
 
@@ -730,6 +740,10 @@ async function saveStaff() {
   const serviceIds = Array.from(
     document.querySelectorAll("#servicesCheckboxes input[type='checkbox']:checked")
   ).map((input) => input.value);
+
+  const workDays = Array.from(
+    document.querySelectorAll("input[id^='workDay']:checked")
+  ).map((input) => Number(input.value)).sort();
 
   if (!name) {
     showToast("スタッフ名を入力してください");
@@ -764,6 +778,7 @@ async function saveStaff() {
       end_time: endTime,
       slot_minutes: slotMinutes,
       is_active: isActive,
+      work_days: workDays,
     };
 
     if (staffId) {
@@ -967,6 +982,7 @@ function openServiceModal(service = null) {
   setInputValue("servicePriceInput", String(service?.price_jpy || 0));
   setInputValue("serviceSortInput", String(service?.sort_order ?? 100));
   setInputValue("serviceDescriptionInput", service?.description || "");
+  setInputValue("serviceIconUrlInput", service?.icon_url || "");
 
   const activeInput = document.getElementById("serviceActiveInput");
   if (activeInput) activeInput.checked = service?.is_active !== false;
@@ -990,6 +1006,7 @@ async function saveService() {
   const priceJpy = Number(document.getElementById("servicePriceInput")?.value || 0);
   const sortOrder = Number(document.getElementById("serviceSortInput")?.value || 100);
   const description = document.getElementById("serviceDescriptionInput")?.value.trim() || null;
+  const iconUrl = document.getElementById("serviceIconUrlInput")?.value.trim() || null;
   const isActive = document.getElementById("serviceActiveInput")?.checked ?? true;
 
   if (!name) {
@@ -1019,6 +1036,7 @@ async function saveService() {
       price_jpy: priceJpy,
       sort_order: Number.isFinite(sortOrder) ? sortOrder : 100,
       description,
+      icon_url: iconUrl,
       is_active: isActive,
     };
 
