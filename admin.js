@@ -782,13 +782,16 @@ async function saveStaff() {
     };
 
     if (staffId) {
-      const { error } = await sb
+      const { data, error } = await sb
         .from("staff")
         .update(payload)
         .eq("salon_id", currentSalonId)
-        .eq("id", staffId);
+        .eq("id", staffId)
+        .select("id")
+        .single();
 
       if (error) throw error;
+      if (!data?.id) throw new Error("staff_update_failed");
     } else {
       const { data, error } = await sb
         .from("staff")
@@ -808,6 +811,7 @@ async function saveStaff() {
 
     closeStaffModal();
     await loadStaff();
+    renderStaff();
     showToast("スタッフを保存しました");
   } catch (error) {
     console.error("saveStaff error:", error);

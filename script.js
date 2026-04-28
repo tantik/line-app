@@ -1102,6 +1102,25 @@ function renderTimeOptions() {
   });
 }
 
+function getAvailableStaffForSelectedDate() {
+  if (!selectedService || !selectedDate) return [];
+
+  if (
+    !availableSlotsState ||
+    availableSlotsState.date !== selectedDate ||
+    String(availableSlotsState.serviceId) !== String(selectedService.serviceId)
+  ) {
+    return getCandidateStaffForSelectedService();
+  }
+
+  const availableIds = new Set();
+  availableSlotsState.slots.forEach((slot) => {
+    slot.staffIds.forEach((id) => availableIds.add(String(id)));
+  });
+
+  return getCandidateStaffForSelectedService().filter((member) => availableIds.has(String(member.staffId)));
+}
+
 function renderStaffStep2() {
   const box = document.getElementById("staffListStep2");
   if (!box) return;
@@ -1116,13 +1135,13 @@ function renderStaffStep2() {
     return;
   }
 
-  if (!selectedDate || !selectedTime) {
+  if (!selectedDate) {
     box.className = "empty-state";
-    box.innerHTML = "時間を選ぶと表示されます";
+    box.innerHTML = "日付を選択すると、対応可能な担当者が表示されます";
     return;
   }
 
-  const filtered = getAvailableStaffForSelectedTime();
+  const filtered = selectedTime ? getAvailableStaffForSelectedTime() : getAvailableStaffForSelectedDate();
 
   filtered.forEach((member) => {
     const card = document.createElement("button");
@@ -1156,7 +1175,9 @@ function renderStaffStep2() {
 
   if (!filtered.length) {
     box.className = "empty-state";
-    box.innerHTML = "この条件で対応できる担当者がいません";
+    box.innerHTML = selectedTime
+      ? "この条件で対応できる担当者がいません"
+      : "この日付で対応可能な担当者がいません";
   }
 }
 
