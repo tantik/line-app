@@ -39,6 +39,19 @@ SUPABASE_URL=https://bhqgfszxiuqmwojhpvne.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<твой service role key из Supabase>
 ```
 
+service_role
+public - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJocWdmc3p4aXVxbXdvamhwdm5lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4MDQ2MTMsImV4cCI6MjA5MjM4MDYxM30.3ida9u0yHHuhuXZ73lSK88DgrKtqFxa3joFjFzQdkas
+
+service_role - eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJocWdmc3p4aXVxbXdvamhwdm5lIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NjgwNDYxMywiZXhwIjoyMDkyMzgwNjEzfQ.8nfOGs6YfGgMD-SA0Y0euHAYb16-iKoX0N0yvUAYOnw
+
+CRON_SECRET - пусть будет CRON_SECRET=mirawi-cron-secret-2026-0987654321
+
+
+LINE_CHANNEL_SECRET=47e57b0be1271f363d374037a116f0fe
+LINE_CHANNEL_ACCESS_TOKEN=5BgAocIICUXkX3ENSSey1RMnPK7uO/yEt/iwGzMwce4Ak9H+87v0MmK5wKTAIVcJNgZHwQUMqdNz/720X9+g5oE1fay063HmshB58K9b5wmatkYKfw1AEKZNe99PNZWdWkwDZDX91b8/wylahNbaDwdB04t89/1O/w1cDnyilFU=
+SUPABASE_URL=https://bhqgfszxiuqmwojhpvne.supabase.co
+CRON_SECRET=mirawi-cron-secret-2026-0987654321
+
 **Где взять SUPABASE_SERVICE_ROLE_KEY:**
 1. Vercel → Settings → Project
 2. Environment Variables → добавить SERVICE_ROLE_KEY
