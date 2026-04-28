@@ -11,5 +11,8 @@ window.__APP_ENV__ = {
   // Set to FALSE when moving to production with real clients
   PUBLIC_DEMO_MODE: true,
   DEMO_SALON_ID: "e840e2b0-2d49-4899-b6d2-f2afe895ad1e",
-  DEMO_ADMIN_EMAIL: "demo@mirawi.local"
+  DEMO_ADMIN_EMAIL: "demo@mirawi.local",
+  // LINE Integration (Mirawi Salon Demo)
+  LINE_CHANNEL_ID: "2009643805",
+  LINE_WEBHOOK_URL: "https://line-app-xi.vercel.app/api/line-webhook"
 };
