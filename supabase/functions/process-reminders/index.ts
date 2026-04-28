@@ -48,10 +48,10 @@ Deno.serve(async () => {
 
   // 3. Send through LINE Messaging API
   // Keep outbound delivery server-side only.
-  
+
   const lineChannelAccessToken = Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN");
   const lineChannelSecret = Deno.env.get("LINE_CHANNEL_SECRET");
-  
+
   if (!lineChannelAccessToken) {
     console.error("LINE_CHANNEL_ACCESS_TOKEN not configured");
     return new Response(
@@ -109,7 +109,7 @@ Deno.serve(async () => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error(`Failed to send LINE message for job ${job.id}:`, errorText);
-        
+
         // Mark as failed
         await supabase
           .from("reminder_jobs")
@@ -120,7 +120,7 @@ Deno.serve(async () => {
       }
     } catch (error) {
       console.error(`Error sending LINE message for job ${job.id}:`, error);
-      
+
       // Mark as failed
       await supabase
         .from("reminder_jobs")

@@ -19,12 +19,12 @@ function verifyLineSignature(body, signature) {
     console.error('LINE_CHANNEL_SECRET not configured');
     return false;
   }
-  
+
   const hash = crypto
     .createHmac('sha256', CHANNEL_SECRET)
     .update(body)
     .digest('base64');
-  
+
   return hash === signature;
 }
 
@@ -59,7 +59,7 @@ async function sendLineMessage(userId, message) {
 async function handlePostback(event) {
   const { source, postbackData } = event;
   const userId = source.userId;
-  
+
   try {
     // Parse postback data (format: "action=confirm&booking_id=xxx" or similar)
     const params = new URLSearchParams(postbackData);
@@ -73,10 +73,10 @@ async function handlePostback(event) {
 
     // Update booking status based on action
     const newStatus = action === 'confirm' ? 'confirmed' : 'cancelled';
-    
+
     const { error } = await supabase
       .from('bookings')
-      .update({ 
+      .update({
         status: newStatus,
         updated_at: new Date().toISOString(),
       })
