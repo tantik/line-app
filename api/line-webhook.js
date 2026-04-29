@@ -1,10 +1,10 @@
-import crypto from "node:crypto";
+import crypto from "crypto";
 
 const LINE_REPLY_URL = "https://api.line.me/v2/bot/message/reply";
 const LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push";
 
 function sendJson(res, statusCode, payload) {
-  res.status(statusCode).json(payload);
+  return res.status(statusCode).json(payload);
 }
 
 function requireEnv(name) {

@@ -9,11 +9,5 @@
     "api/process-reminders.js": {
       "maxDuration": 30
     }
-  },
-  "crons": [
-    {
-      "path": "/api/process-reminders",
-      "schedule": "*/5 * * * *"
-    }
-  ]
+  }
 }
