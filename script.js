@@ -109,7 +109,7 @@ async function initLiffOrDevMode() {
 
   const profile = await window.liff.getProfile();
 
-  state.userId = profile?.userId || "";
+  state.userId = profile?.userId || "U2df185806fe6739ff9bdff02d3eb71ce";
   state.displayName = profile?.displayName || "";
 }
 
