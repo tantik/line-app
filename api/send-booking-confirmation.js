@@ -3,7 +3,7 @@
 const LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push";
 
 function sendJson(res, statusCode, payload) {
-  res.status(statusCode).json(payload);
+  return res.status(statusCode).json(payload);
 }
 
 function parseBody(req) {
@@ -30,6 +30,80 @@ function requireEnv(name) {
   return value;
 }
 
+function getSupabaseConfig() {
+  return {
+    supabaseUrl: requireEnv("SUPABASE_URL").replace(/\/$/, ""),
+    serviceRoleKey: requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+  };
+}
+
+async function supabaseRequest(path, options = {}) {
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+
+  const response = await fetch(`${supabaseUrl}${path}`, {
+    ...options,
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+      ...(options.headers || {}),
+    },
+  });
+
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!response.ok) {
+    const detail = typeof data === "string" ? data : JSON.stringify(data);
+    throw new Error(`Supabase request failed: ${response.status} ${detail}`);
+  }
+
+  return data;
+}
+
+function encodeEq(value) {
+  return encodeURIComponent(String(value));
+}
+
+async function getRowById(table, id, select = "*") {
+  if (!id) return null;
+
+  const rows = await supabaseRequest(
+    `/rest/v1/${table}?select=${encodeURIComponent(select)}&id=eq.${encodeEq(id)}&limit=1`,
+    { method: "GET" }
+  );
+
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+}
+
+async function getBooking(bookingId) {
+  return getRowById("bookings", bookingId, "*");
+}
+
+async function getServiceName(serviceId) {
+  const service = await getRowById("services", serviceId, "name");
+  return service?.name || "ご予約サービス";
+}
+
+async function getStaffName(staffId) {
+  const staff = await getRowById("staff", staffId, "name");
+  return staff?.name || "担当スタッフ";
+}
+
+function normalizeDate(value) {
+  if (value === null || value === undefined) return "-";
+  return String(value).slice(0, 10) || "-";
+}
+
 function normalizeTime(value) {
   if (value === null || value === undefined) return "-";
 
@@ -39,11 +113,6 @@ function normalizeTime(value) {
   if (!match) return text || "-";
 
   return `${String(match[1]).padStart(2, "0")}:${match[2]}`;
-}
-
-function normalizeDate(value) {
-  if (value === null || value === undefined) return "-";
-  return String(value).slice(0, 10) || "-";
 }
 
 function getBookingDate(booking) {
@@ -78,74 +147,8 @@ function getCustomerName(booking) {
   );
 }
 
-function getSupabaseConfig() {
-  const supabaseUrl = requireEnv("SUPABASE_URL").replace(/\/$/, "");
-  const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
-
-  return { supabaseUrl, serviceRoleKey };
-}
-
-async function supabaseRequest(path, options = {}) {
-  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
-  const url = `${supabaseUrl}${path}`;
-
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      "Content-Type": "application/json",
-      Prefer: "return=representation",
-      ...(options.headers || {}),
-    },
-  });
-
-  const text = await response.text();
-  let data = null;
-
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = text;
-    }
-  }
-
-  if (!response.ok) {
-    const detail = typeof data === "string" ? data : JSON.stringify(data);
-    throw new Error(`Supabase request failed: ${response.status} ${detail}`);
-  }
-
-  return data;
-}
-
-function encodeEq(value) {
-  return encodeURIComponent(String(value));
-}
-
-async function getSingleRow(table, id, select = "*") {
-  if (!id) return null;
-
-  const rows = await supabaseRequest(
-    `/rest/v1/${table}?select=${encodeURIComponent(select)}&id=eq.${encodeEq(id)}&limit=1`,
-    { method: "GET" }
-  );
-
-  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-}
-
-async function getBooking(bookingId) {
-  return getSingleRow("bookings", bookingId, "*");
-}
-
-async function getServiceName(serviceId) {
-  const service = await getSingleRow("services", serviceId, "name");
-  return service?.name || "ご予約サービス";
-}
-
-async function getStaffName(staffId) {
-  const staff = await getSingleRow("staff", staffId, "name");
-  return staff?.name || "担当スタッフ";
+function getLineUserId(booking) {
+  return booking.line_user_id || booking.lineUserId || booking.line_id || "";
 }
 
 async function insertBookingEvent({ booking, eventType, payload }) {
@@ -153,8 +156,8 @@ async function insertBookingEvent({ booking, eventType, payload }) {
     await supabaseRequest("/rest/v1/booking_events", {
       method: "POST",
       body: JSON.stringify({
-        booking_id: booking.id,
-        salon_id: booking.salon_id || null,
+        booking_id: booking?.id || null,
+        salon_id: booking?.salon_id || null,
         event_type: eventType,
         payload,
       }),
@@ -300,6 +303,17 @@ function buildBookingFlexMessage({ booking, serviceName, staffName }) {
 }
 
 export default async function handler(req, res) {
+  if (req.method === "GET") {
+    return sendJson(res, 200, {
+      ok: true,
+      message: "send booking confirmation endpoint",
+    });
+  }
+
+  if (req.method === "OPTIONS") {
+    return sendJson(res, 200, { ok: true });
+  }
+
   if (req.method !== "POST") {
     return sendJson(res, 405, {
       ok: false,
@@ -332,7 +346,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const lineUserId = booking.line_user_id || booking.lineUserId || booking.line_id;
+    const lineUserId = getLineUserId(booking);
 
     if (!lineUserId) {
       await insertBookingEvent({
