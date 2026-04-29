@@ -1,31 +1,177 @@
-import { createClient } from "@supabase/supabase-js";
+"use strict";
 
-const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-function json(res, status, data) {
-  return res.status(status).json(data);
+function sendJson(res, statusCode, payload) {
+  res.status(statusCode).json(payload);
 }
 
-function formatDate(value) {
-  if (!value) return "-";
-  return String(value);
+function parseBody(req) {
+  if (!req.body) return {};
+
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+
+  return req.body;
 }
 
-function formatTime(value) {
-  if (!value) return "-";
-  return String(value).slice(0, 5);
+function requireEnv(name) {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Missing environment variable: ${name}`);
+  }
+
+  return value;
+}
+
+function normalizeTime(value) {
+  if (value === null || value === undefined) return "-";
+
+  const text = String(value).trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})/);
+
+  if (!match) return text || "-";
+
+  return `${String(match[1]).padStart(2, "0")}:${match[2]}`;
+}
+
+function normalizeDate(value) {
+  if (value === null || value === undefined) return "-";
+  return String(value).slice(0, 10) || "-";
+}
+
+function getBookingDate(booking) {
+  return (
+    booking.booking_date ||
+    booking.date ||
+    booking.reservation_date ||
+    booking.start_date ||
+    booking.starts_on ||
+    "-"
+  );
+}
+
+function getBookingTime(booking) {
+  return (
+    booking.start_time ||
+    booking.time ||
+    booking.booking_time ||
+    booking.reservation_time ||
+    booking.starts_at ||
+    "-"
+  );
+}
+
+function getCustomerName(booking) {
+  return (
+    booking.customer_name ||
+    booking.name ||
+    booking.client_name ||
+    booking.guest_name ||
+    "お客様"
+  );
+}
+
+function getSupabaseConfig() {
+  const supabaseUrl = requireEnv("SUPABASE_URL").replace(/\/$/, "");
+  const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+
+  return { supabaseUrl, serviceRoleKey };
+}
+
+async function supabaseRequest(path, options = {}) {
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+  const url = `${supabaseUrl}${path}`;
+
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+      ...(options.headers || {}),
+    },
+  });
+
+  const text = await response.text();
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!response.ok) {
+    const detail = typeof data === "string" ? data : JSON.stringify(data);
+    throw new Error(`Supabase request failed: ${response.status} ${detail}`);
+  }
+
+  return data;
+}
+
+function encodeEq(value) {
+  return encodeURIComponent(String(value));
+}
+
+async function getSingleRow(table, id, select = "*") {
+  if (!id) return null;
+
+  const rows = await supabaseRequest(
+    `/rest/v1/${table}?select=${encodeURIComponent(select)}&id=eq.${encodeEq(id)}&limit=1`,
+    { method: "GET" }
+  );
+
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+}
+
+async function getBooking(bookingId) {
+  return getSingleRow("bookings", bookingId, "*");
+}
+
+async function getServiceName(serviceId) {
+  const service = await getSingleRow("services", serviceId, "name");
+  return service?.name || "ご予約サービス";
+}
+
+async function getStaffName(staffId) {
+  const staff = await getSingleRow("staff", staffId, "name");
+  return staff?.name || "担当スタッフ";
+}
+
+async function insertBookingEvent({ booking, eventType, payload }) {
+  try {
+    await supabaseRequest("/rest/v1/booking_events", {
+      method: "POST",
+      body: JSON.stringify({
+        booking_id: booking.id,
+        salon_id: booking.salon_id || null,
+        event_type: eventType,
+        payload,
+      }),
+    });
+  } catch (error) {
+    console.warn("booking_events insert skipped:", error.message);
+  }
 }
 
 async function pushLineMessage(lineUserId, message) {
-  const response = await fetch("https://api.line.me/v2/bot/message/push", {
+  const lineToken = requireEnv("LINE_CHANNEL_ACCESS_TOKEN");
+
+  const response = await fetch(LINE_PUSH_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${lineToken}`,
     },
     body: JSON.stringify({
       to: lineUserId,
@@ -42,31 +188,34 @@ async function pushLineMessage(lineUserId, message) {
   return text;
 }
 
-function buildBookingFlexMessage(booking) {
-  const bookingId = booking.id;
-  const serviceName =
-    booking.service_name ||
-    booking.services?.name ||
-    booking.service?.name ||
-    "ご予約サービス";
+function buildInfoRow(label, value) {
+  return {
+    type: "box",
+    layout: "baseline",
+    contents: [
+      {
+        type: "text",
+        text: label,
+        size: "sm",
+        color: "#667085",
+        flex: 2,
+      },
+      {
+        type: "text",
+        text: String(value || "-"),
+        size: "sm",
+        color: "#111827",
+        flex: 4,
+        wrap: true,
+      },
+    ],
+  };
+}
 
-  const staffName =
-    booking.staff_name ||
-    booking.staff?.name ||
-    booking.staff_member?.name ||
-    "担当スタッフ";
-
-  const bookingDate =
-    booking.booking_date ||
-    booking.date ||
-    booking.start_date ||
-    "-";
-
-  const startTime =
-    booking.start_time ||
-    booking.time ||
-    booking.starts_at ||
-    "-";
+function buildBookingFlexMessage({ booking, serviceName, staffName }) {
+  const bookingDate = normalizeDate(getBookingDate(booking));
+  const bookingTime = normalizeTime(getBookingTime(booking));
+  const customerName = getCustomerName(booking);
 
   return {
     type: "flex",
@@ -88,7 +237,14 @@ function buildBookingFlexMessage(booking) {
           },
           {
             type: "text",
-            text: "内容をご確認ください。問題なければ「予約を確認する」を押してください。",
+            text: `${customerName} 様、以下の内容で予約を受け付けました。`,
+            wrap: true,
+            size: "sm",
+            color: "#4b5563",
+          },
+          {
+            type: "text",
+            text: "内容をご確認のうえ、問題なければ「予約を確認する」を押してください。",
             wrap: true,
             size: "sm",
             color: "#667085",
@@ -103,38 +259,10 @@ function buildBookingFlexMessage(booking) {
             spacing: "sm",
             margin: "md",
             contents: [
-              {
-                type: "box",
-                layout: "baseline",
-                contents: [
-                  { type: "text", text: "サービス", size: "sm", color: "#667085", flex: 2 },
-                  { type: "text", text: serviceName, size: "sm", color: "#111827", flex: 4, wrap: true },
-                ],
-              },
-              {
-                type: "box",
-                layout: "baseline",
-                contents: [
-                  { type: "text", text: "担当", size: "sm", color: "#667085", flex: 2 },
-                  { type: "text", text: staffName, size: "sm", color: "#111827", flex: 4, wrap: true },
-                ],
-              },
-              {
-                type: "box",
-                layout: "baseline",
-                contents: [
-                  { type: "text", text: "日付", size: "sm", color: "#667085", flex: 2 },
-                  { type: "text", text: formatDate(bookingDate), size: "sm", color: "#111827", flex: 4 },
-                ],
-              },
-              {
-                type: "box",
-                layout: "baseline",
-                contents: [
-                  { type: "text", text: "時間", size: "sm", color: "#667085", flex: 2 },
-                  { type: "text", text: formatTime(startTime), size: "sm", color: "#111827", flex: 4 },
-                ],
-              },
+              buildInfoRow("サービス", serviceName),
+              buildInfoRow("担当", staffName),
+              buildInfoRow("日付", bookingDate),
+              buildInfoRow("時間", bookingTime),
             ],
           },
         ],
@@ -151,7 +279,7 @@ function buildBookingFlexMessage(booking) {
             action: {
               type: "postback",
               label: "予約を確認する",
-              data: `action=confirm&booking_id=${bookingId}`,
+              data: `action=confirm&booking_id=${booking.id}`,
               displayText: "予約を確認します",
             },
           },
@@ -161,7 +289,7 @@ function buildBookingFlexMessage(booking) {
             action: {
               type: "postback",
               label: "キャンセルする",
-              data: `action=cancel&booking_id=${bookingId}`,
+              data: `action=cancel&booking_id=${booking.id}`,
               displayText: "予約をキャンセルします",
             },
           },
@@ -171,82 +299,92 @@ function buildBookingFlexMessage(booking) {
   };
 }
 
-async function getBooking(bookingId) {
-  const { data, error } = await supabase
-    .from("bookings")
-    .select(`
-      *,
-      services:service_id(name),
-      staff:staff_id(name)
-    `)
-    .eq("id", bookingId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
-}
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    return json(res, 405, { ok: false, error: "Method not allowed" });
-  }
-
-  if (!LINE_CHANNEL_ACCESS_TOKEN || !SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-    return json(res, 500, {
+    return sendJson(res, 405, {
       ok: false,
-      error: "Server env is missing",
+      error: "Method not allowed",
     });
   }
 
   try {
-    const { booking_id, bookingId } = req.body || {};
-    const finalBookingId = booking_id || bookingId;
+    requireEnv("LINE_CHANNEL_ACCESS_TOKEN");
+    requireEnv("SUPABASE_URL");
+    requireEnv("SUPABASE_SERVICE_ROLE_KEY");
 
-    if (!finalBookingId) {
-      return json(res, 400, {
+    const body = parseBody(req);
+    const bookingId = body.booking_id || body.bookingId || body.id;
+
+    if (!bookingId) {
+      return sendJson(res, 400, {
         ok: false,
         error: "booking_id is required",
       });
     }
 
-    const booking = await getBooking(finalBookingId);
+    const booking = await getBooking(bookingId);
 
     if (!booking) {
-      return json(res, 404, {
+      return sendJson(res, 404, {
         ok: false,
         error: "Booking not found",
+        booking_id: bookingId,
       });
     }
 
-    if (!booking.line_user_id) {
-      return json(res, 200, {
+    const lineUserId = booking.line_user_id || booking.lineUserId || booking.line_id;
+
+    if (!lineUserId) {
+      await insertBookingEvent({
+        booking,
+        eventType: "line_confirmation_skipped",
+        payload: {
+          reason: "missing_line_user_id",
+          at: new Date().toISOString(),
+        },
+      });
+
+      return sendJson(res, 200, {
         ok: true,
         skipped: true,
         reason: "Booking has no line_user_id",
+        booking_id: booking.id,
       });
     }
 
-    const message = buildBookingFlexMessage(booking);
-    await pushLineMessage(booking.line_user_id, message);
+    const [serviceName, staffName] = await Promise.all([
+      getServiceName(booking.service_id),
+      getStaffName(booking.staff_id),
+    ]);
 
-    await supabase.from("booking_events").insert({
-      booking_id: booking.id,
-      salon_id: booking.salon_id,
-      event_type: "line_confirmation_sent",
+    const message = buildBookingFlexMessage({
+      booking,
+      serviceName,
+      staffName,
+    });
+
+    await pushLineMessage(lineUserId, message);
+
+    await insertBookingEvent({
+      booking,
+      eventType: "line_confirmation_sent",
       payload: {
         channel: "line",
+        line_user_id: lineUserId,
         sent_at: new Date().toISOString(),
+        message_type: "booking_confirmation_flex",
       },
     });
 
-    return json(res, 200, {
+    return sendJson(res, 200, {
       ok: true,
-      booking_id: booking.id,
       sent: true,
+      booking_id: booking.id,
     });
   } catch (error) {
     console.error("send-booking-confirmation error:", error);
-    return json(res, 500, {
+
+    return sendJson(res, 500, {
       ok: false,
       error: error.message || "Internal server error",
     });
