@@ -70,17 +70,16 @@ function verifyLineSignature(rawBody, signature) {
 }
 
 function getSupabaseConfig() {
-  const supabaseUrl = requireEnv("SUPABASE_URL").replace(/\/$/, "");
-  const serviceRoleKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
-
-  return { supabaseUrl, serviceRoleKey };
+  return {
+    supabaseUrl: requireEnv("SUPABASE_URL").replace(/\/$/, ""),
+    serviceRoleKey: requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+  };
 }
 
 async function supabaseRequest(path, options = {}) {
   const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
-  const url = `${supabaseUrl}${path}`;
 
-  const response = await fetch(url, {
+  const response = await fetch(`${supabaseUrl}${path}`, {
     ...options,
     headers: {
       apikey: serviceRoleKey,
@@ -114,6 +113,18 @@ function encodeEq(value) {
   return encodeURIComponent(String(value));
 }
 
+function buildStatusFilterForAction(action) {
+  if (action === "confirm") {
+    return "pending,risk";
+  }
+
+  if (action === "cancel") {
+    return "pending,risk,confirmed";
+  }
+
+  return "pending";
+}
+
 async function getBookingById(bookingId) {
   const rows = await supabaseRequest(
     `/rest/v1/bookings?select=*&id=eq.${encodeEq(bookingId)}&limit=1`,
@@ -126,6 +137,20 @@ async function getBookingById(bookingId) {
 async function updateBookingById(bookingId, values) {
   const rows = await supabaseRequest(
     `/rest/v1/bookings?id=eq.${encodeEq(bookingId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(values),
+    }
+  );
+
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+}
+
+async function updateBookingStatusAtomically({ bookingId, action, values }) {
+  const allowedStatuses = buildStatusFilterForAction(action);
+
+  const rows = await supabaseRequest(
+    `/rest/v1/bookings?id=eq.${encodeEq(bookingId)}&status=in.(${allowedStatuses})`,
     {
       method: "PATCH",
       body: JSON.stringify(values),
@@ -231,9 +256,17 @@ function buildTextMessage(text) {
   };
 }
 
+function formatBookingDate(booking) {
+  return String(booking?.booking_date || booking?.date || "").slice(0, 10);
+}
+
+function formatBookingTime(booking) {
+  return String(booking?.start_time || booking?.time || "").slice(0, 5);
+}
+
 function buildConfirmReplyText(booking) {
-  const date = String(booking?.booking_date || booking?.date || "").slice(0, 10);
-  const time = String(booking?.start_time || booking?.time || "").slice(0, 5);
+  const date = formatBookingDate(booking);
+  const time = formatBookingTime(booking);
 
   if (date || time) {
     return `ご予約を確認しました。\n${date} ${time}\nご来店をお待ちしております。`;
@@ -242,8 +275,27 @@ function buildConfirmReplyText(booking) {
   return "ご予約を確認しました。ご来店をお待ちしております。";
 }
 
+function buildAlreadyConfirmedReplyText(booking) {
+  const date = formatBookingDate(booking);
+  const time = formatBookingTime(booking);
+
+  if (date || time) {
+    return `この予約はすでに確認済みです。\n${date} ${time}`;
+  }
+
+  return "この予約はすでに確認済みです。";
+}
+
 function buildCancelReplyText() {
   return "ご予約をキャンセルしました。またのご利用をお待ちしております。";
+}
+
+function buildAlreadyCancelledReplyText() {
+  return "この予約はすでにキャンセルされています。";
+}
+
+function isAlreadyFinalStatus(status) {
+  return ["confirmed", "cancelled", "completed"].includes(String(status || ""));
 }
 
 async function updateBookingStatusFromPostback({ bookingId, lineUserId, action }) {
@@ -268,6 +320,40 @@ async function updateBookingStatusFromPostback({ bookingId, lineUserId, action }
     };
   }
 
+  const currentStatus = String(booking.status || "pending");
+
+  if (action === "confirm" && currentStatus === "confirmed") {
+    return {
+      ok: true,
+      reason: "already_confirmed",
+      booking,
+    };
+  }
+
+  if (action === "cancel" && currentStatus === "cancelled") {
+    return {
+      ok: true,
+      reason: "already_cancelled",
+      booking,
+    };
+  }
+
+  if (action === "confirm" && ["cancelled", "completed"].includes(currentStatus)) {
+    return {
+      ok: false,
+      reason: `cannot_confirm_${currentStatus}`,
+      booking,
+    };
+  }
+
+  if (action === "cancel" && currentStatus === "completed") {
+    return {
+      ok: false,
+      reason: "cannot_cancel_completed",
+      booking,
+    };
+  }
+
   const now = new Date().toISOString();
   const isConfirm = action === "confirm";
 
@@ -287,30 +373,58 @@ async function updateBookingStatusFromPostback({ bookingId, lineUserId, action }
   let updatedBooking = null;
 
   try {
-    updatedBooking = await updateBookingById(bookingId, richValues);
+    updatedBooking = await updateBookingStatusAtomically({
+      bookingId,
+      action,
+      values: richValues,
+    });
   } catch (error) {
     console.warn(
-      "Rich booking status update failed. Fallback status update is used:",
+      "Atomic rich booking status update failed. Fallback status update is used:",
       error.message
     );
 
-    updatedBooking = await updateBookingById(bookingId, {
-      status: isConfirm ? "confirmed" : "cancelled",
-      updated_at: now,
+    updatedBooking = await updateBookingStatusAtomically({
+      bookingId,
+      action,
+      values: {
+        status: isConfirm ? "confirmed" : "cancelled",
+        updated_at: now,
+      },
     });
   }
 
-  const finalBooking = updatedBooking || {
-    ...booking,
-    ...richValues,
-  };
+  if (!updatedBooking) {
+    const latestBooking = await getBookingById(bookingId);
+
+    if (latestBooking && isAlreadyFinalStatus(latestBooking.status)) {
+      return {
+        ok: true,
+        reason:
+          latestBooking.status === "confirmed"
+            ? "already_confirmed"
+            : latestBooking.status === "cancelled"
+              ? "already_cancelled"
+              : "already_completed",
+        booking: latestBooking,
+      };
+    }
+
+    return {
+      ok: false,
+      reason: "update_conflict",
+      booking: latestBooking || booking,
+    };
+  }
 
   await insertBookingEvent({
-    booking: finalBooking,
+    booking: updatedBooking,
     eventType: isConfirm ? "customer_confirmed" : "customer_cancelled",
     payload: {
       source: "line_postback",
       action,
+      previous_status: currentStatus,
+      next_status: updatedBooking.status,
       line_user_id: lineUserId || null,
       at: now,
     },
@@ -319,7 +433,7 @@ async function updateBookingStatusFromPostback({ bookingId, lineUserId, action }
   return {
     ok: true,
     reason: "updated",
-    booking: finalBooking,
+    booking: updatedBooking,
   };
 }
 
@@ -358,19 +472,37 @@ async function handlePostback(event) {
   });
 
   if (!result.ok) {
-    const text =
-      result.reason === "line_user_mismatch"
-        ? "この予約は別のLINEアカウントに紐づいています。"
-        : "予約が見つかりませんでした。";
+    let text = "予約を更新できませんでした。";
+
+    if (result.reason === "line_user_mismatch") {
+      text = "この予約は別のLINEアカウントに紐づいています。";
+    } else if (result.reason === "not_found") {
+      text = "予約が見つかりませんでした。";
+    } else if (result.reason === "cannot_confirm_cancelled") {
+      text = "この予約はキャンセル済みのため、確認できません。";
+    } else if (result.reason === "cannot_confirm_completed") {
+      text = "この予約は完了済みです。";
+    } else if (result.reason === "cannot_cancel_completed") {
+      text = "この予約は完了済みのため、キャンセルできません。";
+    } else if (result.reason === "update_conflict") {
+      text = "予約状態がすでに変更されています。画面を更新してご確認ください。";
+    }
 
     await replyLineMessage(replyToken, buildTextMessage(text));
     return;
   }
 
-  const replyText =
-    action === "confirm"
-      ? buildConfirmReplyText(result.booking)
-      : buildCancelReplyText();
+  let replyText = "";
+
+  if (result.reason === "already_confirmed") {
+    replyText = buildAlreadyConfirmedReplyText(result.booking);
+  } else if (result.reason === "already_cancelled") {
+    replyText = buildAlreadyCancelledReplyText();
+  } else if (action === "confirm") {
+    replyText = buildConfirmReplyText(result.booking);
+  } else {
+    replyText = buildCancelReplyText();
+  }
 
   await replyLineMessage(replyToken, buildTextMessage(replyText));
 }
