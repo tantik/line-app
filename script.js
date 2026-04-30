@@ -1433,9 +1433,15 @@ function updateSummary() {
       ? `${state.selectedDate} ${state.selectedTime}`
       : state.selectedDate || "-";
 
+  // Старые ID — оставляем на случай, если они где-то есть
   setText("summaryService", serviceText);
   setText("summaryStaff", staffText);
   setText("summaryDateTime", dateTimeText);
+
+  // Актуальные ID из текущего index.html
+  setText("liveSummaryService", serviceText);
+  setText("liveSummaryStaff", staffText);
+  setText("liveSummaryDateTime", dateTimeText);
 }
 
 function renderSuccessScreen() {
