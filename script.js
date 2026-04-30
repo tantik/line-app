@@ -2,10 +2,10 @@
 
 /*
   Mirawi LINE Booking Mini App
-  Clean restored script.js
+  Clean full script.js
 
   Preserved features:
-  - LIFF / browser dev mode
+  - LIFF / browser fallback
   - Supabase catalog loading
   - services / staff / staff_service_map
   - service, staff, date, time selection
@@ -16,6 +16,10 @@
   - LINE confirmation request through /api/send-booking-confirmation
   - success screen
   - admin link
+
+  UI improvements:
+  - clear active state for selected service/date/time
+  - cleaner service cards with icon/image and selected mark
 */
 
 const CONFIG = {
@@ -70,10 +74,113 @@ const state = {
 const els = {};
 
 document.addEventListener("DOMContentLoaded", () => {
+  injectRuntimeStyles();
   cacheDom();
   bindStaticEvents();
   initApp();
 });
+
+/* =========================================================
+   Runtime UI styles
+========================================================= */
+
+function injectRuntimeStyles() {
+  if (document.getElementById("mirawi-runtime-selection-styles")) return;
+
+  const style = document.createElement("style");
+  style.id = "mirawi-runtime-selection-styles";
+  style.textContent = `
+    .service-card-modern {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+    }
+
+    .service-card-modern .service-selected-mark {
+      position: absolute;
+      top: 7px;
+      right: 7px;
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      background: rgba(24, 35, 33, 0.82);
+      color: #fff6e6;
+      font-size: 0.82rem;
+      font-weight: 900;
+      opacity: 0;
+      transform: scale(0.78);
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      z-index: 2;
+    }
+
+    .service-card-modern.active,
+    .service-card-modern.is-selected,
+    .service-card-modern[data-selected="true"] {
+      border-color: #e4b474 !important;
+      background: linear-gradient(180deg, #fff8eb 0%, #f2eadf 100%) !important;
+      box-shadow: 0 0 0 3px rgba(228, 180, 116, 0.24), 0 14px 30px rgba(7, 16, 15, 0.22) !important;
+      transform: translateY(-2px) scale(1.015);
+    }
+
+    .service-card-modern.active .service-selected-mark,
+    .service-card-modern.is-selected .service-selected-mark,
+    .service-card-modern[data-selected="true"] .service-selected-mark {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .service-card-modern.active .service-card-media,
+    .service-card-modern.is-selected .service-card-media,
+    .service-card-modern[data-selected="true"] .service-card-media {
+      background: linear-gradient(135deg, #e4b474, #f3d39d) !important;
+    }
+
+    .date-card.active,
+    .date-card.is-selected,
+    .date-card[data-selected="true"],
+    .date-item.active,
+    .date-item.is-selected,
+    .date-item[data-selected="true"] {
+      background: linear-gradient(135deg, #e4b474, #f3d39d) !important;
+      color: #15120f !important;
+      border-color: rgba(255, 255, 255, 0.35) !important;
+      box-shadow: 0 0 0 3px rgba(228, 180, 116, 0.24), 0 10px 22px rgba(7, 16, 15, 0.24) !important;
+      font-weight: 900;
+      transform: translateY(-2px);
+    }
+
+    .time-chip.active,
+    .time-chip.is-selected,
+    .time-chip[data-selected="true"],
+    .time-item.active,
+    .time-item.is-selected,
+    .time-item[data-selected="true"] {
+      background: linear-gradient(135deg, #e4b474, #f7d9a8) !important;
+      color: #15120f !important;
+      border-color: rgba(255, 255, 255, 0.4) !important;
+      box-shadow: 0 0 0 3px rgba(228, 180, 116, 0.24), 0 10px 22px rgba(7, 16, 15, 0.22) !important;
+      transform: translateY(-2px);
+    }
+
+    .time-chip.active .time-sub,
+    .time-chip.is-selected .time-sub,
+    .time-chip[data-selected="true"] .time-sub,
+    .time-item.active .time-sub,
+    .time-item.is-selected .time-sub,
+    .time-item[data-selected="true"] .time-sub {
+      color: rgba(21, 18, 15, 0.74) !important;
+      font-weight: 800;
+    }
+  `;
+
+  document.head.appendChild(style);
+}
+
+/* =========================================================
+   Init
+========================================================= */
 
 async function initApp() {
   if (state.initialized) return;
@@ -85,30 +192,26 @@ async function initApp() {
     await initLiffOrDevMode();
     fillInitialProfileFields();
     bindPhoneInput();
+
     await loadCatalog();
+
     renderAll();
     showScreen("screenWelcome");
   } catch (error) {
-    console.error("initApp error:", error);
-    showFatalError(error);
+    console.error("[Mirawi] initApp error:", error);
+    alert(`初期化エラーが発生しました: ${getErrorMessage(error)}`);
   } finally {
     setLoading(false);
   }
 }
 
 async function initLiffOrDevMode() {
-  const isLocal =
+  const hasLiff = typeof window.liff !== "undefined";
+  const isLocalhost =
     location.hostname === "localhost" || location.hostname === "127.0.0.1";
 
-  if (typeof window.liff === "undefined") {
-    debugLog("LIFF SDK is not available. Browser/dev fallback is used.");
-    state.userId = CONFIG.DEV_LINE_USER_ID;
-    state.displayName = CONFIG.DEV_DISPLAY_NAME;
-    return;
-  }
-
-  if (isLocal) {
-    debugLog("Localhost detected. LIFF login is skipped.");
+  if (!hasLiff || isLocalhost) {
+    debugLog("DEV MODE: LIFF bypass", { hasLiff, isLocalhost });
     state.userId = CONFIG.DEV_LINE_USER_ID;
     state.displayName = CONFIG.DEV_DISPLAY_NAME;
     return;
@@ -130,7 +233,7 @@ async function initLiffOrDevMode() {
       displayName: state.displayName,
     });
   } catch (error) {
-    console.warn("LIFF profile failed. Fallback userId is used.", error);
+    console.warn("[Mirawi] LIFF profile failed, fallback user is used", error);
     state.userId = CONFIG.DEV_LINE_USER_ID;
     state.displayName = CONFIG.DEV_DISPLAY_NAME;
   }
@@ -183,37 +286,9 @@ function cacheDom() {
   });
 }
 
-function bindStaticEvents() {
-  els.btnStartDemo?.addEventListener("click", startDemoFlow);
-  els.btnOpenInfo?.addEventListener("click", () => showScreen("screenInfo"));
-  els.btnOpenLead?.addEventListener("click", openLeadScreen);
-  els.btnOpenAdmin?.addEventListener("click", openAdminDemo);
-  els.btnInfoStartDemo?.addEventListener("click", startDemoFlow);
-  els.btnSubmitLead?.addEventListener("click", submitLeadForm);
-  els.btnGoDateTime?.addEventListener("click", goDateTimeStep);
-  els.btnGoConfirm?.addEventListener("click", goConfirmStep);
-  els.btnSubmitBooking?.addEventListener("click", submitBooking);
-  els.btnSuccessLead?.addEventListener("click", openLeadScreen);
-  els.btnSuccessRestart?.addEventListener("click", resetAndGoWelcome);
-  els.loadMoreDatesBtn?.addEventListener("click", loadMoreDates);
-
-  els.btnClearStaffInline?.addEventListener("click", async () => {
-    state.selectedStaff = null;
-    state.selectedTime = "";
-    invalidateSlots();
-    clearSlotsCache();
-    await reloadSlotsIfReady(true);
-    reconcileSelectionState();
-    renderAll();
-  });
-
-  document.querySelectorAll("[data-back]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const target = button.getAttribute("data-back");
-      if (target) showScreen(target);
-    });
-  });
-}
+/* =========================================================
+   Environment / Supabase
+========================================================= */
 
 function getEnv() {
   return window.__APP_ENV__ || window.appEnv || window.ENV || {};
@@ -294,37 +369,43 @@ async function resolveSalonId() {
     return state.salonId;
   }
 
-  if (error) console.warn("Salon lookup failed. Fallback salon_id is used.", error);
+  if (error) {
+    console.warn("[Mirawi] Salon lookup failed, fallback salon is used", error);
+  }
 
   state.salonId = CONFIG.FALLBACK_SALON_ID;
   return state.salonId;
 }
 
+/* =========================================================
+   Data loading
+========================================================= */
+
 async function loadCatalog() {
   const supabase = getSupabaseClient();
 
   if (!supabase) {
-    throw new Error("Supabase client is not available. Check Supabase script and env.");
+    throw new Error("Supabase client is not available. Check Supabase CDN/env.");
   }
 
   const salonId = await resolveSalonId();
 
-  const servicesQuery = supabase
-    .from("services")
-    .select("*")
-    .eq("salon_id", salonId)
-    .eq("is_active", true)
-    .order("sort_order", { ascending: true })
-    .order("name", { ascending: true });
+  const [servicesResult, staffResult] = await Promise.all([
+    supabase
+      .from("services")
+      .select("*")
+      .eq("salon_id", salonId)
+      .eq("is_active", true)
+      .order("sort_order", { ascending: true })
+      .order("name", { ascending: true }),
 
-  const staffQuery = supabase
-    .from("staff")
-    .select("*")
-    .eq("salon_id", salonId)
-    .eq("is_active", true)
-    .order("created_at", { ascending: true });
-
-  const [servicesResult, staffResult] = await Promise.all([servicesQuery, staffQuery]);
+    supabase
+      .from("staff")
+      .select("*")
+      .eq("salon_id", salonId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: true }),
+  ]);
 
   if (servicesResult.error) throw servicesResult.error;
   if (staffResult.error) throw staffResult.error;
@@ -362,7 +443,7 @@ async function hydrateStaffServiceMap() {
     .in("staff_id", staffIds);
 
   if (error) {
-    console.warn("staff_service_map load failed. Staff cards will use fallback.", error);
+    console.warn("[Mirawi] staff_service_map load failed", error);
     return;
   }
 
@@ -386,6 +467,10 @@ async function hydrateStaffServiceMap() {
   debugLog("staff_service_map hydrated", state.staff);
 }
 
+/* =========================================================
+   Normalizers
+========================================================= */
+
 function normalizeService(row) {
   return {
     raw: row,
@@ -404,7 +489,7 @@ function normalizeService(row) {
     price: Number(row.price_jpy ?? row.priceJpy ?? row.price ?? row.amount ?? 0) || 0,
     category: row.category ?? "",
     image: row.image_url ?? row.imageUrl ?? row.image ?? row.photo_url ?? "",
-    icon: row.icon_url ?? row.iconUrl ?? "",
+    icon: row.icon_url ?? row.iconUrl ?? row.icon ?? "",
     sortOrder: Number(row.sort_order ?? 0) || 0,
     isActive: row.is_active !== false,
   };
@@ -440,6 +525,74 @@ function normalizeStaffServices(row) {
   return [];
 }
 
+/* =========================================================
+   Events
+========================================================= */
+
+function bindStaticEvents() {
+  els.btnStartDemo?.addEventListener("click", startDemoFlow);
+  els.btnOpenInfo?.addEventListener("click", () => showScreen("screenInfo"));
+  els.btnOpenLead?.addEventListener("click", openLeadScreen);
+  els.btnOpenAdmin?.addEventListener("click", openAdminDemo);
+  els.btnInfoStartDemo?.addEventListener("click", startDemoFlow);
+  els.btnSubmitLead?.addEventListener("click", submitLeadForm);
+  els.btnGoDateTime?.addEventListener("click", goDateTimeStep);
+  els.btnGoConfirm?.addEventListener("click", goConfirmStep);
+  els.btnSubmitBooking?.addEventListener("click", submitBooking);
+  els.btnSuccessLead?.addEventListener("click", openLeadScreen);
+  els.btnSuccessRestart?.addEventListener("click", resetAndGoWelcome);
+  els.loadMoreDatesBtn?.addEventListener("click", loadMoreDates);
+
+  els.btnClearStaffInline?.addEventListener("click", async () => {
+    state.selectedStaff = null;
+    state.selectedTime = "";
+    invalidateSlots();
+    clearSlotsCache();
+    await reloadSlotsIfReady(true);
+    reconcileSelectionState();
+    renderAll();
+  });
+
+  document.querySelectorAll("[data-back]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = button.getAttribute("data-back");
+      if (target) showScreen(target);
+    });
+  });
+}
+
+/* =========================================================
+   Screens
+========================================================= */
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach((screen) => {
+    screen.classList.remove("active");
+  });
+
+  const target = byId(id);
+
+  if (target) {
+    target.classList.add("active");
+    target.scrollTop = 0;
+  } else {
+    console.warn("[Mirawi] Screen not found:", id);
+  }
+}
+
+function openAdminDemo() {
+  window.location.href = "./admin.html";
+}
+
+function openLeadScreen() {
+  fillInitialProfileFields();
+  showScreen("screenLead");
+}
+
+/* =========================================================
+   Booking flow
+========================================================= */
+
 function startDemoFlow() {
   clearBookingState();
   fillInitialProfileFields();
@@ -461,30 +614,6 @@ function clearBookingState() {
   state.visibleDaysCount = CONFIG.INITIAL_VISIBLE_DAYS;
   invalidateSlots();
   clearSlotsCache();
-}
-
-function openLeadScreen() {
-  fillInitialProfileFields();
-  showScreen("screenLead");
-}
-
-function openAdminDemo() {
-  window.location.href = "./admin.html";
-}
-
-function showScreen(id) {
-  document.querySelectorAll(".screen").forEach((screen) => {
-    screen.classList.remove("active");
-  });
-
-  const target = document.getElementById(id);
-
-  if (target) {
-    target.classList.add("active");
-    target.scrollTop = 0;
-  } else {
-    console.warn("Screen not found:", id);
-  }
 }
 
 function goDateTimeStep() {
@@ -516,7 +645,7 @@ async function goConfirmStep() {
       return;
     }
 
-    setText("confirmService", `${state.selectedService.name} ¥${state.selectedService.price}`);
+    setText("confirmService", `${state.selectedService.name} ¥${formatPrice(state.selectedService.price)}`);
     setText("confirmStaff", state.selectedStaff.name || "-");
     setText("confirmDate", state.selectedDate || "-");
     setText("confirmTime", state.selectedTime || "-");
@@ -524,8 +653,8 @@ async function goConfirmStep() {
     fillInitialProfileFields();
     showScreen("screenBookingStep3");
   } catch (error) {
-    console.error("goConfirmStep error:", error);
-    alert(`空き状況の確認に失敗しました: ${error.message || error}`);
+    console.error("[Mirawi] goConfirmStep error:", error);
+    alert(`空き状況の確認に失敗しました: ${getErrorMessage(error)}`);
   } finally {
     setLoading(false);
   }
@@ -612,8 +741,8 @@ async function submitBooking() {
     renderSuccessScreen();
     showScreen("screenSuccess");
   } catch (error) {
-    console.error("submitBooking error:", error);
-    alert(`予約の作成に失敗しました: ${error.message || error}`);
+    console.error("[Mirawi] submitBooking error:", error);
+    alert(`予約の作成に失敗しました: ${getErrorMessage(error)}`);
   } finally {
     setLoading(false);
   }
@@ -666,20 +795,20 @@ async function findCreatedBookingId(params) {
       .maybeSingle();
 
     if (error) {
-      console.warn("findCreatedBookingId failed", error);
+      console.warn("[Mirawi] findCreatedBookingId failed", error);
       return "";
     }
 
     return data?.id ? String(data.id) : "";
   } catch (error) {
-    console.warn("findCreatedBookingId exception", error);
+    console.warn("[Mirawi] findCreatedBookingId exception", error);
     return "";
   }
 }
 
 async function sendBookingConfirmationMessage(bookingId) {
   if (!bookingId) {
-    console.warn("LINE confirmation skipped: missing bookingId");
+    console.warn("[Mirawi] LINE confirmation skipped: missing bookingId");
     return;
   }
 
@@ -695,7 +824,7 @@ async function sendBookingConfirmationMessage(bookingId) {
     const result = await response.json().catch(() => ({}));
 
     if (!response.ok || result.ok === false) {
-      console.warn("LINE confirmation failed", {
+      console.warn("[Mirawi] LINE confirmation failed", {
         status: response.status,
         result,
       });
@@ -704,9 +833,13 @@ async function sendBookingConfirmationMessage(bookingId) {
 
     debugLog("LINE confirmation sent", result);
   } catch (error) {
-    console.warn("LINE confirmation request failed", error);
+    console.warn("[Mirawi] LINE confirmation request failed", error);
   }
 }
+
+/* =========================================================
+   Lead form
+========================================================= */
 
 async function submitLeadForm() {
   const supabase = getSupabaseClient();
@@ -738,7 +871,7 @@ async function submitLeadForm() {
     const { error } = await supabase.rpc("create_public_lead", payload);
 
     if (error) {
-      console.warn("create_public_lead RPC failed. Fallback insert is used.", error);
+      console.warn("[Mirawi] create_public_lead RPC failed, fallback insert is used", error);
 
       const fallback = await supabase.from("leads").insert({
         salon_id: payload.p_salon_id,
@@ -756,12 +889,16 @@ async function submitLeadForm() {
 
     showScreen("screenLeadSuccess");
   } catch (error) {
-    console.error("submitLeadForm error:", error);
-    alert(`送信に失敗しました: ${error.message || error}`);
+    console.error("[Mirawi] submitLeadForm error:", error);
+    alert(`送信に失敗しました: ${getErrorMessage(error)}`);
   } finally {
     setLoading(false);
   }
 }
+
+/* =========================================================
+   Slots
+========================================================= */
 
 async function reloadSlotsIfReady(force = false) {
   if (!state.selectedService || !state.selectedDate) {
@@ -772,7 +909,7 @@ async function reloadSlotsIfReady(force = false) {
   try {
     await ensureAvailableSlotsLoaded(force, false);
   } catch (error) {
-    console.error("reloadSlotsIfReady error:", error);
+    console.error("[Mirawi] reloadSlotsIfReady error:", error);
     invalidateSlots();
     toast("空き状況の取得に失敗しました");
   }
@@ -978,6 +1115,10 @@ function getAvailableStaffForSelectedTime() {
     .filter(Boolean);
 }
 
+/* =========================================================
+   Render
+========================================================= */
+
 function renderAll() {
   renderServices();
   renderStaffStep1();
@@ -1000,54 +1141,50 @@ function renderServices() {
   const services = getCandidateServicesForSelectedStaff();
   container.innerHTML = "";
 
-  if (services.length === 0) {
+  if (!services || services.length === 0) {
     container.appendChild(createEmptyState("この担当者が対応できるサービスがありません"));
     return;
   }
 
   services.forEach((service) => {
+    const isActive =
+      state.selectedService && String(state.selectedService.serviceId) === String(service.serviceId);
+
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "service-card";
+    card.className = "service-card service-card-modern";
+    card.dataset.serviceId = String(service.serviceId);
+    card.setAttribute("aria-pressed", isActive ? "true" : "false");
+    card.setAttribute(
+      "aria-label",
+      `${service.name} ${service.duration}分 ¥${formatPrice(service.price)}`
+    );
 
-    if (state.selectedService && String(state.selectedService.serviceId) === String(service.serviceId)) {
-      card.classList.add("active");
+    if (isActive) {
+      card.classList.add("active", "is-selected");
+      card.dataset.selected = "true";
     }
 
-    const visual = document.createElement("div");
-    visual.className = "service-visual";
-    visual.appendChild(createServiceVisual(service));
-
-    const body = document.createElement("div");
-    body.className = "service-body";
-
-    const kicker = document.createElement("div");
-    kicker.className = "service-kicker";
-    kicker.textContent = "✂ サービス";
-
-    const title = document.createElement("h3");
-    title.textContent = service.name;
-
-    const description = document.createElement("p");
-    description.textContent = service.description || "";
-
-    const meta = document.createElement("div");
-    meta.className = "service-meta";
-
-    const duration = document.createElement("span");
-    duration.textContent = `${service.duration}分`;
-
-    const price = document.createElement("strong");
-    price.textContent = `¥${service.price}`;
-
-    meta.append(duration, price);
-    body.append(kicker, title, description, meta);
-    card.append(visual, body);
+    card.innerHTML = `
+      <div class="service-card-media service-visual">
+        ${renderServiceVisual(service)}
+        <span class="service-selected-mark" aria-hidden="true">✓</span>
+      </div>
+      <div class="service-card-body service-body">
+        <div class="service-card-label service-kicker">サービス</div>
+        <h3 class="service-card-name">${escapeHtml(service.name)}</h3>
+        <p class="service-card-description">${escapeHtml(service.description || "")}</p>
+        <div class="service-card-meta">
+          <span>${escapeHtml(String(service.duration))}分</span>
+          ${service.category ? `<span>${escapeHtml(service.category)}</span>` : ""}
+        </div>
+        <div class="service-card-price">¥${escapeHtml(formatPrice(service.price))}</div>
+      </div>
+    `;
 
     card.addEventListener("click", async () => {
       const isSame =
-        state.selectedService &&
-        String(state.selectedService.serviceId) === String(service.serviceId);
+        state.selectedService && String(state.selectedService.serviceId) === String(service.serviceId);
 
       state.selectedService = isSame ? null : service;
 
@@ -1063,9 +1200,7 @@ function renderServices() {
       invalidateSlots();
       clearSlotsCache();
 
-      if (state.selectedService && state.selectedDate) {
-        await reloadSlotsIfReady(true);
-      }
+      if (state.selectedService && state.selectedDate) await reloadSlotsIfReady(true);
 
       reconcileSelectionState();
       renderAll();
@@ -1077,9 +1212,7 @@ function renderServices() {
 
 function renderStaffStep1() {
   if (!els.staffList) return;
-  renderStaffCards(els.staffList, getCandidateStaffForSelectedService(), {
-    mode: "step1",
-  });
+  renderStaffCards(els.staffList, getCandidateStaffForSelectedService());
 }
 
 function renderStaffStep2() {
@@ -1091,16 +1224,14 @@ function renderStaffStep2() {
     return;
   }
 
-  renderStaffCards(els.staffListStep2, getAvailableStaffForSelectedTime(), {
-    mode: "step2",
-  });
+  renderStaffCards(els.staffListStep2, getAvailableStaffForSelectedTime());
 }
 
 function renderStaffCards(container, list) {
   container.innerHTML = "";
   container.classList.add("staff-gallery");
 
-  if (list.length === 0) {
+  if (!list || list.length === 0) {
     container.appendChild(createEmptyState("対応可能な担当者がいません"));
     return;
   }
@@ -1111,29 +1242,23 @@ function renderStaffCards(container, list) {
     card.className = "staff-card";
 
     if (state.selectedStaff && String(state.selectedStaff.staffId) === String(member.staffId)) {
-      card.classList.add("active");
+      card.classList.add("active", "is-selected");
+      card.dataset.selected = "true";
     }
 
-    const avatar = document.createElement("div");
-    avatar.className = "staff-avatar";
-    avatar.appendChild(createStaffAvatar(member));
-
-    const info = document.createElement("div");
-    info.className = "staff-info";
-
-    const name = document.createElement("strong");
-    name.textContent = member.name;
-
-    const time = document.createElement("span");
-    time.textContent = `${member.startTime}-${member.endTime}`;
-
-    info.append(name, time);
-    card.append(avatar, info);
+    card.innerHTML = `
+      <div class="staff-avatar">
+        ${renderStaffAvatar(member)}
+      </div>
+      <div class="staff-info">
+        <strong>${escapeHtml(member.name)}</strong>
+        <span>${escapeHtml(member.startTime)}-${escapeHtml(member.endTime)}</span>
+      </div>
+    `;
 
     card.addEventListener("click", async () => {
       const isSame =
-        state.selectedStaff &&
-        String(state.selectedStaff.staffId) === String(member.staffId);
+        state.selectedStaff && String(state.selectedStaff.staffId) === String(member.staffId);
 
       state.selectedStaff = isSame ? null : member;
 
@@ -1156,9 +1281,7 @@ function renderStaffCards(container, list) {
       invalidateSlots();
       clearSlotsCache();
 
-      if (state.selectedService && state.selectedDate) {
-        await reloadSlotsIfReady(true);
-      }
+      if (state.selectedService && state.selectedDate) await reloadSlotsIfReady(true);
 
       reconcileSelectionState();
       renderAll();
@@ -1175,28 +1298,32 @@ function renderDates() {
   container.innerHTML = "";
 
   buildDateOptions(state.visibleDaysCount).forEach((dateItem) => {
+    const isActive = state.selectedDate === dateItem.value;
+
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "date-card";
+    button.className = "date-item date-card";
+    button.dataset.date = dateItem.value;
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    button.setAttribute("aria-label", `${dateItem.month}${dateItem.day} ${dateItem.weekday}`);
 
-    if (state.selectedDate === dateItem.value) button.classList.add("active");
+    if (isActive) {
+      button.classList.add("active", "is-selected");
+      button.dataset.selected = "true";
+    }
 
-    const weekday = document.createElement("span");
-    weekday.textContent = dateItem.weekday;
-
-    const day = document.createElement("strong");
-    day.textContent = dateItem.day;
-
-    const month = document.createElement("small");
-    month.textContent = dateItem.month;
-
-    button.append(weekday, day, month);
+    button.innerHTML = `
+      <span class="date-item-day">${escapeHtml(dateItem.weekday)}</span>
+      <strong class="date-item-date">${escapeHtml(dateItem.day)}</strong>
+      <small>${escapeHtml(dateItem.month)}</small>
+    `;
 
     button.addEventListener("click", async () => {
       state.selectedDate = dateItem.value;
       state.selectedTime = "";
       invalidateSlots();
       clearSlotsCache();
+
       await reloadSlotsIfReady(true);
       reconcileSelectionState();
       renderAll();
@@ -1205,12 +1332,7 @@ function renderDates() {
     container.appendChild(button);
   });
 
-  if (els.dateRangeCounter) {
-    els.dateRangeCounter.textContent = `${Math.min(
-      state.visibleDaysCount,
-      CONFIG.DATE_RANGE_DAYS
-    )}日表示`;
-  }
+  setText("dateRangeCounter", `${Math.min(state.visibleDaysCount, CONFIG.DATE_RANGE_DAYS)}日表示`);
 
   if (els.loadMoreDatesBtn) {
     els.loadMoreDatesBtn.style.display =
@@ -1247,12 +1369,24 @@ function renderTimeOptions() {
   setText("slotHint", `${times.length}件の空き時間があります`);
 
   times.forEach((time) => {
+    const isActive = state.selectedTime === time;
+
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "time-chip";
-    button.textContent = time;
+    button.className = "time-item time-chip";
+    button.dataset.time = time;
+    button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    button.setAttribute("aria-label", `${time}を選択`);
 
-    if (state.selectedTime === time) button.classList.add("active");
+    if (isActive) {
+      button.classList.add("active", "is-selected");
+      button.dataset.selected = "true";
+    }
+
+    button.innerHTML = `
+      <span class="time-main">${escapeHtml(time)}</span>
+      <span class="time-sub">${isActive ? "選択中" : "空きあり"}</span>
+    `;
 
     button.addEventListener("click", () => {
       state.selectedTime = state.selectedTime === time ? "" : time;
@@ -1289,7 +1423,7 @@ function renderStep2IdleState() {
 
 function updateSummary() {
   const serviceText = state.selectedService
-    ? `${state.selectedService.name} ¥${state.selectedService.price}`
+    ? `${state.selectedService.name} ¥${formatPrice(state.selectedService.price)}`
     : "-";
 
   const staffText = state.selectedStaff ? state.selectedStaff.name : "-";
@@ -1311,36 +1445,28 @@ function renderSuccessScreen() {
   setText("successStaff", state.selectedStaff?.name || "-");
 }
 
-function createServiceVisual(service) {
-  const imageUrl = getSafeImageUrl(service.icon || service.image);
+/* =========================================================
+   Render helpers
+========================================================= */
 
-  if (imageUrl) {
-    const image = document.createElement("img");
-    image.src = imageUrl;
-    image.alt = "";
-    image.loading = "lazy";
-    return image;
-  }
+function renderServiceVisual(service) {
+  const icon = getSafeImageUrl(service.icon);
+  const image = getSafeImageUrl(service.image);
 
-  const span = document.createElement("span");
-  span.textContent = getServiceEmoji(service.name);
-  return span;
+  if (icon) return `<img src="${escapeAttr(icon)}" alt="" loading="lazy">`;
+  if (image) return `<img src="${escapeAttr(image)}" alt="" loading="lazy">`;
+
+  return `<span>${escapeHtml(getServiceEmoji(service.name))}</span>`;
 }
 
-function createStaffAvatar(member) {
-  const imageUrl = getSafeImageUrl(member.image);
+function renderStaffAvatar(member) {
+  const image = getSafeImageUrl(member.image);
 
-  if (imageUrl) {
-    const image = document.createElement("img");
-    image.src = imageUrl;
-    image.alt = member.name || "staff";
-    image.loading = "lazy";
-    return image;
+  if (image) {
+    return `<img src="${escapeAttr(image)}" alt="${escapeAttr(member.name)}" loading="lazy">`;
   }
 
-  const span = document.createElement("span");
-  span.textContent = String(member.name || "S").slice(0, 1);
-  return span;
+  return `<span>${escapeHtml((member.name || "S").slice(0, 1))}</span>`;
 }
 
 function createEmptyState(text) {
@@ -1349,6 +1475,22 @@ function createEmptyState(text) {
   div.textContent = text;
   return div;
 }
+
+function getServiceEmoji(name) {
+  const text = String(name || "").toLowerCase();
+
+  if (text.includes("cut") || text.includes("カット")) return "✂️";
+  if (text.includes("color") || text.includes("カラー")) return "🎨";
+  if (text.includes("spa") || text.includes("スパ")) return "🫧";
+  if (text.includes("nail") || text.includes("ネイル")) return "💅";
+  if (text.includes("head") || text.includes("ヘッド")) return "💆";
+
+  return "✨";
+}
+
+/* =========================================================
+   Selection logic
+========================================================= */
 
 function getCandidateServicesForSelectedStaff() {
   if (!state.selectedStaff) return [...state.services];
@@ -1399,6 +1541,10 @@ function reconcileSelectionState() {
   }
 }
 
+/* =========================================================
+   Dates / time
+========================================================= */
+
 function buildDateOptions(count) {
   const result = [];
   const today = new Date();
@@ -1424,6 +1570,7 @@ function loadMoreDates() {
     CONFIG.DATE_RANGE_DAYS,
     state.visibleDaysCount + CONFIG.LOAD_MORE_DAYS_STEP
   );
+
   renderDates();
 }
 
@@ -1463,6 +1610,10 @@ function isTimeBlockedByNow(dateValue, timeValue) {
   return slotMinutes < currentMinutes + CONFIG.SAME_DAY_BLOCK_MINUTES;
 }
 
+/* =========================================================
+   Cache
+========================================================= */
+
 function getSlotsCacheKey(params) {
   return JSON.stringify({
     date: String(params.date || ""),
@@ -1494,8 +1645,12 @@ function clearSlotsCache() {
   state.slotsCache.clear();
 }
 
+/* =========================================================
+   UI helpers
+========================================================= */
+
 function setLoading(show, title = "読み込み中...", text = "少々お待ちください") {
-  const overlay = els.loadingOverlay || document.getElementById("loadingOverlay");
+  const overlay = els.loadingOverlay || byId("loadingOverlay");
   if (!overlay) return;
 
   const titleElement = overlay.querySelector(".loading-title");
@@ -1508,7 +1663,7 @@ function setLoading(show, title = "読み込み中...", text = "少々お待ち�
 }
 
 function setInlineTimeLoading(show, text = "空き状況を確認中...") {
-  const box = els.inlineTimeLoading || document.getElementById("inlineTimeLoading");
+  const box = els.inlineTimeLoading || byId("inlineTimeLoading");
   if (!box) return;
 
   box.style.display = show ? "flex" : "none";
@@ -1527,12 +1682,6 @@ function toast(message) {
   document.body.appendChild(element);
 
   setTimeout(() => element.remove(), 2500);
-}
-
-function showFatalError(error) {
-  const message = error?.message || String(error || "Unknown error");
-  console.error("Fatal error:", message);
-  alert(`初期化エラーが発生しました: ${message}`);
 }
 
 function fillInitialProfileFields() {
@@ -1571,13 +1720,25 @@ function isValidPhone(value) {
 }
 
 function getInputValue(id) {
-  const element = document.getElementById(id);
-  return String(element?.value || "").trim();
+  return String(byId(id)?.value || "").trim();
 }
 
 function setText(id, value) {
-  const element = document.getElementById(id);
+  const element = byId(id);
   if (element) element.textContent = value;
+}
+
+function byId(id) {
+  return document.getElementById(id);
+}
+
+/* =========================================================
+   Formatting / safe strings
+========================================================= */
+
+function formatPrice(value) {
+  const number = Number(value || 0);
+  return number.toLocaleString("ja-JP");
 }
 
 function getSafeImageUrl(value) {
@@ -1597,19 +1758,28 @@ function getSafeImageUrl(value) {
 
   return "";
 }
-function getServiceEmoji(name) {
-  const text = String(name || "").toLowerCase();
 
-  if (text.includes("cut") || text.includes("カット")) return "✂️";
-  if (text.includes("color") || text.includes("カラー")) return "🎨";
-  if (text.includes("spa") || text.includes("スパ")) return "🫧";
-  if (text.includes("nail") || text.includes("ネイル")) return "💅";
-  if (text.includes("head") || text.includes("ヘッド")) return "💆";
-
-  return "✨";
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
+
+function escapeAttr(value) {
+  return escapeHtml(value);
+}
+
 function pad2(value) {
   return String(value).padStart(2, "0");
+}
+
+function getErrorMessage(error) {
+  if (!error) return "unknown error";
+  if (typeof error === "string") return error;
+  return error.message || JSON.stringify(error);
 }
 
 function debugLog(...args) {
