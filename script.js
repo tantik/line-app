@@ -472,24 +472,43 @@ async function hydrateStaffServiceMap() {
 ========================================================= */
 
 function normalizeService(row) {
+  const iconUrl =
+    row.icon_url ??
+    row.iconUrl ??
+    row.icon ??
+    row.service_icon_url ??
+    row.serviceIconUrl ??
+    "";
+
+  const imageUrl =
+    row.image_url ??
+    row.imageUrl ??
+    row.image ??
+    row.photo_url ??
+    row.photoUrl ??
+    "";
+
   return {
     raw: row,
+
     serviceId: String(row.id ?? row.service_id ?? row.serviceId ?? ""),
     code: row.code ?? "",
     name: row.name ?? row.service_name ?? "サービス",
     description: row.description ?? "",
     duration:
-      Number(
-        row.duration_minutes ??
-          row.durationMinutes ??
-          row.duration ??
-          row.minutes ??
-          30
-      ) || 30,
-    price: Number(row.price_jpy ?? row.priceJpy ?? row.price ?? row.amount ?? 0) || 0,
+      Number(row.duration_minutes ?? row.durationMinutes ?? row.duration ?? row.minutes ?? 30) ||
+      30,
+    price:
+      Number(row.price_jpy ?? row.priceJpy ?? row.price ?? row.amount ?? 0) ||
+      0,
     category: row.category ?? "",
-    image: row.image_url ?? row.imageUrl ?? row.image ?? row.photo_url ?? "",
-    icon: row.icon_url ?? row.iconUrl ?? row.icon ?? "",
+
+    image: imageUrl,
+    image_url: imageUrl,
+
+    icon: iconUrl,
+    icon_url: iconUrl,
+
     sortOrder: Number(row.sort_order ?? 0) || 0,
     isActive: row.is_active !== false,
   };
@@ -1456,13 +1475,44 @@ function renderSuccessScreen() {
 ========================================================= */
 
 function renderServiceVisual(service) {
-  const icon = getSafeImageUrl(service.icon);
-  const image = getSafeImageUrl(service.image);
+  const iconUrl = getSafeImageUrl(
+    service.icon ||
+      service.icon_url ||
+      service.raw?.icon_url ||
+      service.raw?.iconUrl ||
+      ""
+  );
 
-  if (icon) return `<img src="${escapeAttr(icon)}" alt="" loading="lazy">`;
-  if (image) return `<img src="${escapeAttr(image)}" alt="" loading="lazy">`;
+  const imageUrl = getSafeImageUrl(
+    service.image ||
+      service.image_url ||
+      service.raw?.image_url ||
+      service.raw?.imageUrl ||
+      service.raw?.photo_url ||
+      ""
+  );
 
-  return `<span>${escapeHtml(getServiceEmoji(service.name))}</span>`;
+  if (iconUrl) {
+    return `
+      <div class="service-card-media service-card-media-image">
+        <img src="${escapeAttr(iconUrl)}" alt="${escapeAttr(service.name || "service")}" />
+      </div>
+    `;
+  }
+
+  if (imageUrl) {
+    return `
+      <div class="service-card-media service-card-media-image">
+        <img src="${escapeAttr(imageUrl)}" alt="${escapeAttr(service.name || "service")}" />
+      </div>
+    `;
+  }
+
+  return `
+    <div class="service-card-media service-card-emoji">
+      ${escapeHtml(getServiceEmoji(service.name))}
+    </div>
+  `;
 }
 
 function renderStaffAvatar(member) {
