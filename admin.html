@@ -6,6 +6,7 @@
     <title>Mirawi Salon Admin</title>
     <link rel="stylesheet" href="./admin.css" />
   </head>
+
   <body>
     <div id="loadingOverlay" class="loading-overlay">
       <div class="loading-card">
@@ -32,6 +33,7 @@
           <strong>管理者ログイン</strong>
           <p>メールアドレスにログインリンクを送信します</p>
         </div>
+
         <div class="auth-row">
           <input
             id="adminEmail"
@@ -40,6 +42,7 @@
             placeholder="管理者メール"
             autocomplete="email"
           />
+
           <button id="sendMagicLinkBtn" class="btn primary" type="button">
             ログインリンクを送る
           </button>
@@ -51,10 +54,12 @@
           <span class="tiny-label">ログイン中</span>
           <strong id="whoAmI">-</strong>
         </div>
+
         <div>
           <span class="tiny-label">サロン / 権限</span>
           <strong id="tenantLabel">-</strong>
         </div>
+
         <div class="session-actions">
           <button id="refreshBtn" class="btn ghost" type="button">更新</button>
           <button id="logoutBtn" class="btn ghost danger" type="button">ログアウト</button>
@@ -68,14 +73,17 @@
           <span id="metricTotal" class="metric-number">0</span>
           <span class="metric-label">表示件数</span>
         </article>
+
         <article class="metric-card">
           <span id="metricPending" class="metric-number">0</span>
           <span class="metric-label">未確認</span>
         </article>
+
         <article class="metric-card">
           <span id="metricRisk" class="metric-number">0</span>
           <span class="metric-label">要確認</span>
         </article>
+
         <article class="metric-card">
           <span id="metricCancelled" class="metric-number">0</span>
           <span class="metric-label">キャンセル</span>
@@ -97,6 +105,7 @@
             <p class="eyebrow">Salon Admin</p>
             <h2 id="mainTitle">Bookings</h2>
           </div>
+
           <nav class="tabs" aria-label="Admin tabs">
             <button class="tab-btn active" type="button" data-tab="bookings">Bookings</button>
             <button class="tab-btn" type="button" data-tab="staff">Staff</button>
@@ -171,8 +180,12 @@
               <h3>スタッフ一覧</h3>
               <p>スタッフ情報・勤務時間・担当サービスを管理できます</p>
             </div>
-            <button id="addStaffBtn" class="btn primary" type="button">＋ スタッフ追加</button>
+
+            <button id="addStaffBtn" class="btn primary" type="button">
+              ＋ スタッフ追加
+            </button>
           </div>
+
           <div id="staffList" class="cards-grid"></div>
         </section>
 
@@ -182,8 +195,12 @@
               <h3>サービス一覧</h3>
               <p>メニュー名・時間・価格・アイコン・表示状態を管理できます</p>
             </div>
-            <button id="addServiceBtn" class="btn primary" type="button">＋ サービス追加</button>
+
+            <button id="addServiceBtn" class="btn primary" type="button">
+              ＋ サービス追加
+            </button>
           </div>
+
           <div id="servicesList" class="cards-grid"></div>
         </section>
       </section>
