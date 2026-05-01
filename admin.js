@@ -7,6 +7,7 @@ let currentUser = null;
 let realtimeChannel = null;
 let refreshTimer = null;
 let allBookings = [];
+let allBookingEvents = [];
 let allStaff = [];
 let allServices = [];
 let editingStaffId = null;
@@ -187,6 +188,7 @@ async function applySession(session) {
 function resetAdminState() {
   currentSalonId = null;
   allBookings = [];
+  allBookingEvents = [];
   allStaff = [];
   allServices = [];
 
@@ -304,12 +306,51 @@ async function loadBookings() {
     }
 
     allBookings = data || [];
+    await loadBookingEvents(allBookings);
+
     renderBookings();
 
     setText("lastUpdated", `最終更新: ${new Date().toLocaleString("ja-JP")}`);
   } catch (error) {
     console.error("loadBookings error:", error);
     showToast("予約取得エラー");
+  }
+}
+
+async function loadBookingEvents(bookings = allBookings) {
+  if (!currentSalonId) {
+    allBookingEvents = [];
+    return;
+  }
+
+  const bookingIds = [...new Set(
+    (bookings || [])
+      .map((booking) => booking.id)
+      .filter(Boolean)
+      .map(String)
+  )];
+
+  if (!bookingIds.length) {
+    allBookingEvents = [];
+    return;
+  }
+
+  try {
+    const { data, error } = await sb
+      .from("booking_events")
+      .select("id, booking_id, event_type, actor_type, actor_label, payload, created_at")
+      .eq("salon_id", currentSalonId)
+      .in("booking_id", bookingIds)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    allBookingEvents = data || [];
+  } catch (error) {
+    console.error("loadBookingEvents error:", error);
+    allBookingEvents = [];
   }
 }
 
@@ -589,6 +630,7 @@ function buildBookingCard(booking) {
   const status = String(booking.status || "pending");
   const confirmationStatus = booking.confirmation_status || booking.confirmationStatus || "";
   const bookingDate = String(booking.booking_date || "").slice(0, 10);
+  const timelineHtml = buildBookingTimeline(booking);
 
   card.innerHTML = `
     <div class="booking-time">
@@ -618,6 +660,8 @@ function buildBookingCard(booking) {
 
       ${booking.note ? `<p class="booking-note">${safe(booking.note)}</p>` : ""}
 
+      ${timelineHtml}
+
       <div class="booking-actions">
         ${buildBookingActions(booking)}
       </div>
@@ -629,6 +673,106 @@ function buildBookingCard(booking) {
   });
 
   return card;
+}
+
+function buildBookingTimeline(booking) {
+  const bookingId = String(booking?.id || "");
+
+  if (!bookingId) {
+    return "";
+  }
+
+  const events = allBookingEvents
+    .filter((event) => String(event.booking_id) === bookingId)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, 4);
+
+  if (!events.length) {
+    return "";
+  }
+
+  const itemsHtml = events
+    .map((event) => {
+      const meta = getBookingEventMeta(event);
+      const time = formatEventDateTime(event.created_at);
+
+      return `
+        <div class="booking-timeline-item ${safeAttr(meta.kind)}">
+          <span class="booking-timeline-dot"></span>
+          <div class="booking-timeline-content">
+            <strong>${safe(meta.label)}</strong>
+            <span>${safe(time)}</span>
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  return `
+    <div class="booking-timeline">
+      <div class="booking-timeline-head">
+        <span>予約履歴</span>
+      </div>
+      <div class="booking-timeline-list">
+        ${itemsHtml}
+      </div>
+    </div>
+  `;
+}
+
+function getBookingEventMeta(event) {
+  const eventType = String(event?.event_type || "");
+
+  const map = {
+    booking_created: {
+      label: "予約が作成されました",
+      kind: "created",
+    },
+    line_confirmation_sent: {
+      label: "LINE確認メッセージ送信済み",
+      kind: "sent",
+    },
+    customer_confirmed: {
+      label: "お客様が確認しました",
+      kind: "confirmed",
+    },
+    customer_cancelled: {
+      label: "お客様がキャンセルしました",
+      kind: "cancelled",
+    },
+    reminder_sent: {
+      label: "リマインダー送信済み",
+      kind: "sent",
+    },
+    reminder_failed: {
+      label: "リマインダー送信失敗",
+      kind: "failed",
+    },
+  };
+
+  return map[eventType] || {
+    label: eventType || "イベント",
+    kind: "default",
+  };
+}
+
+function formatEventDateTime(value) {
+  if (!value) {
+    return "--";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "--";
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function buildBookingActions(booking) {
@@ -1376,6 +1520,18 @@ function subscribeRealtime() {
       },
       () => loadBookings()
     )
+
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "booking_events",
+        filter: `salon_id=eq.${currentSalonId}`,
+      },
+      () => loadBookings()
+    )
+
     .on(
       "postgres_changes",
       {
