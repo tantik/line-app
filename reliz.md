@@ -17,3 +17,18 @@ PUBLIC_DEMO_MODE: true
 TEMP demo upload service icons
 TEMP demo upload staff photos
 TEMP demo select bookings for realtime
+/* */
+Перед реальным клиентом надо убрать:
+
+PUBLIC_DEMO_MODE: true
+TEMP demo upload service icons
+TEMP demo upload staff photos
+TEMP demo select bookings for realtime
+TEMP demo select booking events
+
+И заменить на нормальную схему:
+
+Supabase Auth
+salon_members
+RLS по salon_id
+upload только для salon_admin / manager / super_admin
