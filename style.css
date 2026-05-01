@@ -1151,3 +1151,185 @@ select:focus {
     grid-auto-columns: 100px;
   }
 }
+
+/* update */
+/* =========================
+   PREMIUM SERVICE CARDS
+   ========================= */
+
+.service-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 238px;
+  padding: 14px 14px 16px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, #fffdf9 0%, #f9f4ec 100%);
+  border: 1px solid rgba(186, 149, 92, 0.18);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.08),
+    0 2px 8px rgba(0, 0, 0, 0.04);
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease;
+  overflow: hidden;
+}
+
+.service-card:hover,
+.service-card:active {
+  transform: translateY(-3px);
+  box-shadow:
+    0 16px 30px rgba(0, 0, 0, 0.12),
+    0 4px 14px rgba(0, 0, 0, 0.06);
+  border-color: rgba(186, 149, 92, 0.35);
+}
+
+.service-card.is-selected {
+  border-color: rgba(194, 147, 78, 0.7);
+  box-shadow:
+    0 0 0 2px rgba(210, 168, 102, 0.28),
+    0 18px 34px rgba(0, 0, 0, 0.12);
+}
+
+.service-card-media {
+  width: 100%;
+  height: 88px;
+  border-radius: 16px;
+  margin-top: 6px; /* вот он — верхний воздух */
+  margin-bottom: 14px;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,242,234,0.96) 100%);
+  border: 1px solid rgba(186, 149, 92, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.service-card-media img {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+  display: block;
+}
+
+.service-card-emoji {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.service-card-type,
+.service-card-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  margin-bottom: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #9c7340;
+  background: rgba(205, 171, 114, 0.14);
+}
+
+.service-card-title,
+.service-name {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: #1f1a17;
+  letter-spacing: -0.01em;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.service-card-meta,
+.service-meta {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  text-align: center;
+}
+
+.service-card-duration,
+.service-duration {
+  font-size: 13px;
+  color: #8b8177;
+  font-weight: 500;
+}
+
+.service-card-price,
+.service-price {
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 900;
+  color: #111111;
+  letter-spacing: -0.03em;
+}
+
+.service-card-price small,
+.service-price small {
+  font-size: 14px;
+  font-weight: 700;
+  margin-right: 2px;
+  vertical-align: top;
+}
+
+.service-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0.16) 0%,
+    rgba(255,255,255,0.02) 32%,
+    rgba(255,255,255,0) 100%
+  );
+}
+
+/* если у тебя есть горизонтальный список карточек */
+.services-grid,
+.service-list,
+.service-cards {
+  gap: 14px;
+}
+
+/* мобильная полировка */
+@media (max-width: 768px) {
+  .service-card {
+    min-height: 228px;
+    padding: 12px 12px 14px;
+    border-radius: 20px;
+  }
+
+  .service-card-media {
+    height: 82px;
+    border-radius: 14px;
+    margin-top: 8px;
+    margin-bottom: 12px;
+  }
+
+  .service-card-title,
+  .service-name {
+    font-size: 17px;
+    min-height: 42px;
+  }
+
+  .service-card-price,
+  .service-price {
+    font-size: 26px;
+  }
+}
