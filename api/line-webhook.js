@@ -162,13 +162,19 @@ async function updateBookingStatusAtomically({ bookingId, action, values }) {
 
 async function insertBookingEvent({ booking, eventType, payload }) {
   try {
+    const isCustomerEvent =
+      eventType === "customer_confirmed" || eventType === "customer_cancelled";
+
     await supabaseRequest("/rest/v1/booking_events", {
       method: "POST",
       body: JSON.stringify({
         booking_id: booking?.id || null,
         salon_id: booking?.salon_id || null,
         event_type: eventType,
-        payload,
+        actor_type: isCustomerEvent ? "customer" : "system",
+        actor_user_id: null,
+        actor_label: isCustomerEvent ? "LINE customer" : "LINE webhook",
+        payload: payload || {},
       }),
     });
   } catch (error) {

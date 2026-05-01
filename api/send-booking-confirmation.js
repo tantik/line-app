@@ -159,7 +159,10 @@ async function insertBookingEvent({ booking, eventType, payload }) {
         booking_id: booking?.id || null,
         salon_id: booking?.salon_id || null,
         event_type: eventType,
-        payload,
+        actor_type: "system",
+        actor_user_id: null,
+        actor_label: "LINE confirmation API",
+        payload: payload || {},
       }),
     });
   } catch (error) {
