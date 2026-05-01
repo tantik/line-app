@@ -1154,70 +1154,112 @@ select:focus {
 
 /* update */
 /* =========================
-   PREMIUM SERVICE CARDS
+   SERVICE CARDS PREMIUM V2
+   Add to the end of style.css
    ========================= */
+
+.service-list,
+.service-cards,
+.services-grid,
+#servicesList,
+.services-scroll {
+  gap: 10px;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: 2px;
+}
 
 .service-card {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  min-height: 238px;
-  padding: 14px 14px 16px;
-  border-radius: 22px;
-  background: linear-gradient(180deg, #fffdf9 0%, #f9f4ec 100%);
-  border: 1px solid rgba(186, 149, 92, 0.18);
+  flex: 0 0 118px;
+  width: 118px;
+  min-width: 118px;
+  min-height: 224px;
+  padding: 10px 10px 12px;
+  border-radius: 20px;
+  scroll-snap-align: start;
+  background:
+    linear-gradient(180deg, rgba(255, 252, 246, 0.98) 0%, rgba(248, 240, 229, 0.98) 100%);
+  border: 1px solid rgba(220, 184, 126, 0.28);
   box-shadow:
-    0 10px 24px rgba(0, 0, 0, 0.08),
-    0 2px 8px rgba(0, 0, 0, 0.04);
-  transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease,
-    border-color 0.22s ease;
+    0 12px 24px rgba(20, 16, 10, 0.10),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
   overflow: hidden;
+  transform: translateZ(0);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
 }
 
 .service-card:hover,
 .service-card:active {
-  transform: translateY(-3px);
+  transform: translateY(-2px);
   box-shadow:
-    0 16px 30px rgba(0, 0, 0, 0.12),
-    0 4px 14px rgba(0, 0, 0, 0.06);
-  border-color: rgba(186, 149, 92, 0.35);
+    0 16px 28px rgba(20, 16, 10, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
-.service-card.is-selected {
-  border-color: rgba(194, 147, 78, 0.7);
+.service-card.is-selected,
+.service-card.selected,
+.service-card.active {
+  border-color: rgba(215, 170, 92, 0.92);
+  background:
+    linear-gradient(180deg, rgba(255, 248, 235, 1) 0%, rgba(249, 235, 211, 1) 100%);
   box-shadow:
-    0 0 0 2px rgba(210, 168, 102, 0.28),
-    0 18px 34px rgba(0, 0, 0, 0.12);
+    0 0 0 2px rgba(218, 174, 99, 0.34),
+    0 18px 34px rgba(20, 16, 10, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.service-card.is-selected::before,
+.service-card.selected::before,
+.service-card.active::before {
+  content: "✓";
+  position: absolute;
+  top: 11px;
+  right: 11px;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #fffaf1;
+  font-size: 13px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #2f5148 0%, #1e3934 100%);
+  box-shadow: 0 5px 14px rgba(20, 16, 10, 0.22);
 }
 
 .service-card-media {
   width: 100%;
-  height: 88px;
+  height: 70px;
+  margin: 2px 0 10px;
   border-radius: 16px;
-  margin-top: 6px; /* вот он — верхний воздух */
-  margin-bottom: 14px;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(247,242,234,0.96) 100%);
-  border: 1px solid rgba(186, 149, 92, 0.14);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.88), transparent 52%),
+    linear-gradient(180deg, rgba(237, 226, 211, 0.82) 0%, rgba(214, 202, 187, 0.72) 100%);
+  border: 1px solid rgba(176, 145, 96, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.58),
+    0 6px 14px rgba(50, 40, 25, 0.08);
 }
 
 .service-card-media img {
-  width: 72%;
-  height: 72%;
-  object-fit: contain;
+  width: 64%;
+  height: 64%;
   display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 8px rgba(28, 22, 14, 0.14));
 }
 
 .service-card-emoji {
-  font-size: 34px;
+  font-size: 30px;
   line-height: 1;
 }
 
@@ -1227,109 +1269,119 @@ select:focus {
   align-items: center;
   justify-content: center;
   align-self: center;
-  margin-bottom: 8px;
-  padding: 4px 10px;
+  max-width: 100%;
+  margin: 0 auto 8px;
+  padding: 4px 9px;
   border-radius: 999px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: #9c7340;
-  background: rgba(205, 171, 114, 0.14);
+  color: #a77835;
+  background: rgba(213, 174, 108, 0.16);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.045em;
 }
 
 .service-card-title,
 .service-name {
-  margin: 0 0 10px;
-  text-align: center;
-  font-size: 18px;
-  line-height: 1.25;
-  font-weight: 800;
-  color: #1f1a17;
-  letter-spacing: -0.01em;
-  min-height: 46px;
+  margin: 0 0 8px;
+  min-height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  color: #171411;
+  font-size: 15px;
+  line-height: 1.24;
+  font-weight: 900;
+  letter-spacing: -0.02em;
 }
 
 .service-card-meta,
 .service-meta {
   margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: center;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
   text-align: center;
 }
 
 .service-card-duration,
 .service-duration {
-  font-size: 13px;
-  color: #8b8177;
-  font-weight: 500;
+  color: #8f8274;
+  font-size: 12px;
+  line-height: 1.25;
+  font-weight: 700;
+}
+
+.service-card-duration br,
+.service-duration br {
+  display: none;
 }
 
 .service-card-price,
 .service-price {
-  font-size: 28px;
+  color: #15120f;
+  font-size: 24px;
   line-height: 1;
-  font-weight: 900;
-  color: #111111;
-  letter-spacing: -0.03em;
+  font-weight: 950;
+  letter-spacing: -0.045em;
 }
 
 .service-card-price small,
 .service-price small {
-  font-size: 14px;
-  font-weight: 700;
-  margin-right: 2px;
-  vertical-align: top;
+  font-size: 13px;
+  font-weight: 850;
+  letter-spacing: -0.02em;
 }
 
 .service-card::after {
   content: "";
   position: absolute;
   inset: 0;
-  border-radius: 22px;
   pointer-events: none;
-  background: linear-gradient(
-    180deg,
-    rgba(255,255,255,0.16) 0%,
-    rgba(255,255,255,0.02) 32%,
-    rgba(255,255,255,0) 100%
-  );
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.03) 38%, transparent 100%);
 }
 
-/* если у тебя есть горизонтальный список карточек */
-.services-grid,
-.service-list,
-.service-cards {
-  gap: 14px;
+/* Make the service section breathe better */
+.step-section:has(.service-card),
+.booking-section:has(.service-card),
+.services-section {
+  padding-top: 2px;
 }
 
-/* мобильная полировка */
 @media (max-width: 768px) {
+  .service-list,
+  .service-cards,
+  .services-grid,
+  #servicesList,
+  .services-scroll {
+    gap: 10px;
+  }
+
   .service-card {
-    min-height: 228px;
-    padding: 12px 12px 14px;
+    flex-basis: 116px;
+    width: 116px;
+    min-width: 116px;
+    min-height: 220px;
+    padding: 10px 9px 12px;
     border-radius: 20px;
   }
 
   .service-card-media {
-    height: 82px;
-    border-radius: 14px;
-    margin-top: 8px;
-    margin-bottom: 12px;
+    height: 68px;
+    margin-bottom: 9px;
   }
 
   .service-card-title,
   .service-name {
-    font-size: 17px;
-    min-height: 42px;
+    font-size: 15px;
+    min-height: 38px;
   }
 
   .service-card-price,
   .service-price {
-    font-size: 26px;
+    font-size: 23px;
   }
 }
