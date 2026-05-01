@@ -740,6 +740,22 @@ function getBookingEventMeta(event) {
       label: "お客様がキャンセルしました",
       kind: "cancelled",
     },
+    customer_cancelled: {
+      label: "お客様がキャンセルしました",
+      kind: "cancelled",
+    },
+    admin_confirmed: {
+      label: "管理者が確認しました",
+      kind: "confirmed",
+    },
+    admin_cancelled: {
+      label: "管理者がキャンセルしました",
+      kind: "cancelled",
+    },
+    admin_completed: {
+      label: "施術が完了しました",
+      kind: "confirmed",
+    },
     reminder_sent: {
       label: "リマインダー送信済み",
       kind: "sent",
@@ -811,6 +827,17 @@ async function updateBookingStatus(bookingId, nextStatus) {
     return;
   }
 
+  const currentBooking = allBookings.find(
+    (booking) => String(booking.id) === String(bookingId)
+  );
+
+  const previousStatus = String(currentBooking?.status || "pending");
+
+  if (previousStatus === nextStatus) {
+    showToast("ステータスはすでに更新済みです");
+    return;
+  }
+
   showLoading("更新中...", "予約ステータスを更新しています");
 
   try {
@@ -836,6 +863,13 @@ async function updateBookingStatus(bookingId, nextStatus) {
       throw error;
     }
 
+    await insertAdminBookingEvent({
+      bookingId,
+      previousStatus,
+      nextStatus,
+      booking: currentBooking,
+    });
+
     showToast("予約を更新しました");
     await loadBookings();
   } catch (error) {
@@ -844,6 +878,56 @@ async function updateBookingStatus(bookingId, nextStatus) {
   } finally {
     hideLoading();
   }
+}
+
+async function insertAdminBookingEvent({ bookingId, previousStatus, nextStatus, booking }) {
+  if (!currentSalonId || !bookingId || !nextStatus) {
+    return;
+  }
+
+  const eventType = getAdminBookingEventType(nextStatus);
+
+  if (!eventType) {
+    return;
+  }
+
+  try {
+    const { error } = await sb.from("booking_events").insert({
+      booking_id: bookingId,
+      salon_id: currentSalonId,
+      event_type: eventType,
+      actor_type: "admin",
+      actor_user_id: null,
+      actor_label: "Admin dashboard",
+      payload: {
+        source: "admin_dashboard",
+        action: nextStatus,
+        previous_status: previousStatus || null,
+        next_status: nextStatus,
+        customer_name: booking?.customer_name || null,
+        service_name: booking?.service_name || null,
+        staff_name: booking?.staff_name || null,
+        at: new Date().toISOString(),
+      },
+    });
+
+    if (error) {
+      throw error;
+    }
+  } catch (error) {
+    console.error("insertAdminBookingEvent error:", error);
+    showToast("履歴の保存に失敗しました");
+  }
+}
+
+function getAdminBookingEventType(status) {
+  const map = {
+    confirmed: "admin_confirmed",
+    cancelled: "admin_cancelled",
+    completed: "admin_completed",
+  };
+
+  return map[String(status || "")] || "";
 }
 
 function updateMetrics(items) {
