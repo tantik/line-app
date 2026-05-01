@@ -1153,12 +1153,14 @@ select:focus {
 }
 
 /* update */
+
+
 /* =========================
-   SERVICE CARD PREMIUM CLEAN
+   SERVICE CARD PREMIUM COMPACT
    only service cards
    ========================= */
 
-/* контейнер услуг */
+/* контейнер списка услуг */
 .service-list,
 .service-cards,
 .services-grid,
@@ -1166,7 +1168,7 @@ select:focus {
 #servicesList {
   gap: 10px !important;
   padding-top: 2px !important;
-  padding-bottom: 6px !important;
+  padding-bottom: 4px !important;
   scroll-snap-type: x mandatory;
 }
 
@@ -1174,12 +1176,12 @@ select:focus {
 .service-card,
 .service-card-modern {
   position: relative;
-  flex: 0 0 116px !important;
-  width: 116px !important;
-  min-width: 116px !important;
-  min-height: 178px !important;
-  padding: 8px 8px 10px !important;
-  border-radius: 20px !important;
+  flex: 0 0 112px !important;
+  width: 112px !important;
+  min-width: 112px !important;
+  min-height: 168px !important;
+  padding: 8px 8px 9px !important;
+  border-radius: 18px !important;
   overflow: hidden;
   scroll-snap-align: start;
 
@@ -1202,15 +1204,13 @@ select:focus {
     background 0.18s ease;
 }
 
+/* hover / touch */
 .service-card:hover,
 .service-card-modern:hover {
   transform: translateY(-1px);
-  box-shadow:
-    0 14px 22px rgba(16, 18, 17, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.78) !important;
 }
 
-/* выбранная карточка */
+/* selected state */
 .service-card.is-selected,
 .service-card.selected,
 .service-card.active,
@@ -1218,20 +1218,20 @@ select:focus {
 .service-card-modern.selected,
 .service-card-modern.active,
 .service-card-modern[data-selected="true"] {
-  transform: translateY(-1px) !important;
   border-color: rgba(224, 179, 102, 0.92) !important;
   background: linear-gradient(
     180deg,
     rgba(255, 248, 235, 1) 0%,
     rgba(247, 236, 214, 1) 100%
   ) !important;
+
   box-shadow:
-    0 0 0 2px rgba(226, 181, 103, 0.26),
-    0 12px 22px rgba(16, 18, 17, 0.16),
+    0 0 0 2px rgba(226, 181, 103, 0.24),
+    0 12px 22px rgba(16, 18, 17, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.82) !important;
 }
 
-/* убираем вторую галочку от старых патчей */
+/* убираем старую вторую галочку */
 .service-card.is-selected::before,
 .service-card.selected::before,
 .service-card.active::before,
@@ -1243,30 +1243,31 @@ select:focus {
   display: none !important;
 }
 
-/* оставляем только настоящую галочку, которую рисует JS */
-.service-card-modern .service-selected-mark,
-.service-card .service-selected-mark {
-  top: 7px !important;
-  right: 7px !important;
-  width: 20px !important;
-  height: 20px !important;
+/* оставляем только галочку из JS */
+.service-card .service-selected-mark,
+.service-card-modern .service-selected-mark {
+  top: 6px !important;
+  right: 6px !important;
+  width: 19px !important;
+  height: 19px !important;
   border-radius: 50% !important;
   background: linear-gradient(135deg, #314d46 0%, #223b35 100%) !important;
   color: #fff9ef !important;
   border: 1px solid rgba(255, 248, 232, 0.38) !important;
   box-shadow:
-    0 4px 10px rgba(13, 18, 16, 0.22),
+    0 4px 10px rgba(13, 18, 16, 0.20),
     inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
 }
 
-/* блок картинки */
+/* квадратный блок фото */
 .service-card-media,
 .service-card-media-image,
 .service-card-modern .service-card-media,
 .service-card-modern .service-card-media-image {
-  width: 100% !important;
-  height: 50px !important;
-  margin: 0 0 6px !important;
+  width: 54px !important;
+  height: 54px !important;
+  aspect-ratio: 1 / 1 !important;
+  margin: 0 auto 5px !important;
   padding: 3px !important;
   border-radius: 14px !important;
 
@@ -1276,8 +1277,8 @@ select:focus {
   overflow: hidden !important;
 
   background:
-    radial-gradient(circle at 50% 18%, rgba(255,255,255,0.86), transparent 54%),
-    linear-gradient(180deg, rgba(236, 225, 208, 0.85), rgba(212, 198, 178, 0.76)) !important;
+    radial-gradient(circle at 50% 18%, rgba(255,255,255,0.88), transparent 54%),
+    linear-gradient(180deg, rgba(236, 225, 208, 0.86), rgba(212, 198, 178, 0.76)) !important;
 
   border: 1px solid rgba(173, 139, 88, 0.14) !important;
 
@@ -1286,7 +1287,7 @@ select:focus {
     0 5px 10px rgba(40, 32, 21, 0.08) !important;
 }
 
-/* при active слегка усиливаем блок картинки */
+/* квадратный блок фото у selected */
 .service-card.is-selected .service-card-media,
 .service-card.active .service-card-media,
 .service-card-modern.is-selected .service-card-media,
@@ -1298,11 +1299,11 @@ select:focus {
 .service-card-modern.active .service-card-media-image,
 .service-card-modern[data-selected="true"] .service-card-media-image {
   background:
-    radial-gradient(circle at 50% 18%, rgba(255,255,255,0.88), transparent 54%),
-    linear-gradient(180deg, rgba(232, 193, 123, 0.82), rgba(205, 160, 89, 0.74)) !important;
+    radial-gradient(circle at 50% 18%, rgba(255,255,255,0.90), transparent 54%),
+    linear-gradient(180deg, rgba(232, 193, 123, 0.84), rgba(205, 160, 89, 0.76)) !important;
 }
 
-/* картинка занимает 100% контейнера */
+/* картинка на 100% */
 .service-card-media img,
 .service-card-media-image img,
 .service-card-modern .service-card-media img,
@@ -1311,10 +1312,10 @@ select:focus {
   height: 100% !important;
   object-fit: contain !important;
   display: block !important;
-  filter: drop-shadow(0 5px 7px rgba(26, 21, 14, 0.16));
+  filter: drop-shadow(0 4px 6px rgba(26, 21, 14, 0.14));
 }
 
-/* бейдж "サービス" */
+/* label "サービス" */
 .service-card-type,
 .service-card-label,
 .service-card-modern .service-card-type,
@@ -1325,7 +1326,7 @@ select:focus {
   align-self: center !important;
 
   margin: 0 auto 4px !important;
-  padding: 3px 8px !important;
+  padding: 3px 7px !important;
   border-radius: 999px !important;
 
   background: rgba(211, 168, 95, 0.14) !important;
@@ -1342,8 +1343,8 @@ select:focus {
 .service-name,
 .service-card-modern .service-card-title,
 .service-card-modern .service-name {
-  min-height: 28px !important;
-  margin: 0 0 5px !important;
+  min-height: 26px !important;
+  margin: 0 0 4px !important;
 
   display: flex !important;
   align-items: center !important;
@@ -1351,13 +1352,13 @@ select:focus {
   text-align: center !important;
 
   color: #17130f !important;
-  font-size: 13.5px !important;
-  line-height: 1.14 !important;
+  font-size: 13px !important;
+  line-height: 1.12 !important;
   font-weight: 850 !important;
   letter-spacing: -0.015em !important;
 }
 
-/* мета */
+/* мета-блок */
 .service-card-meta,
 .service-meta,
 .service-card-modern .service-card-meta,
@@ -1369,19 +1370,19 @@ select:focus {
   text-align: center !important;
 }
 
-/* длительность / подзаголовок */
+/* duration */
 .service-card-duration,
 .service-duration,
 .service-card-modern .service-card-duration,
 .service-card-modern .service-duration {
   margin: 0 !important;
   color: #8a7d6f !important;
-  font-size: 10.5px !important;
-  line-height: 1.1 !important;
+  font-size: 10px !important;
+  line-height: 1.08 !important;
   font-weight: 700 !important;
 }
 
-/* убираем лишние переносы, чтобы карточка не росла */
+/* убираем лишние переносы */
 .service-card-duration br,
 .service-duration br,
 .service-card-modern .service-card-duration br,
@@ -1396,13 +1397,13 @@ select:focus {
 .service-card-modern .service-price {
   margin: 0 !important;
   color: #15110d !important;
-  font-size: 20px !important;
+  font-size: 19px !important;
   line-height: 1 !important;
   font-weight: 900 !important;
   letter-spacing: -0.03em !important;
 }
 
-/* лёгкий glossy top overlay */
+/* лёгкий premium-gloss */
 .service-card::after,
 .service-card-modern::after {
   content: "";
@@ -1412,20 +1413,19 @@ select:focus {
   border-radius: inherit;
   background: linear-gradient(
     180deg,
-    rgba(255,255,255,0.16) 0%,
+    rgba(255,255,255,0.14) 0%,
     rgba(255,255,255,0.03) 34%,
     transparent 100%
   );
 }
 
-/* mobile */
 @media (max-width: 768px) {
   .service-card,
   .service-card-modern {
-    flex-basis: 114px !important;
-    width: 114px !important;
-    min-width: 114px !important;
-    min-height: 174px !important;
+    flex-basis: 110px !important;
+    width: 110px !important;
+    min-width: 110px !important;
+    min-height: 166px !important;
     padding: 8px 8px 9px !important;
   }
 
@@ -1433,22 +1433,23 @@ select:focus {
   .service-card-media-image,
   .service-card-modern .service-card-media,
   .service-card-modern .service-card-media-image {
-    height: 48px !important;
-    margin-bottom: 6px !important;
+    width: 52px !important;
+    height: 52px !important;
+    margin-bottom: 5px !important;
   }
 
   .service-card-title,
   .service-name,
   .service-card-modern .service-card-title,
   .service-card-modern .service-name {
-    min-height: 27px !important;
-    font-size: 13px !important;
+    min-height: 25px !important;
+    font-size: 12.5px !important;
   }
 
   .service-card-price,
   .service-price,
   .service-card-modern .service-card-price,
   .service-card-modern .service-price {
-    font-size: 19px !important;
+    font-size: 18px !important;
   }
 }
