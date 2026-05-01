@@ -1634,3 +1634,158 @@ button[data-next],
     font-size: 22px !important;
   }
 }
+
+/* update 02 */
+
+/* =========================
+   SERVICE CARDS PREMIUM V4
+   compact + bigger image
+   add to the very end of style.css
+   ========================= */
+
+/* карточка ниже и плотнее */
+.service-card,
+.service-card-modern {
+  flex: 0 0 116px !important;
+  width: 116px !important;
+  min-width: 116px !important;
+  min-height: 186px !important;
+  padding: 8px 9px 10px !important;
+  border-radius: 20px !important;
+}
+
+/* выбранная карточка без лишней тяжести */
+.service-card.is-selected,
+.service-card.selected,
+.service-card.active,
+.service-card-modern.active,
+.service-card-modern.is-selected,
+.service-card-modern[data-selected="true"] {
+  transform: translateY(-1px) !important;
+  box-shadow:
+    0 0 0 2px rgba(226, 181, 103, 0.28),
+    0 12px 24px rgba(17, 20, 18, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.88) !important;
+}
+
+/* блок картинки ниже, но сама картинка больше */
+.service-card-media {
+  height: 58px !important;
+  margin: 0 0 8px !important;
+  border-radius: 15px !important;
+  padding: 4px !important;
+}
+
+/* как ты предложил — картинка занимает весь доступный блок */
+.service-card-media img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  filter: drop-shadow(0 5px 7px rgba(26, 21, 14, 0.16));
+}
+
+/* бейдж компактнее */
+.service-card-type,
+.service-card-label,
+.service-card-modern .service-card-type,
+.service-card-modern .service-card-label {
+  margin-bottom: 5px !important;
+  padding: 3px 8px !important;
+  font-size: 9.5px !important;
+}
+
+/* название компактнее */
+.service-card-title,
+.service-name,
+.service-card-modern .service-card-title,
+.service-card-modern .service-name {
+  min-height: 32px !important;
+  margin: 0 0 6px !important;
+  font-size: 14px !important;
+  line-height: 1.18 !important;
+}
+
+/* мета-блок плотнее */
+.service-card-meta,
+.service-meta,
+.service-card-modern .service-card-meta,
+.service-card-modern .service-meta {
+  gap: 2px !important;
+}
+
+/* длительность компактнее */
+.service-card-duration,
+.service-duration,
+.service-card-modern .service-card-duration,
+.service-card-modern .service-duration {
+  font-size: 11px !important;
+  line-height: 1.15 !important;
+}
+
+/* цена чуть меньше, чтобы карточка стала легче */
+.service-card-price,
+.service-price,
+.service-card-modern .service-card-price,
+.service-card-modern .service-price {
+  font-size: 21px !important;
+  line-height: 1 !important;
+}
+
+/* расстояние между карточками чуть меньше */
+.service-list,
+.service-cards,
+.services-grid,
+.services-scroll {
+  gap: 10px !important;
+  padding-bottom: 8px !important;
+}
+
+/* галочку оставляем одну */
+.service-card.is-selected::before,
+.service-card.selected::before,
+.service-card.active::before,
+.service-card-modern.is-selected::before,
+.service-card-modern.active::before,
+.service-card-modern[data-selected="true"]::before {
+  content: none !important;
+  display: none !important;
+}
+
+.service-card-modern .service-selected-mark {
+  top: 8px !important;
+  right: 8px !important;
+  width: 21px !important;
+  height: 21px !important;
+}
+
+/* mobile tuning */
+@media (max-width: 768px) {
+  .service-card,
+  .service-card-modern {
+    flex-basis: 114px !important;
+    width: 114px !important;
+    min-width: 114px !important;
+    min-height: 182px !important;
+    padding: 8px 8px 10px !important;
+  }
+
+  .service-card-media {
+    height: 56px !important;
+    margin-bottom: 7px !important;
+  }
+
+  .service-card-title,
+  .service-name,
+  .service-card-modern .service-card-title,
+  .service-card-modern .service-name {
+    font-size: 13.5px !important;
+    min-height: 31px !important;
+  }
+
+  .service-card-price,
+  .service-price,
+  .service-card-modern .service-card-price,
+  .service-modern .service-price {
+    font-size: 20px !important;
+  }
+}
