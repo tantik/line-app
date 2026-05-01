@@ -1264,12 +1264,12 @@ select:focus {
 .service-card-media-image,
 .service-card-modern .service-card-media,
 .service-card-modern .service-card-media-image {
-  width: 54px !important;
-  height: 54px !important;
+  width: 72px !important;
+  height: 72px !important;
   aspect-ratio: 1 / 1 !important;
   margin: 0 auto 5px !important;
   padding: 3px !important;
-  border-radius: 14px !important;
+  border-radius: 50% !important;
 
   display: flex !important;
   align-items: center !important;
