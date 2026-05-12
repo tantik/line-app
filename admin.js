@@ -130,27 +130,7 @@ async function applyDemoTenant() {
     throw new Error("DEMO_SALON_ID not configured");
   }
 
-  try {
-    const { data, error } = await sb
-      .from("salons")
-      .select("name, slug")
-      .eq("id", currentSalonId)
-      .limit(1)
-      .maybeSingle();
-
-    if (error) {
-      throw error;
-    }
-
-    if (!data) {
-      throw new Error("Demo salon not found");
-    }
-
-    setText("tenantLabel", `${data.name || "Demo Salon"} / salon_admin [DEMO]`);
-  } catch (error) {
-    console.error("applyDemoTenant error:", error);
-    setText("tenantLabel", "Demo Salon / salon_admin [DEMO]");
-  }
+  setText("tenantLabel", "Demo Salon / salon_admin [DEMO]");
 }
 
 async function applySession(session) {
