@@ -60,6 +60,22 @@ function getSupabaseConfig() {
   };
 }
 
+function getResendConfig() {
+  const apiKey = process.env.RESEND_API_KEY;
+  const notifyEmail = process.env.LEAD_NOTIFY_EMAIL;
+  const fromEmail = process.env.LEAD_FROM_EMAIL;
+
+  if (!apiKey || !notifyEmail || !fromEmail) {
+    return null;
+  }
+
+  return {
+    apiKey,
+    notifyEmail,
+    fromEmail,
+  };
+}
+
 function normalizeText(value) {
   return String(value || "").trim();
 }
@@ -86,6 +102,19 @@ function getClientIp(req) {
   }
 
   return null;
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function formatMultilineText(value) {
+  return escapeHtml(value || "-").replace(/\n/g, "<br>");
 }
 
 function buildLeadPayload(body, req) {
@@ -200,6 +229,148 @@ async function insertSalesLead(payload) {
   return Array.isArray(data) ? data[0] : data;
 }
 
+function getSourceLabel(source) {
+  if (source === "demo_app_first_screen") return "Demo App / 導入相談";
+  if (source === "line_booking_site") return "Line Booking Site / LP";
+  return source || "unknown";
+}
+
+function buildLeadEmail({ lead, payload }) {
+  const sourceLabel = getSourceLabel(payload.source);
+  const subject = `【Mirawi】新しい導入相談: ${payload.business_name}`;
+
+  const text = [
+    "新しい導入相談が届きました。",
+    "",
+    `Source: ${sourceLabel}`,
+    `Lead ID: ${lead?.id || "-"}`,
+    `店舗名 / 会社名: ${payload.business_name || "-"}`,
+    `ご担当者名: ${payload.owner_name || "-"}`,
+    `連絡先: ${payload.contact || "-"}`,
+    `Email: ${payload.email || "-"}`,
+    `LINE ID: ${payload.line_id || "-"}`,
+    `電話番号: ${payload.phone || "-"}`,
+    `業種: ${payload.industry || "-"}`,
+    `Page URL: ${payload.page_url || "-"}`,
+    "",
+    "相談内容:",
+    payload.message || "-",
+  ].join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #172326; max-width: 680px;">
+      <h2 style="margin: 0 0 16px; color: #0f3f46;">新しい導入相談が届きました</h2>
+      <p style="margin: 0 0 18px;">Mirawi / LINE Booking の問い合わせフォームから新しいリードが届きました。</p>
+
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #d8e4e7;">
+        <tbody>
+          <tr>
+            <th style="width: 170px; text-align: left; padding: 10px; background: #f2f7f8; border-bottom: 1px solid #d8e4e7;">Source</th>
+            <td style="padding: 10px; border-bottom: 1px solid #d8e4e7;">${escapeHtml(sourceLabel)}</td>
+          </tr>
+          <tr>
+            <th style="text-align: left; padding: 10px; background: #f2f7f8; border-bottom: 1px solid #d8e4e7;">Lead ID</th>
+            <td style="padding: 10px; border-bottom: 1px solid #d8e4e7;">${escapeHtml(lead?.id || "-")}</td>
+          </tr>
+          <tr>
+            <th style="text-align: left; padding: 10px; background: #f2f7f8; border-bottom: 1px solid #d8e4e7;">店舗名 / 会社名</th>
+            <td style="padding: 10px; border-bottom: 1px solid #d8e4e7;">${escapeHtml(payload.business_name || "-")}</td>
+          </tr>
+          <tr>
+            <th style="text-align: left; padding: 10px; background: #f2f7f8; border-bottom: 1px solid #d8e4e7;">ご担当者名</th>
+            <td style="padding: 10px; border-bottom: 1px solid #d8e4e7;">${escapeHtml(payload.owner_name || "-")}</td>
+          </tr>
+          <tr>
+            <th style="text-align: left; padding: 10px; background: #f2f7f8; border-bottom: 1px solid #d8e4e7;">連絡先</th>
+            <td style="padding: 10px; border-bottom: 1px solid #d8e4e7;">${escapeHtml(payload.contact || "-")}</td>
+          </tr>
+          <tr>
+            <th style="text-align: left; padding: 10px; background: #f2f7f8; border-bottom: 1px solid #d8e4e7;">Email</th>
+            <td style="padding: 10px; border-bottom: 1px solid #d8e4e7;">${escapeHtml(payload.email || "-")}</td>
+          </tr>
+          <tr>
+            <th style="text-align: left; padding: 10px; background: #f2f7f8; border-bottom: 1px solid #d8e4e7;">LINE ID</th>
+            <td style="padding: 10px; border-bottom: 1px solid #d8e4e7;">${escapeHtml(payload.line_id || "-")}</td>
+          </tr>
+          <tr>
+            <th style="text-align: left; padding: 10px; background: #f2f7f8; border-bottom: 1px solid #d8e4e7;">電話番号</th>
+            <td style="padding: 10px; border-bottom: 1px solid #d8e4e7;">${escapeHtml(payload.phone || "-")}</td>
+          </tr>
+          <tr>
+            <th style="text-align: left; padding: 10px; background: #f2f7f8; border-bottom: 1px solid #d8e4e7;">業種</th>
+            <td style="padding: 10px; border-bottom: 1px solid #d8e4e7;">${escapeHtml(payload.industry || "-")}</td>
+          </tr>
+          <tr>
+            <th style="text-align: left; padding: 10px; background: #f2f7f8; border-bottom: 1px solid #d8e4e7;">Page URL</th>
+            <td style="padding: 10px; border-bottom: 1px solid #d8e4e7;">${escapeHtml(payload.page_url || "-")}</td>
+          </tr>
+          <tr>
+            <th style="text-align: left; padding: 10px; background: #f2f7f8; vertical-align: top;">相談内容</th>
+            <td style="padding: 10px;">${formatMultilineText(payload.message)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+
+  return {
+    subject,
+    text,
+    html,
+  };
+}
+
+async function sendLeadNotification({ lead, payload }) {
+  const config = getResendConfig();
+
+  if (!config) {
+    console.warn("Lead email notification skipped: Resend env is not configured");
+    return {
+      sent: false,
+      skipped: true,
+      reason: "Resend env is not configured",
+    };
+  }
+
+  const email = buildLeadEmail({ lead, payload });
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: config.fromEmail,
+      to: [config.notifyEmail],
+      subject: email.subject,
+      html: email.html,
+      text: email.text,
+    }),
+  });
+
+  const text = await response.text();
+
+  let data = null;
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!response.ok) {
+    const detail = typeof data === "string" ? data : JSON.stringify(data);
+    throw new Error(`Resend email failed: ${response.status} ${detail}`);
+  }
+
+  return {
+    sent: true,
+    id: data?.id || null,
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method === "OPTIONS") {
     setCorsHeaders(req, res);
@@ -238,9 +409,30 @@ export default async function handler(req, res) {
 
     const lead = await insertSalesLead(payload);
 
+    let emailResult = {
+      sent: false,
+      skipped: false,
+      error: null,
+    };
+
+    try {
+      emailResult = await sendLeadNotification({ lead, payload });
+    } catch (emailError) {
+      console.error("Lead email notification error:", emailError);
+      emailResult = {
+        sent: false,
+        skipped: false,
+        error: emailError.message || "Email notification failed",
+      };
+    }
+
     return sendJson(req, res, 200, {
       ok: true,
       lead_id: lead?.id || null,
+      email_sent: Boolean(emailResult.sent),
+      email_id: emailResult.id || null,
+      email_error: emailResult.error || null,
+      email_skipped: Boolean(emailResult.skipped),
     });
   } catch (error) {
     console.error("create-sales-lead error:", error);
