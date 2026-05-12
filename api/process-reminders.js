@@ -47,15 +47,44 @@ async function markJob(jobId, values) {
     .eq("id", jobId);
 }
 
+async function insertReminderEvent({ booking, job, eventType, errorMessage = null }) {
+  if (!booking?.id || !booking?.salon_id) {
+    return;
+  }
+
+  await supabase.from("booking_events").insert({
+    booking_id: booking.id,
+    salon_id: booking.salon_id,
+    event_type: eventType,
+    actor_type: "system",
+    actor_user_id: null,
+    actor_label: "Reminder job",
+    payload: {
+      reminder_job_id: job.id,
+      kind: job.kind,
+      channel: "line",
+      error: errorMessage,
+      at: new Date().toISOString(),
+    },
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "Method not allowed" });
+    return res.status(405).json({
+      ok: false,
+      error: "Method not allowed",
+    });
   }
 
   if (CRON_SECRET) {
     const auth = req.headers.authorization || "";
+
     if (auth !== `Bearer ${CRON_SECRET}`) {
-      return res.status(401).json({ ok: false, error: "Unauthorized" });
+      return res.status(401).json({
+        ok: false,
+        error: "Unauthorized",
+      });
     }
   }
 
@@ -70,26 +99,38 @@ export default async function handler(req, res) {
       .lte("scheduled_for", now)
       .limit(20);
 
-    if (jobsError) throw jobsError;
+    if (jobsError) {
+      throw jobsError;
+    }
 
     let sent = 0;
     let failed = 0;
 
     for (const job of jobs || []) {
+      let booking = null;
+
       try {
-        const { data: booking, error: bookingError } = await supabase
+        const { data: bookingData, error: bookingError } = await supabase
           .from("bookings")
           .select("*")
           .eq("id", job.booking_id)
           .maybeSingle();
 
-        if (bookingError) throw bookingError;
+        if (bookingError) {
+          throw bookingError;
+        }
+
+        booking = bookingData;
 
         if (!booking?.line_user_id || booking.status === "cancelled") {
           await markJob(job.id, {
             delivery_status: "skipped",
-            last_error: booking?.status === "cancelled" ? "booking_cancelled" : "missing_line_user_id",
+            last_error:
+              booking?.status === "cancelled"
+                ? "booking_cancelled"
+                : "missing_line_user_id",
           });
+
           continue;
         }
 
@@ -101,26 +142,31 @@ export default async function handler(req, res) {
           last_error: null,
         });
 
-        await supabase.from("booking_events").insert({
-          booking_id: booking.id,
-          salon_id: booking.salon_id,
-          event_type: "line_reminder_sent",
-          payload: {
-            reminder_job_id: job.id,
-            kind: job.kind,
-            channel: "line",
-            sent_at: new Date().toISOString(),
-          },
+        await insertReminderEvent({
+          booking,
+          job,
+          eventType: "reminder_sent",
         });
 
         sent += 1;
       } catch (error) {
         failed += 1;
 
+        const errorMessage = error.message || "unknown_error";
+
         await markJob(job.id, {
           delivery_status: "failed",
-          last_error: error.message || "unknown_error",
+          last_error: errorMessage,
         });
+
+        if (booking) {
+          await insertReminderEvent({
+            booking,
+            job,
+            eventType: "reminder_failed",
+            errorMessage,
+          });
+        }
       }
     }
 
