@@ -861,11 +861,11 @@ async function sendBookingConfirmationMessage(bookingId) {
 ========================================================= */
 
 async function submitLeadForm() {
-  const businessName = getInputValue("leadStoreName");
+  const businessName = getInputValue("leadSalonName");
   const ownerName = getInputValue("leadOwnerName");
   const contact = getInputValue("leadContact");
-  const industry = getInputValue("leadIndustry");
-  const message = getInputValue("leadMessage");
+  const industry = getInputValue("leadBusinessType");
+  const message = getInputValue("leadNeeds");
 
   if (!businessName || !ownerName || !contact) {
     alert("店舗名・ご担当者名・連絡先を入力してください");
