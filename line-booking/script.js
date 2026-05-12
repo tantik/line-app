@@ -86,6 +86,7 @@ function initCounters() {
     const target = Number(el.dataset.target || 0);
     const duration = 1200;
     const startTime = performance.now();
+
     const formatter =
       target >= 1000
         ? (value) => Math.floor(value).toLocaleString("ja-JP")
@@ -121,7 +122,9 @@ function initCounters() {
         observer.unobserve(entry.target);
       });
     },
-    { threshold: 0.5 }
+    {
+      threshold: 0.5,
+    }
   );
 
   counters.forEach((counter) => observer.observe(counter));
@@ -163,7 +166,9 @@ function initModal() {
   if (!modal) return;
 
   const openModal = (event) => {
-    if (event) event.preventDefault();
+    if (event) {
+      event.preventDefault();
+    }
 
     modal.classList.add("is-open");
     modal.setAttribute("aria-hidden", "false");
@@ -250,8 +255,13 @@ function initContactForm() {
       contact,
       email: email || null,
       line_id: line || null,
+      phone: null,
       industry,
-      message: buildLeadMessage({ line, email, message }),
+      message: buildLeadMessage({
+        line,
+        email,
+        message,
+      }),
       page_url: window.location.href,
     };
 
@@ -304,16 +314,14 @@ function getFieldValue(id) {
 }
 
 function buildLeadMessage({ line, email, message }) {
-  const parts = [
+  return [
     "Landing page lead",
     `LINE or contact: ${line || "-"}`,
     `Email: ${email || "-"}`,
     "",
     "Message:",
     message || "-",
-  ];
-
-  return parts.join("\n");
+  ].join("\n");
 }
 
 function guessBusinessType(business, message) {
