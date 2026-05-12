@@ -1,18 +1,196 @@
-import { createClient } from "@supabase/supabase-js";
+"use strict";
 
-const LINE_CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const CRON_SECRET = process.env.CRON_SECRET;
+const LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+function sendJson(res, statusCode, payload) {
+  return res.status(statusCode).json(payload);
+}
+
+function requireEnv(name) {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Missing environment variable: ${name}`);
+  }
+
+  return value;
+}
+
+function getSupabaseConfig() {
+  return {
+    supabaseUrl: requireEnv("SUPABASE_URL").replace(/\/$/, ""),
+    serviceRoleKey: requireEnv("SUPABASE_SERVICE_ROLE_KEY"),
+  };
+}
+
+async function supabaseRequest(path, options = {}) {
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+
+  const response = await fetch(`${supabaseUrl}${path}`, {
+    ...options,
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      "Content-Type": "application/json",
+      Prefer: "return=representation",
+      ...(options.headers || {}),
+    },
+  });
+
+  const text = await response.text();
+
+  let data = null;
+
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+  }
+
+  if (!response.ok) {
+    const detail = typeof data === "string" ? data : JSON.stringify(data);
+    throw new Error(`Supabase request failed: ${response.status} ${detail}`);
+  }
+
+  return data;
+}
+
+function encodeEq(value) {
+  return encodeURIComponent(String(value));
+}
+
+function encodeValue(value) {
+  return encodeURIComponent(String(value));
+}
+
+async function getDueReminderJobs(now) {
+  return supabaseRequest(
+    `/rest/v1/reminder_jobs?select=*&sent_at=is.null&channel=eq.line&scheduled_for=lte.${encodeValue(
+      now
+    )}&limit=20`,
+    {
+      method: "GET",
+    }
+  );
+}
+
+async function getBookingById(bookingId) {
+  if (!bookingId) return null;
+
+  const rows = await supabaseRequest(
+    `/rest/v1/bookings?select=*&id=eq.${encodeEq(bookingId)}&limit=1`,
+    {
+      method: "GET",
+    }
+  );
+
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+}
+
+async function markJob(jobId, values) {
+  if (!jobId) return null;
+
+  const rows = await supabaseRequest(
+    `/rest/v1/reminder_jobs?id=eq.${encodeEq(jobId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        ...values,
+        updated_at: new Date().toISOString(),
+      }),
+    }
+  );
+
+  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+}
+
+async function insertReminderEvent({
+  booking,
+  job,
+  eventType,
+  errorMessage = null,
+}) {
+  if (!booking?.id || !booking?.salon_id) {
+    return null;
+  }
+
+  return supabaseRequest("/rest/v1/booking_events", {
+    method: "POST",
+    body: JSON.stringify({
+      booking_id: booking.id,
+      salon_id: booking.salon_id,
+      event_type: eventType,
+      actor_type: "system",
+      actor_user_id: null,
+      actor_label: "Reminder job",
+      payload: {
+        reminder_job_id: job?.id || null,
+        kind: job?.kind || null,
+        channel: "line",
+        error: errorMessage,
+        at: new Date().toISOString(),
+      },
+    }),
+  });
+}
+
+function getLineUserId(booking) {
+  return booking?.line_user_id || booking?.lineUserId || booking?.line_id || "";
+}
+
+function getBookingDate(booking) {
+  return (
+    booking?.booking_date ||
+    booking?.date ||
+    booking?.reservation_date ||
+    booking?.start_date ||
+    booking?.starts_on ||
+    "-"
+  );
+}
+
+function getBookingTime(booking) {
+  return (
+    booking?.start_time ||
+    booking?.time ||
+    booking?.booking_time ||
+    booking?.reservation_time ||
+    booking?.starts_at ||
+    "-"
+  );
+}
+
+function normalizeTime(value) {
+  if (value === null || value === undefined) return "-";
+
+  const text = String(value).trim();
+  const match = text.match(/^(\d{1,2}):(\d{2})/);
+
+  if (!match) return text || "-";
+
+  return `${String(match[1]).padStart(2, "0")}:${match[2]}`;
+}
+
+function buildReminderMessage(booking) {
+  const date = String(getBookingDate(booking)).slice(0, 10);
+  const time = normalizeTime(getBookingTime(booking));
+
+  return {
+    type: "text",
+    text: `予約のリマインドです。\n\n日時：${date} ${time}\nご来店をお待ちしております。`,
+  };
+}
 
 async function pushLineMessage(lineUserId, message) {
-  const response = await fetch("https://api.line.me/v2/bot/message/push", {
+  const lineToken = requireEnv("LINE_CHANNEL_ACCESS_TOKEN");
+
+  const response = await fetch(LINE_PUSH_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${LINE_CHANNEL_ACCESS_TOKEN}`,
+      Authorization: `Bearer ${lineToken}`,
     },
     body: JSON.stringify({
       to: lineUserId,
@@ -25,63 +203,25 @@ async function pushLineMessage(lineUserId, message) {
   if (!response.ok) {
     throw new Error(`LINE push failed: ${response.status} ${text}`);
   }
-}
 
-function buildReminderMessage(booking) {
-  const date = booking.booking_date || booking.date || "-";
-  const time = String(booking.start_time || booking.time || "-").slice(0, 5);
-
-  return {
-    type: "text",
-    text: `予約のリマインドです。\n\n日時：${date} ${time}\nご来店をお待ちしております。`,
-  };
-}
-
-async function markJob(jobId, values) {
-  await supabase
-    .from("reminder_jobs")
-    .update({
-      ...values,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", jobId);
-}
-
-async function insertReminderEvent({ booking, job, eventType, errorMessage = null }) {
-  if (!booking?.id || !booking?.salon_id) {
-    return;
-  }
-
-  await supabase.from("booking_events").insert({
-    booking_id: booking.id,
-    salon_id: booking.salon_id,
-    event_type: eventType,
-    actor_type: "system",
-    actor_user_id: null,
-    actor_label: "Reminder job",
-    payload: {
-      reminder_job_id: job.id,
-      kind: job.kind,
-      channel: "line",
-      error: errorMessage,
-      at: new Date().toISOString(),
-    },
-  });
+  return text;
 }
 
 export default async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "POST") {
-    return res.status(405).json({
+    return sendJson(res, 405, {
       ok: false,
       error: "Method not allowed",
     });
   }
 
-  if (CRON_SECRET) {
+  const cronSecret = process.env.CRON_SECRET;
+
+  if (cronSecret) {
     const auth = req.headers.authorization || "";
 
-    if (auth !== `Bearer ${CRON_SECRET}`) {
-      return res.status(401).json({
+    if (auth !== `Bearer ${cronSecret}`) {
+      return sendJson(res, 401, {
         ok: false,
         error: "Unauthorized",
       });
@@ -89,52 +229,58 @@ export default async function handler(req, res) {
   }
 
   try {
+    requireEnv("SUPABASE_URL");
+    requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+
     const now = new Date().toISOString();
-
-    const { data: jobs, error: jobsError } = await supabase
-      .from("reminder_jobs")
-      .select("*")
-      .is("sent_at", null)
-      .eq("channel", "line")
-      .lte("scheduled_for", now)
-      .limit(20);
-
-    if (jobsError) {
-      throw jobsError;
-    }
+    const jobs = await getDueReminderJobs(now);
 
     let sent = 0;
     let failed = 0;
+    let skipped = 0;
 
     for (const job of jobs || []) {
       let booking = null;
 
       try {
-        const { data: bookingData, error: bookingError } = await supabase
-          .from("bookings")
-          .select("*")
-          .eq("id", job.booking_id)
-          .maybeSingle();
+        booking = await getBookingById(job.booking_id);
 
-        if (bookingError) {
-          throw bookingError;
-        }
+        const lineUserId = getLineUserId(booking);
 
-        booking = bookingData;
+        if (!booking) {
+          skipped += 1;
 
-        if (!booking?.line_user_id || booking.status === "cancelled") {
           await markJob(job.id, {
             delivery_status: "skipped",
-            last_error:
-              booking?.status === "cancelled"
-                ? "booking_cancelled"
-                : "missing_line_user_id",
+            last_error: "booking_not_found",
           });
 
           continue;
         }
 
-        await pushLineMessage(booking.line_user_id, buildReminderMessage(booking));
+        if (booking.status === "cancelled") {
+          skipped += 1;
+
+          await markJob(job.id, {
+            delivery_status: "skipped",
+            last_error: "booking_cancelled",
+          });
+
+          continue;
+        }
+
+        if (!lineUserId) {
+          skipped += 1;
+
+          await markJob(job.id, {
+            delivery_status: "skipped",
+            last_error: "missing_line_user_id",
+          });
+
+          continue;
+        }
+
+        await pushLineMessage(lineUserId, buildReminderMessage(booking));
 
         await markJob(job.id, {
           sent_at: new Date().toISOString(),
@@ -154,32 +300,47 @@ export default async function handler(req, res) {
 
         const errorMessage = error.message || "unknown_error";
 
-        await markJob(job.id, {
-          delivery_status: "failed",
-          last_error: errorMessage,
+        console.error("Reminder job failed:", {
+          job_id: job?.id,
+          booking_id: job?.booking_id,
+          error: errorMessage,
         });
 
-        if (booking) {
-          await insertReminderEvent({
-            booking,
-            job,
-            eventType: "reminder_failed",
-            errorMessage,
+        try {
+          await markJob(job.id, {
+            delivery_status: "failed",
+            last_error: errorMessage,
           });
+        } catch (markError) {
+          console.error("Failed to mark reminder job as failed:", markError);
+        }
+
+        if (booking) {
+          try {
+            await insertReminderEvent({
+              booking,
+              job,
+              eventType: "reminder_failed",
+              errorMessage,
+            });
+          } catch (eventError) {
+            console.error("Failed to insert reminder_failed event:", eventError);
+          }
         }
       }
     }
 
-    return res.status(200).json({
+    return sendJson(res, 200, {
       ok: true,
       processed: jobs?.length || 0,
       sent,
       failed,
+      skipped,
     });
   } catch (error) {
     console.error("process-reminders error:", error);
 
-    return res.status(500).json({
+    return sendJson(res, 500, {
       ok: false,
       error: error.message || "Internal server error",
     });
