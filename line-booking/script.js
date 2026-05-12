@@ -224,15 +224,15 @@ function initContactForm() {
     const contact = email ? `${line} / ${email}` : line;
 
     const payload = {
-      mode: "lead",
-      userId: "",
-      displayName: "",
-      salonName: business,
-      ownerName: name,
+      source: "line_booking_site",
+      business_name: business,
+      owner_name: name,
       contact,
-      businessType,
-      needs: buildNeedsText({ line, email, message }),
-      source: CONFIG.source,
+      email: email || null,
+      line_id: line || null,
+      industry: businessType,
+      message: buildNeedsText({ line, email, message }),
+      page_url: window.location.href,
     };
 
     try {
@@ -240,23 +240,18 @@ function initContactForm() {
       submitBtn.textContent = "送信中...";
       setFormMessage("送信しています...", "");
 
-      const response = await fetch(CONFIG.webhookUrl, {
+      const response = await fetch(CONFIG.leadApiUrl, {
         method: "POST",
         headers: {
-          "Content-Type": "text/plain;charset=utf-8",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(payload),
       });
 
-      let result = {};
-      try {
-        result = await response.json();
-      } catch (jsonError) {
-        result = { status: "ok" };
-      }
+      const result = await response.json().catch(() => ({}));
 
-      if (result.status === "error") {
-        throw new Error("submit failed");
+      if (!response.ok || result.ok === false) {
+        throw new Error(result.error || "submit failed");
       }
 
       form.reset();
