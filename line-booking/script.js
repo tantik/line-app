@@ -1,8 +1,7 @@
 const CONFIG = {
   demoUrl: "https://line-app-xi.vercel.app/",
   demoLeadUrl: "https://line-app-xi.vercel.app/?screen=lead",
-  webhookUrl:
-    "https://script.google.com/macros/s/AKfycbwJ6JgQWqmhp9Y7gWPKvr5l5IixbWuNRAsbJ0km6AQIGuUBlniZeDfOpqtkGds-pxzB/exec",
+  leadApiUrl: "https://line-app-xi.vercel.app/api/create-sales-lead",
   source: "line-booking-v3-site",
 };
 
