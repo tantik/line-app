@@ -2,7 +2,7 @@ const CONFIG = {
   demoUrl: "https://line-app-xi.vercel.app/",
   demoLeadUrl: "https://line-app-xi.vercel.app/?screen=lead",
   leadApiUrl: "https://line-app-xi.vercel.app/api/create-sales-lead",
-  source: "line-booking-v3-site",
+  source: "line_booking_site",
 };
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -37,8 +37,11 @@ function initSmoothCloseMobileNav() {
   mobileLinks.forEach((link) => {
     link.addEventListener("click", () => {
       body.classList.remove("menu-open");
+
       const toggle = document.querySelector(".nav-toggle");
-      if (toggle) toggle.setAttribute("aria-expanded", "false");
+      if (toggle) {
+        toggle.setAttribute("aria-expanded", "false");
+      }
     });
   });
 }
@@ -47,10 +50,16 @@ function initReveal() {
   const items = document.querySelectorAll(".reveal");
   if (!items.length) return;
 
+  if (!("IntersectionObserver" in window)) {
+    items.forEach((item) => item.classList.add("is-visible"));
+    return;
+  }
+
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         if (!entry.isIntersecting) return;
+
         entry.target.classList.add("is-visible");
         observer.unobserve(entry.target);
       });
@@ -77,7 +86,6 @@ function initCounters() {
     const target = Number(el.dataset.target || 0);
     const duration = 1200;
     const startTime = performance.now();
-
     const formatter =
       target >= 1000
         ? (value) => Math.floor(value).toLocaleString("ja-JP")
@@ -86,6 +94,7 @@ function initCounters() {
     const tick = (now) => {
       const progress = Math.min((now - startTime) / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
+
       el.textContent = formatter(target * eased);
 
       if (progress < 1) {
@@ -98,13 +107,18 @@ function initCounters() {
     requestAnimationFrame(tick);
   };
 
+  if (!("IntersectionObserver" in window)) {
+    counters.forEach((counter) => animateCounter(counter));
+    return;
+  }
+
   const observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
-        if (entry.isIntersecting) {
-          animateCounter(entry.target);
-          observer.unobserve(entry.target);
-        }
+        if (!entry.isIntersecting) return;
+
+        animateCounter(entry.target);
+        observer.unobserve(entry.target);
       });
     },
     { threshold: 0.5 }
@@ -125,8 +139,11 @@ function initFaq() {
 
       items.forEach((other) => {
         other.classList.remove("is-open");
+
         const otherButton = other.querySelector(".faq-question");
-        if (otherButton) otherButton.setAttribute("aria-expanded", "false");
+        if (otherButton) {
+          otherButton.setAttribute("aria-expanded", "false");
+        }
       });
 
       if (!isOpen) {
@@ -145,8 +162,9 @@ function initModal() {
 
   if (!modal) return;
 
-  const openModal = (e) => {
-    if (e) e.preventDefault();
+  const openModal = (event) => {
+    if (event) event.preventDefault();
+
     modal.classList.add("is-open");
     modal.setAttribute("aria-hidden", "false");
     document.body.style.overflow = "hidden";
@@ -158,12 +176,15 @@ function initModal() {
     document.body.style.overflow = "";
   };
 
-  openers.forEach((btn) => btn.addEventListener("click", openModal));
+  openers.forEach((button) => {
+    button.addEventListener("click", openModal);
+  });
+
   closeBtn?.addEventListener("click", closeModal);
   backdrop?.addEventListener("click", closeModal);
 
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && modal.classList.contains("is-open")) {
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && modal.classList.contains("is-open")) {
       closeModal();
     }
   });
@@ -177,11 +198,10 @@ function initTilt() {
   if (isTouch) return;
 
   cards.forEach((card) => {
-    card.addEventListener("mousemove", (e) => {
+    card.addEventListener("mousemove", (event) => {
       const rect = card.getBoundingClientRect();
-      const px = (e.clientX - rect.left) / rect.width;
-      const py = (e.clientY - rect.top) / rect.height;
-
+      const px = (event.clientX - rect.left) / rect.width;
+      const py = (event.clientY - rect.top) / rect.height;
       const rotateY = (px - 0.5) * 10;
       const rotateX = (0.5 - py) * 10;
 
@@ -201,37 +221,37 @@ function initContactForm() {
 
   if (!form || !messageEl || !submitBtn) return;
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
 
     const honeypot = document.getElementById("website");
     if (honeypot && honeypot.value.trim() !== "") {
       return;
     }
 
-    const name = (document.getElementById("name")?.value || "").trim();
-    const business = (document.getElementById("business")?.value || "").trim();
-    const line = (document.getElementById("line")?.value || "").trim();
-    const email = (document.getElementById("email")?.value || "").trim();
-    const message = (document.getElementById("message")?.value || "").trim();
+    const name = getFieldValue("name");
+    const business = getFieldValue("business");
+    const line = getFieldValue("line");
+    const email = getFieldValue("email");
+    const message = getFieldValue("message");
 
     if (!name || !business || !line || !message) {
       setFormMessage("必須項目を入力してください。", "error");
       return;
     }
 
-    const businessType = guessBusinessType(business, message);
+    const industry = guessBusinessType(business, message);
     const contact = email ? `${line} / ${email}` : line;
 
     const payload = {
-      source: "line_booking_site",
+      source: CONFIG.source,
       business_name: business,
       owner_name: name,
       contact,
       email: email || null,
       line_id: line || null,
-      industry: businessType,
-      message: buildNeedsText({ line, email, message }),
+      industry,
+      message: buildLeadMessage({ line, email, message }),
       page_url: window.location.href,
     };
 
@@ -268,18 +288,31 @@ function initContactForm() {
   function setFormMessage(text, type) {
     messageEl.textContent = text;
     messageEl.classList.remove("is-success", "is-error");
-    if (type === "success") messageEl.classList.add("is-success");
-    if (type === "error") messageEl.classList.add("is-error");
+
+    if (type === "success") {
+      messageEl.classList.add("is-success");
+    }
+
+    if (type === "error") {
+      messageEl.classList.add("is-error");
+    }
   }
 }
 
-function buildNeedsText({ line, email, message }) {
+function getFieldValue(id) {
+  return (document.getElementById(id)?.value || "").trim();
+}
+
+function buildLeadMessage({ line, email, message }) {
   const parts = [
     "Landing page lead",
     `LINE or contact: ${line || "-"}`,
     `Email: ${email || "-"}`,
-    `Message: ${message || "-"}`,
+    "",
+    "Message:",
+    message || "-",
   ];
+
   return parts.join("\n");
 }
 
@@ -299,5 +332,8 @@ function guessBusinessType(business, message) {
 
 function initYear() {
   const year = document.getElementById("year");
-  if (year) year.textContent = new Date().getFullYear().toString();
+
+  if (year) {
+    year.textContent = new Date().getFullYear().toString();
+  }
 }
