@@ -229,6 +229,38 @@ async function insertSalesLead(payload) {
   return Array.isArray(data) ? data[0] : data;
 }
 
+async function updateLeadEmailStatus(leadId, emailResult) {
+  if (!leadId) return;
+
+  const { supabaseUrl, serviceRoleKey } = getSupabaseConfig();
+
+  const payload = {
+    email_sent: Boolean(emailResult.sent),
+    email_sent_at: emailResult.sent ? new Date().toISOString() : null,
+    email_id: emailResult.id || null,
+    email_error: emailResult.error || emailResult.reason || null,
+  };
+
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/sales_leads?id=eq.${encodeURIComponent(leadId)}`,
+    {
+      method: "PATCH",
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        "Content-Type": "application/json",
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Supabase sales_leads email status update failed: ${response.status} ${text}`);
+  }
+}
+
 function getSourceLabel(source) {
   if (source === "demo_app_first_screen") return "Demo App / 導入相談";
   if (source === "line_booking_site") return "Line Booking Site / LP";
@@ -415,7 +447,7 @@ export default async function handler(req, res) {
       error: null,
     };
 
-    try {
+        try {
       emailResult = await sendLeadNotification({ lead, payload });
     } catch (emailError) {
       console.error("Lead email notification error:", emailError);
@@ -426,6 +458,17 @@ export default async function handler(req, res) {
       };
     }
 
+    let emailStatusSaved = false;
+    let emailStatusError = null;
+
+    try {
+      await updateLeadEmailStatus(lead?.id, emailResult);
+      emailStatusSaved = true;
+    } catch (statusError) {
+      console.error("Lead email status update error:", statusError);
+      emailStatusError = statusError.message || "Email status update failed";
+    }
+
     return sendJson(req, res, 200, {
       ok: true,
       lead_id: lead?.id || null,
@@ -433,6 +476,8 @@ export default async function handler(req, res) {
       email_id: emailResult.id || null,
       email_error: emailResult.error || null,
       email_skipped: Boolean(emailResult.skipped),
+      email_status_saved: emailStatusSaved,
+      email_status_error: emailStatusError,
     });
   } catch (error) {
     console.error("create-sales-lead error:", error);
