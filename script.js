@@ -861,49 +861,42 @@ async function sendBookingConfirmationMessage(bookingId) {
 ========================================================= */
 
 async function submitLeadForm() {
-  const supabase = getSupabaseClient();
+  const businessName = getInputValue("leadStoreName");
+  const ownerName = getInputValue("leadOwnerName");
+  const contact = getInputValue("leadContact");
+  const industry = getInputValue("leadIndustry");
+  const message = getInputValue("leadMessage");
 
-  if (!supabase) {
-    alert("Supabase client is not available");
-    return;
-  }
-
-  const payload = {
-    p_salon_id: await resolveSalonId(),
-    p_store_name: getInputValue("leadStoreName"),
-    p_owner_name: getInputValue("leadOwnerName"),
-    p_contact: getInputValue("leadContact"),
-    p_industry: getInputValue("leadIndustry"),
-    p_message: getInputValue("leadMessage"),
-    p_line_user_id: state.userId || CONFIG.DEV_LINE_USER_ID || null,
-    p_source: "public_line_booking_demo",
-  };
-
-  if (!payload.p_store_name || !payload.p_owner_name || !payload.p_contact) {
+  if (!businessName || !ownerName || !contact) {
     alert("店舗名・ご担当者名・連絡先を入力してください");
     return;
   }
 
+  const payload = {
+    source: "demo_app_first_screen",
+    business_name: businessName,
+    owner_name: ownerName,
+    contact,
+    industry,
+    message,
+    page_url: window.location.href,
+  };
+
   setLoading(true, "送信中...", "相談内容を送信しています");
 
   try {
-    const { error } = await supabase.rpc("create_public_lead", payload);
+    const response = await fetch("/api/create-sales-lead", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
 
-    if (error) {
-      console.warn("[Mirawi] create_public_lead RPC failed, fallback insert is used", error);
+    const result = await response.json().catch(() => ({}));
 
-      const fallback = await supabase.from("leads").insert({
-        salon_id: payload.p_salon_id,
-        store_name: payload.p_store_name,
-        owner_name: payload.p_owner_name,
-        contact: payload.p_contact,
-        industry: payload.p_industry,
-        message: payload.p_message,
-        line_user_id: payload.p_line_user_id,
-        source: payload.p_source,
-      });
-
-      if (fallback.error) throw fallback.error;
+    if (!response.ok || result.ok === false) {
+      throw new Error(result.error || "送信に失敗しました");
     }
 
     showScreen("screenLeadSuccess");
