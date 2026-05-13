@@ -18,7 +18,9 @@ function requireEnv(name) {
 }
 
 async function readRawBody(req) {
-  if (typeof req.body === "string") return req.body;
+  if (typeof req.body === "string") {
+    return req.body;
+  }
 
   if (Buffer.isBuffer(req.body)) {
     return req.body.toString("utf8");
@@ -38,7 +40,9 @@ async function readRawBody(req) {
 }
 
 function parseJsonBody(rawBody) {
-  if (!rawBody) return {};
+  if (!rawBody) {
+    return {};
+  }
 
   try {
     return JSON.parse(rawBody);
@@ -51,7 +55,9 @@ function safeCompare(a, b) {
   const bufferA = Buffer.from(String(a || ""));
   const bufferB = Buffer.from(String(b || ""));
 
-  if (bufferA.length !== bufferB.length) return false;
+  if (bufferA.length !== bufferB.length) {
+    return false;
+  }
 
   return crypto.timingSafeEqual(bufferA, bufferB);
 }
@@ -59,7 +65,9 @@ function safeCompare(a, b) {
 function verifyLineSignature(rawBody, signature) {
   const channelSecret = requireEnv("LINE_CHANNEL_SECRET");
 
-  if (!signature) return false;
+  if (!signature) {
+    return false;
+  }
 
   const expectedSignature = crypto
     .createHmac("sha256", channelSecret)
@@ -91,6 +99,7 @@ async function supabaseRequest(path, options = {}) {
   });
 
   const text = await response.text();
+
   let data = null;
 
   if (text) {
@@ -126,20 +135,14 @@ function buildStatusFilterForAction(action) {
 }
 
 async function getBookingById(bookingId) {
+  if (!bookingId) {
+    return null;
+  }
+
   const rows = await supabaseRequest(
     `/rest/v1/bookings?select=*&id=eq.${encodeEq(bookingId)}&limit=1`,
-    { method: "GET" }
-  );
-
-  return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
-}
-
-async function updateBookingById(bookingId, values) {
-  const rows = await supabaseRequest(
-    `/rest/v1/bookings?id=eq.${encodeEq(bookingId)}`,
     {
-      method: "PATCH",
-      body: JSON.stringify(values),
+      method: "GET",
     }
   );
 
@@ -160,16 +163,68 @@ async function updateBookingStatusAtomically({ bookingId, action, values }) {
   return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
 }
 
+async function closePendingReminderJobsForCancelledBooking({
+  bookingId,
+  salonId,
+  reason = "booking_cancelled",
+}) {
+  if (!bookingId || !salonId) {
+    return {
+      ok: false,
+      updated: 0,
+      reason: "missing_booking_or_salon_id",
+    };
+  }
+
+  try {
+    const rows = await supabaseRequest(
+      `/rest/v1/reminder_jobs?booking_id=eq.${encodeEq(
+        bookingId
+      )}&salon_id=eq.${encodeEq(
+        salonId
+      )}&sent_at=is.null&delivery_status=eq.pending`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          delivery_status: "failed",
+          last_error: reason,
+          updated_at: new Date().toISOString(),
+        }),
+      }
+    );
+
+    return {
+      ok: true,
+      updated: Array.isArray(rows) ? rows.length : 0,
+      reason,
+    };
+  } catch (error) {
+    console.error("closePendingReminderJobsForCancelledBooking error:", error);
+
+    return {
+      ok: false,
+      updated: 0,
+      reason,
+      error: error.message || "reminder_jobs_cleanup_failed",
+    };
+  }
+}
+
 async function insertBookingEvent({ booking, eventType, payload }) {
+  if (!booking?.id || !booking?.salon_id) {
+    return;
+  }
+
   try {
     const isCustomerEvent =
-      eventType === "customer_confirmed" || eventType === "customer_cancelled";
+      eventType === "customer_confirmed" ||
+      eventType === "customer_cancelled";
 
     await supabaseRequest("/rest/v1/booking_events", {
       method: "POST",
       body: JSON.stringify({
-        booking_id: booking?.id || null,
-        salon_id: booking?.salon_id || null,
+        booking_id: booking.id,
+        salon_id: booking.salon_id,
         event_type: eventType,
         actor_type: isCustomerEvent ? "customer" : "system",
         actor_user_id: null,
@@ -183,7 +238,9 @@ async function insertBookingEvent({ booking, eventType, payload }) {
 }
 
 async function replyLineMessage(replyToken, messages) {
-  if (!replyToken) return false;
+  if (!replyToken) {
+    return false;
+  }
 
   const lineToken = requireEnv("LINE_CHANNEL_ACCESS_TOKEN");
 
@@ -210,7 +267,9 @@ async function replyLineMessage(replyToken, messages) {
 }
 
 async function pushLineMessage(lineUserId, messages) {
-  if (!lineUserId) return false;
+  if (!lineUserId) {
+    return false;
+  }
 
   const lineToken = requireEnv("LINE_CHANNEL_ACCESS_TOKEN");
 
@@ -316,7 +375,10 @@ async function updateBookingStatusFromPostback({ bookingId, lineUserId, action }
   }
 
   const bookingLineUserId =
-    booking.line_user_id || booking.lineUserId || booking.line_id || "";
+    booking.line_user_id ||
+    booking.lineUserId ||
+    booking.line_id ||
+    "";
 
   if (bookingLineUserId && lineUserId && bookingLineUserId !== lineUserId) {
     return {
@@ -337,10 +399,17 @@ async function updateBookingStatusFromPostback({ bookingId, lineUserId, action }
   }
 
   if (action === "cancel" && currentStatus === "cancelled") {
+    const reminderJobs = await closePendingReminderJobsForCancelledBooking({
+      bookingId: booking.id,
+      salonId: booking.salon_id,
+      reason: "booking_already_cancelled",
+    });
+
     return {
       ok: true,
       reason: "already_cancelled",
       booking,
+      reminderJobs,
     };
   }
 
@@ -363,7 +432,7 @@ async function updateBookingStatusFromPostback({ bookingId, lineUserId, action }
   const now = new Date().toISOString();
   const isConfirm = action === "confirm";
 
-  const richValues = isConfirm
+  const updateValues = isConfirm
     ? {
         status: "confirmed",
         confirmed_at: now,
@@ -382,11 +451,11 @@ async function updateBookingStatusFromPostback({ bookingId, lineUserId, action }
     updatedBooking = await updateBookingStatusAtomically({
       bookingId,
       action,
-      values: richValues,
+      values: updateValues,
     });
   } catch (error) {
     console.warn(
-      "Atomic rich booking status update failed. Fallback status update is used:",
+      "Atomic booking status update failed. Fallback status update is used:",
       error.message
     );
 
@@ -423,6 +492,16 @@ async function updateBookingStatusFromPostback({ bookingId, lineUserId, action }
     };
   }
 
+  let reminderJobs = null;
+
+  if (!isConfirm) {
+    reminderJobs = await closePendingReminderJobsForCancelledBooking({
+      bookingId: updatedBooking.id,
+      salonId: updatedBooking.salon_id,
+      reason: "booking_cancelled",
+    });
+  }
+
   await insertBookingEvent({
     booking: updatedBooking,
     eventType: isConfirm ? "customer_confirmed" : "customer_cancelled",
@@ -432,6 +511,7 @@ async function updateBookingStatusFromPostback({ bookingId, lineUserId, action }
       previous_status: currentStatus,
       next_status: updatedBooking.status,
       line_user_id: lineUserId || null,
+      reminder_jobs: reminderJobs,
       at: now,
     },
   });
@@ -440,6 +520,7 @@ async function updateBookingStatusFromPostback({ bookingId, lineUserId, action }
     ok: true,
     reason: "updated",
     booking: updatedBooking,
+    reminderJobs,
   };
 }
 
@@ -539,7 +620,9 @@ async function handleTextMessage(event) {
 }
 
 async function handleEvent(event) {
-  if (!event || !event.type) return;
+  if (!event || !event.type) {
+    return;
+  }
 
   if (event.type === "postback") {
     await handlePostback(event);
@@ -579,10 +662,12 @@ export default async function handler(req, res) {
 
     const rawBody = await readRawBody(req);
     const signature =
-      req.headers["x-line-signature"] || req.headers["X-Line-Signature"];
+      req.headers["x-line-signature"] ||
+      req.headers["X-Line-Signature"];
 
     if (!verifyLineSignature(rawBody, signature)) {
       console.warn("Invalid LINE signature");
+
       return sendJson(res, 401, {
         ok: false,
         error: "Invalid LINE signature",
