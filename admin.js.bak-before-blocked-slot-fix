@@ -1184,13 +1184,7 @@ function buildJstDateTimeIso(dateString, timeString) {
     return null;
   }
 
-  const normalizedTime = normalizeTime(timeString);
-
-  if (!normalizedTime) {
-    return null;
-  }
-
-  const date = new Date(`${dateString}T${normalizedTime}+09:00`);
+  const date = new Date(`${dateString}T${timeString}:00+09:00`);
 
   if (Number.isNaN(date.getTime())) {
     return null;
@@ -1219,7 +1213,6 @@ async function createBlockedSlotFromForm(event) {
   event.preventDefault();
 
   if (!currentSalonId) {
-    showToast("サロン情報がありません");
     return;
   }
 
@@ -1230,7 +1223,6 @@ async function createBlockedSlotFromForm(event) {
   const startTime = normalizeTime(document.getElementById("blockedSlotStartTime")?.value || "09:00");
   const endTime = normalizeTime(document.getElementById("blockedSlotEndTime")?.value || "10:00");
   const reason = document.getElementById("blockedSlotReason")?.value.trim() || "休業・ブロック";
-  const createButton = document.querySelector("#blockedSlotForm .blocked-create-btn");
 
   if (!date) {
     showToast("日付を選択してください");
@@ -1265,59 +1257,34 @@ async function createBlockedSlotFromForm(event) {
     return;
   }
 
-  const payload = {
-    salon_id: currentSalonId,
-    staff_id: scope === "staff" ? staffId : null,
-    starts_at: startsAt,
-    ends_at: endsAt,
-    reason,
-    updated_at: new Date().toISOString(),
-  };
-
-  console.log("Creating blocked slot:", payload);
-
   showLoading("保存中...", "休業・ブロックを追加しています");
 
-  if (createButton) {
-    createButton.disabled = true;
-  }
-
   try {
-    const { data, error } = await sb
-      .from("blocked_slots")
-      .insert(payload)
-      .select("*")
-      .single();
+    const payload = {
+      salon_id: currentSalonId,
+      staff_id: scope === "staff" ? staffId : null,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      reason,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await sb.from("blocked_slots").insert(payload);
 
     if (error) {
       throw error;
     }
 
-    console.log("Blocked slot created:", data);
-
-    const reasonInput = document.getElementById("blockedSlotReason");
-    const allDayInput = document.getElementById("blockedSlotAllDay");
-
-    if (reasonInput) {
-      reasonInput.value = "";
-    }
-
-    if (allDayInput) {
-      allDayInput.checked = false;
-    }
-
+    document.getElementById("blockedSlotReason").value = "";
+    document.getElementById("blockedSlotAllDay").checked = false;
     syncBlockedSlotForm();
 
     await loadBlockedSlots();
     showToast("休業・ブロックを追加しました");
   } catch (error) {
     console.error("createBlockedSlotFromForm error:", error);
-    showToast(error.message || "休業・ブロックの追加に失敗しました");
+    showToast("休業・ブロックの追加に失敗しました");
   } finally {
-    if (createButton) {
-      createButton.disabled = false;
-    }
-
     hideLoading();
   }
 }
@@ -2243,22 +2210,22 @@ function bindUI() {
   document.getElementById("refreshBtn")?.addEventListener("click", () => loadAll());
   document.getElementById("refreshScheduleBtn")?.addEventListener("click", () => loadSchedule());
   document.getElementById("refreshBlockedSlotsBtn")?.addEventListener("click", () => loadBlockedSlots());
+  
+  document
+  .getElementById("blockedSlotForm")
+  ?.addEventListener("submit", createBlockedSlotFromForm);
 
-  const blockedSlotForm = document.getElementById("blockedSlotForm");
-  const blockedSlotScope = document.getElementById("blockedSlotScope");
-  const blockedSlotAllDay = document.getElementById("blockedSlotAllDay");
-  const blockedSlotCreateBtn = blockedSlotForm?.querySelector(".blocked-create-btn");
+document
+  .getElementById("blockedSlotScope")
+  ?.addEventListener("change", syncBlockedSlotForm);
 
-  blockedSlotForm?.addEventListener("submit", createBlockedSlotFromForm);
+document
+  .getElementById("blockedSlotAllDay")
+  ?.addEventListener("change", syncBlockedSlotForm);
 
-  blockedSlotCreateBtn?.addEventListener("click", (event) => {
-    event.preventDefault();
-    createBlockedSlotFromForm(event);
-  });
-
-  blockedSlotScope?.addEventListener("change", syncBlockedSlotForm);
-  blockedSlotAllDay?.addEventListener("change", syncBlockedSlotForm);
-  syncBlockedSlotForm();
+  document.getElementById("blockedSlotForm")?.addEventListener("submit", createBlockedSlotFromForm);
+  document.getElementById("blockedSlotScope")?.addEventListener("change", syncBlockedSlotForm);
+  document.getElementById("blockedSlotAllDay")?.addEventListener("change", syncBlockedSlotForm);
 
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
