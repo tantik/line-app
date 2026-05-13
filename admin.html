@@ -228,6 +228,56 @@
             </button>
           </div>
 
+          <form id="blockedSlotForm" class="blocked-form">
+            <div class="blocked-form-grid">
+              <label>
+                対象
+                <select id="blockedSlotScope">
+                  <option value="salon">サロン全体</option>
+                  <option value="staff">スタッフ</option>
+                </select>
+              </label>
+
+              <label id="blockedSlotStaffWrap" class="hidden">
+                スタッフ
+                <select id="blockedSlotStaffId"></select>
+              </label>
+
+              <label>
+                日付
+                <input id="blockedSlotDate" type="date" required />
+              </label>
+
+              <label class="checkbox-item blocked-all-day">
+                <input id="blockedSlotAllDay" type="checkbox" />
+                終日
+              </label>
+
+              <label>
+                開始
+                <input id="blockedSlotStartTime" type="time" value="09:00" />
+              </label>
+
+              <label>
+                終了
+                <input id="blockedSlotEndTime" type="time" value="10:00" />
+              </label>
+
+              <label class="blocked-reason-field">
+                理由
+                <input
+                  id="blockedSlotReason"
+                  type="text"
+                  placeholder="例: 祝日、スタッフ休暇、予約不可"
+                />
+              </label>
+
+              <button class="btn primary blocked-create-btn" type="submit">
+                ＋ ブロック追加
+              </button>
+            </div>
+          </form>
+
           <div id="blockedSlotsList" class="cards-grid"></div>
         </section>
       </section>

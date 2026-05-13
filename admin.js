@@ -410,6 +410,7 @@ async function loadStaff() {
 
     renderStaff();
     renderStaffFilter();
+    renderBlockedSlotStaffOptions();
   } catch (error) {
     console.error("loadStaff error:", error);
     showToast("スタッフ取得エラー");
@@ -1134,6 +1135,158 @@ function renderBlockedSlots() {
   });
 
   mount.appendChild(list);
+}
+
+function renderBlockedSlotStaffOptions() {
+  const select = document.getElementById("blockedSlotStaffId");
+
+  if (!select) {
+    return;
+  }
+
+  select.innerHTML = "";
+
+  allStaff
+    .filter((staff) => staff.is_active !== false)
+    .forEach((staff) => {
+      const option = document.createElement("option");
+      option.value = staff.id;
+      option.textContent = staff.name || "スタッフ";
+      select.appendChild(option);
+    });
+}
+
+function syncBlockedSlotForm() {
+  const scope = document.getElementById("blockedSlotScope")?.value || "salon";
+  const staffWrap = document.getElementById("blockedSlotStaffWrap");
+  const allDay = document.getElementById("blockedSlotAllDay")?.checked || false;
+  const startInput = document.getElementById("blockedSlotStartTime");
+  const endInput = document.getElementById("blockedSlotEndTime");
+
+  staffWrap?.classList.toggle("hidden", scope !== "staff");
+
+  if (allDay) {
+    if (startInput) startInput.value = "00:00";
+    if (endInput) endInput.value = "23:59";
+    startInput?.setAttribute("disabled", "disabled");
+    endInput?.setAttribute("disabled", "disabled");
+  } else {
+    startInput?.removeAttribute("disabled");
+    endInput?.removeAttribute("disabled");
+
+    if (startInput && !startInput.value) startInput.value = "09:00";
+    if (endInput && !endInput.value) endInput.value = "10:00";
+  }
+}
+
+function buildJstDateTimeIso(dateString, timeString) {
+  if (!dateString || !timeString) {
+    return null;
+  }
+
+  const date = new Date(`${dateString}T${timeString}:00+09:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return date.toISOString();
+}
+
+function getNextDateString(dateString) {
+  const date = new Date(`${dateString}T00:00:00+09:00`);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  date.setDate(date.getDate() + 1);
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+async function createBlockedSlotFromForm(event) {
+  event.preventDefault();
+
+  if (!currentSalonId) {
+    return;
+  }
+
+  const scope = document.getElementById("blockedSlotScope")?.value || "salon";
+  const staffId = document.getElementById("blockedSlotStaffId")?.value || "";
+  const date = document.getElementById("blockedSlotDate")?.value || "";
+  const allDay = document.getElementById("blockedSlotAllDay")?.checked || false;
+  const startTime = normalizeTime(document.getElementById("blockedSlotStartTime")?.value || "09:00");
+  const endTime = normalizeTime(document.getElementById("blockedSlotEndTime")?.value || "10:00");
+  const reason = document.getElementById("blockedSlotReason")?.value.trim() || "休業・ブロック";
+
+  if (!date) {
+    showToast("日付を選択してください");
+    return;
+  }
+
+  if (scope === "staff" && !staffId) {
+    showToast("スタッフを選択してください");
+    return;
+  }
+
+  let startsAt = null;
+  let endsAt = null;
+
+  if (allDay) {
+    const nextDate = getNextDateString(date);
+
+    startsAt = buildJstDateTimeIso(date, "00:00");
+    endsAt = buildJstDateTimeIso(nextDate, "00:00");
+  } else {
+    if (!startTime || !endTime || timeToMinutes(startTime) >= timeToMinutes(endTime)) {
+      showToast("開始・終了時間を確認してください");
+      return;
+    }
+
+    startsAt = buildJstDateTimeIso(date, startTime);
+    endsAt = buildJstDateTimeIso(date, endTime);
+  }
+
+  if (!startsAt || !endsAt) {
+    showToast("日時を確認してください");
+    return;
+  }
+
+  showLoading("保存中...", "休業・ブロックを追加しています");
+
+  try {
+    const payload = {
+      salon_id: currentSalonId,
+      staff_id: scope === "staff" ? staffId : null,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      reason,
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = await sb.from("blocked_slots").insert(payload);
+
+    if (error) {
+      throw error;
+    }
+
+    document.getElementById("blockedSlotReason").value = "";
+    document.getElementById("blockedSlotAllDay").checked = false;
+    syncBlockedSlotForm();
+
+    await loadBlockedSlots();
+    showToast("休業・ブロックを追加しました");
+  } catch (error) {
+    console.error("createBlockedSlotFromForm error:", error);
+    showToast("休業・ブロックの追加に失敗しました");
+  } finally {
+    hideLoading();
+  }
 }
 
 async function deleteBlockedSlot(slotId) {
@@ -2057,6 +2210,9 @@ function bindUI() {
   document.getElementById("refreshBtn")?.addEventListener("click", () => loadAll());
   document.getElementById("refreshScheduleBtn")?.addEventListener("click", () => loadSchedule());
   document.getElementById("refreshBlockedSlotsBtn")?.addEventListener("click", () => loadBlockedSlots());
+  document.getElementById("blockedSlotForm")?.addEventListener("submit", createBlockedSlotFromForm);
+  document.getElementById("blockedSlotScope")?.addEventListener("change", syncBlockedSlotForm);
+  document.getElementById("blockedSlotAllDay")?.addEventListener("change", syncBlockedSlotForm);
 
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
