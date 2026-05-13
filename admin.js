@@ -2210,6 +2210,19 @@ function bindUI() {
   document.getElementById("refreshBtn")?.addEventListener("click", () => loadAll());
   document.getElementById("refreshScheduleBtn")?.addEventListener("click", () => loadSchedule());
   document.getElementById("refreshBlockedSlotsBtn")?.addEventListener("click", () => loadBlockedSlots());
+  
+  document
+  .getElementById("blockedSlotForm")
+  ?.addEventListener("submit", createBlockedSlotFromForm);
+
+document
+  .getElementById("blockedSlotScope")
+  ?.addEventListener("change", syncBlockedSlotForm);
+
+document
+  .getElementById("blockedSlotAllDay")
+  ?.addEventListener("change", syncBlockedSlotForm);
+
   document.getElementById("blockedSlotForm")?.addEventListener("submit", createBlockedSlotFromForm);
   document.getElementById("blockedSlotScope")?.addEventListener("change", syncBlockedSlotForm);
   document.getElementById("blockedSlotAllDay")?.addEventListener("change", syncBlockedSlotForm);
