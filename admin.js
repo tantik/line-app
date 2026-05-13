@@ -11,6 +11,7 @@ let allBookingEvents = [];
 let allStaff = [];
 let allServices = [];
 let salonBusinessHours = [];
+let blockedSlots = [];
 let editingStaffId = null;
 let editingServiceId = null;
 let currentTab = "bookings";
@@ -173,12 +174,14 @@ function resetAdminState() {
   allStaff = [];
   allServices = [];
   salonBusinessHours = [];
+  blockedSlots = [];
 
   updateMetrics([]);
   renderBookings();
   renderStaff();
   renderServices();
   renderSchedule();
+  renderBlockedSlots();
 
   setText("whoAmI", "-");
   setText("tenantLabel", "-");
@@ -267,6 +270,7 @@ async function loadAll() {
   await loadServices();
   await loadStaff();
   await loadSchedule();
+  await loadBlockedSlots();
   await loadBookings();
 
   setText("lastUpdated", `最終更新: ${new Date().toLocaleString("ja-JP")}`);
@@ -440,6 +444,36 @@ async function loadSchedule() {
     showToast("営業時間の取得に失敗しました");
   }
 }
+
+async function loadBlockedSlots() {
+  if (!currentSalonId) {
+    blockedSlots = [];
+    renderBlockedSlots();
+    return;
+  }
+
+  try {
+    const { data, error } = await sb
+      .from("blocked_slots")
+      .select("*")
+      .eq("salon_id", currentSalonId)
+      .gte("ends_at", new Date().toISOString())
+      .order("starts_at", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    blockedSlots = data || [];
+    renderBlockedSlots();
+  } catch (error) {
+    console.error("loadBlockedSlots error:", error);
+    blockedSlots = [];
+    renderBlockedSlots();
+    showToast("休業・ブロックの取得に失敗しました");
+  }
+}
+
 
 /* ========================= BOOKINGS ========================= */
 
@@ -1039,6 +1073,72 @@ function renderSchedule() {
 
       mount.appendChild(card);
     });
+}
+
+function renderBlockedSlots() {
+  const mount = document.getElementById("blockedSlotsList");
+
+  if (!mount) {
+    return;
+  }
+
+  mount.innerHTML = "";
+
+  if (!blockedSlots.length) {
+    mount.innerHTML = `
+      <div class="empty-card">
+        登録されている休業・ブロックはありません
+      </div>
+    `;
+    return;
+  }
+
+  blockedSlots.forEach((slot) => {
+    const card = document.createElement("div");
+    card.className = "service-card";
+
+    const staffName = slot.staff_id
+      ? allStaff.find((staff) => String(staff.id) === String(slot.staff_id))?.name || "スタッフ"
+      : "サロン全体";
+
+    card.innerHTML = `
+      <div class="service-card-head">
+        <div>
+          <h4>${safe(staffName)}</h4>
+          <p>${safe(slot.reason || "休業・ブロック")}</p>
+        </div>
+
+        <span class="badge inactive">
+          Blocked
+        </span>
+      </div>
+
+      <p class="service-meta">
+        ${safe(formatDateTime(slot.starts_at))} - ${safe(formatDateTime(slot.ends_at))}
+      </p>
+    `;
+
+    mount.appendChild(card);
+  });
+}
+
+function formatDateTime(value) {
+  if (!value) {
+    return "--";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "--";
+  }
+
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
 function getWeekdayLabel(weekday) {
@@ -1824,6 +1924,16 @@ function subscribeRealtime() {
       },
       () => loadSchedule()
     )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "blocked_slots",
+        filter: `salon_id=eq.${currentSalonId}`,
+      },
+      () => loadBlockedSlots()
+    )
     .subscribe((status) => {
       console.log("[ADMIN] realtime status:", status);
     });
@@ -1864,6 +1974,7 @@ function bindUI() {
   document.getElementById("logoutBtn")?.addEventListener("click", signOut);
   document.getElementById("refreshBtn")?.addEventListener("click", () => loadAll());
   document.getElementById("refreshScheduleBtn")?.addEventListener("click", () => loadSchedule());
+  document.getElementById("refreshBlockedSlotsBtn")?.addEventListener("click", () => loadBlockedSlots());
 
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
