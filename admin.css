@@ -1104,3 +1104,104 @@ textarea.text-input {
     font-size: 11.5px;
   }
 }
+/* Compact salon schedule */
+#scheduleList.cards-grid {
+  display: block;
+}
+
+.schedule-compact-list {
+  display: grid;
+  gap: 10px;
+}
+
+.schedule-row {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.2fr) minmax(130px, 0.8fr) minmax(130px, 0.8fr) minmax(130px, 0.8fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.schedule-row.is-closed {
+  opacity: 0.74;
+}
+
+.schedule-row-day {
+  display: grid;
+  gap: 3px;
+}
+
+.schedule-row-day strong {
+  color: #f4fbf8;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.schedule-row-day span {
+  color: rgba(232, 247, 241, 0.68);
+  font-size: 13px;
+}
+
+.schedule-row-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #f4fbf8;
+  font-weight: 700;
+}
+
+.schedule-row-check input {
+  width: 18px;
+  height: 18px;
+  accent-color: #26c6a8;
+}
+
+.schedule-row-time {
+  display: grid;
+  gap: 4px;
+}
+
+.schedule-row-time span {
+  color: rgba(232, 247, 241, 0.72);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.schedule-row-time input {
+  width: 100%;
+  min-height: 40px;
+}
+
+.schedule-save-btn {
+  min-height: 40px;
+  padding-inline: 16px;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .schedule-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .schedule-row-day {
+    grid-column: 1 / -1;
+  }
+
+  .schedule-save-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .schedule-row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1003,76 +1003,70 @@ function renderSchedule() {
     return;
   }
 
+  const list = document.createElement("div");
+  list.className = "schedule-compact-list";
+
   salonBusinessHours
     .slice()
     .sort((a, b) => Number(a.weekday) - Number(b.weekday))
     .forEach((day) => {
-      const card = document.createElement("div");
-      card.className = "service-card";
-
       const isOpen = day.is_open !== false;
       const weekdayLabel = getWeekdayLabel(day.weekday);
       const dayId = String(day.id);
 
-      card.innerHTML = `
-        <div class="service-card-head">
-          <div>
-            <h4>${safe(weekdayLabel)}</h4>
-            <p>${isOpen ? "営業日" : "休業日"}</p>
-          </div>
-          <span class="badge ${isOpen ? "active" : "inactive"}">
-            ${isOpen ? "Open" : "Closed"}
-          </span>
+      const row = document.createElement("article");
+      row.className = `schedule-row ${isOpen ? "is-open" : "is-closed"}`;
+
+      row.innerHTML = `
+        <div class="schedule-row-day">
+          <strong>${safe(weekdayLabel)}</strong>
+          <span>${isOpen ? "営業日 / Open" : "休業日 / Closed"}</span>
         </div>
 
-        <div class="form-grid compact-form">
-          <label class="checkbox-item">
-            <input
-              id="scheduleOpen_${safe(dayId)}"
-              type="checkbox"
-              ${isOpen ? "checked" : ""}
-            />
-            営業する
-          </label>
+        <label class="schedule-row-check">
+          <input
+            id="scheduleOpen_${safe(dayId)}"
+            type="checkbox"
+            ${isOpen ? "checked" : ""}
+          />
+          営業する
+        </label>
 
-          <label>
-            開始
-            <input
-              id="scheduleStart_${safe(dayId)}"
-              type="time"
-              value="${safe(formatTime(day.start_time || "09:00"))}"
-            />
-          </label>
+        <label class="schedule-row-time">
+          <span>開始</span>
+          <input
+            id="scheduleStart_${safe(dayId)}"
+            type="time"
+            value="${safe(formatTime(day.start_time || "09:00"))}"
+          />
+        </label>
 
-          <label>
-            終了
-            <input
-              id="scheduleEnd_${safe(dayId)}"
-              type="time"
-              value="${safe(formatTime(day.end_time || "21:00"))}"
-            />
-          </label>
-        </div>
+        <label class="schedule-row-time">
+          <span>終了</span>
+          <input
+            id="scheduleEnd_${safe(dayId)}"
+            type="time"
+            value="${safe(formatTime(day.end_time || "21:00"))}"
+          />
+        </label>
 
-        ${day.note ? `<p class="subtle">${safe(day.note)}</p>` : ""}
-
-        <div class="card-actions">
-          <button
-            class="btn primary"
-            type="button"
-            data-schedule-save="${safe(dayId)}"
-          >
-            保存
-          </button>
-        </div>
+        <button
+          class="btn primary schedule-save-btn"
+          type="button"
+          data-schedule-save="${safe(dayId)}"
+        >
+          保存
+        </button>
       `;
 
-      card
+      row
         .querySelector("[data-schedule-save]")
         ?.addEventListener("click", () => saveScheduleDay(day.id));
 
-      mount.appendChild(card);
+      list.appendChild(row);
     });
+
+  mount.appendChild(list);
 }
 
 function renderBlockedSlots() {
