@@ -1279,3 +1279,35 @@ textarea.text-input {
     white-space: normal;
   }
 }
+
+/* Blocked slot delete button */
+.blocked-row {
+  grid-template-columns: minmax(150px, 0.9fr) minmax(220px, 1.1fr) minmax(220px, 1.4fr) auto auto;
+}
+
+.blocked-delete-btn {
+  min-height: 36px;
+  padding-inline: 14px;
+  white-space: nowrap;
+  justify-self: end;
+}
+
+@media (max-width: 900px) {
+  .blocked-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .blocked-delete-btn {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 560px) {
+  .blocked-row {
+    grid-template-columns: 1fr;
+  }
+
+  .blocked-delete-btn {
+    width: 100%;
+  }
+}

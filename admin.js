@@ -1116,12 +1116,62 @@ function renderBlockedSlots() {
       <span class="badge inactive blocked-row-badge">
         ${isSalonWide ? "Salon" : "Staff"}
       </span>
+
+      <button
+        class="btn danger blocked-delete-btn"
+        type="button"
+        data-blocked-delete="${safe(slot.id)}"
+      >
+        削除
+      </button>
     `;
+
+    row
+      .querySelector("[data-blocked-delete]")
+      ?.addEventListener("click", () => deleteBlockedSlot(slot.id));
 
     list.appendChild(row);
   });
 
   mount.appendChild(list);
+}
+
+async function deleteBlockedSlot(slotId) {
+  if (!currentSalonId || !slotId) {
+    return;
+  }
+
+  const target = blockedSlots.find((slot) => String(slot.id) === String(slotId));
+  const targetName = target?.reason || "このブロック";
+
+  if (!confirm(`「${targetName}」を削除しますか？\n削除すると、この時間は再び予約可能になります。`)) {
+    return;
+  }
+
+  showLoading("削除中...", "休業・ブロックを削除しています");
+
+  try {
+    const { error } = await sb
+      .from("blocked_slots")
+      .delete()
+      .eq("salon_id", currentSalonId)
+      .eq("id", slotId);
+
+    if (error) {
+      throw error;
+    }
+
+    blockedSlots = blockedSlots.filter((slot) => String(slot.id) !== String(slotId));
+    renderBlockedSlots();
+
+    showToast("休業・ブロックを削除しました");
+    await loadBlockedSlots();
+  } catch (error) {
+    console.error("deleteBlockedSlot error:", error);
+    showToast("休業・ブロックの削除に失敗しました");
+  } finally {
+    hideLoading();
+  }
 }
 
 function formatDateTime(value) {
