@@ -412,7 +412,7 @@ async function loadStaff() {
   }
 }
 
-/* ========================= BOOKINGS ========================= */:
+/* ========================= BOOKINGS ========================= */
 async function loadSchedule() {
   if (!currentSalonId) {
     salonBusinessHours = [];
