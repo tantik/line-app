@@ -1205,3 +1205,77 @@ textarea.text-input {
     grid-template-columns: 1fr;
   }
 }
+/* Compact blocked slots */
+#blockedSlotsList.cards-grid {
+  display: block;
+}
+
+.blocked-compact-list {
+  display: grid;
+  gap: 10px;
+}
+
+.blocked-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.9fr) minmax(220px, 1.1fr) minmax(220px, 1.4fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.blocked-row-main {
+  display: grid;
+  gap: 3px;
+}
+
+.blocked-row-main strong {
+  color: #f4fbf8;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.blocked-row-main span {
+  color: rgba(232, 247, 241, 0.66);
+  font-size: 12px;
+}
+
+.blocked-row-time {
+  color: #f4fbf8;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.blocked-row-reason {
+  color: rgba(232, 247, 241, 0.82);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.blocked-row-badge {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .blocked-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .blocked-row-badge {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 560px) {
+  .blocked-row {
+    grid-template-columns: 1fr;
+  }
+
+  .blocked-row-time {
+    white-space: normal;
+  }
+}

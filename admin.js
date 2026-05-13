@@ -1087,33 +1087,41 @@ function renderBlockedSlots() {
     return;
   }
 
+  const list = document.createElement("div");
+  list.className = "blocked-compact-list";
+
   blockedSlots.forEach((slot) => {
-    const card = document.createElement("div");
-    card.className = "service-card";
+    const row = document.createElement("article");
+    row.className = "blocked-row";
 
-    const staffName = slot.staff_id
-      ? allStaff.find((staff) => String(staff.id) === String(slot.staff_id))?.name || "スタッフ"
-      : "サロン全体";
+    const isSalonWide = !slot.staff_id;
+    const staffName = isSalonWide
+      ? "サロン全体"
+      : allStaff.find((staff) => String(staff.id) === String(slot.staff_id))?.name || "スタッフ";
 
-    card.innerHTML = `
-      <div class="service-card-head">
-        <div>
-          <h4>${safe(staffName)}</h4>
-          <p>${safe(slot.reason || "休業・ブロック")}</p>
-        </div>
-
-        <span class="badge inactive">
-          Blocked
-        </span>
+    row.innerHTML = `
+      <div class="blocked-row-main">
+        <strong>${safe(staffName)}</strong>
+        <span>${isSalonWide ? "Salon block" : "Staff block"}</span>
       </div>
 
-      <p class="service-meta">
-        ${safe(formatDateTime(slot.starts_at))} - ${safe(formatDateTime(slot.ends_at))}
-      </p>
+      <div class="blocked-row-time">
+        ${safe(formatBlockedSlotRange(slot.starts_at, slot.ends_at))}
+      </div>
+
+      <div class="blocked-row-reason">
+        ${safe(slot.reason || "休業・ブロック")}
+      </div>
+
+      <span class="badge inactive blocked-row-badge">
+        ${isSalonWide ? "Salon" : "Staff"}
+      </span>
     `;
 
-    mount.appendChild(card);
+    list.appendChild(row);
   });
+
+  mount.appendChild(list);
 }
 
 function formatDateTime(value) {
@@ -1133,6 +1141,36 @@ function formatDateTime(value) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function formatBlockedSlotRange(startsAt, endsAt) {
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "--";
+  }
+
+  const sameDay =
+    start.getFullYear() === end.getFullYear() &&
+    start.getMonth() === end.getMonth() &&
+    start.getDate() === end.getDate();
+
+  const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const timeFormatter = new Intl.DateTimeFormat("ja-JP", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  if (sameDay) {
+    return `${dateFormatter.format(start)} ${timeFormatter.format(start)} - ${timeFormatter.format(end)}`;
+  }
+
+  return `${dateFormatter.format(start)} ${timeFormatter.format(start)} - ${dateFormatter.format(end)} ${timeFormatter.format(end)}`;
 }
 
 function getWeekdayLabel(weekday) {
