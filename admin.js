@@ -10,6 +10,7 @@ let allBookings = [];
 let allBookingEvents = [];
 let allStaff = [];
 let allServices = [];
+let salonBusinessHours = [];
 let editingStaffId = null;
 let editingServiceId = null;
 let currentTab = "bookings";
@@ -171,11 +172,13 @@ function resetAdminState() {
   allBookingEvents = [];
   allStaff = [];
   allServices = [];
+  salonBusinessHours = [];
 
   updateMetrics([]);
   renderBookings();
   renderStaff();
   renderServices();
+  renderSchedule();
 
   setText("whoAmI", "-");
   setText("tenantLabel", "-");
@@ -263,6 +266,7 @@ async function loadAll() {
 
   await loadServices();
   await loadStaff();
+  await loadSchedule();
   await loadBookings();
 
   setText("lastUpdated", `最終更新: ${new Date().toLocaleString("ja-JP")}`);
@@ -405,6 +409,35 @@ async function loadStaff() {
   } catch (error) {
     console.error("loadStaff error:", error);
     showToast("スタッフ取得エラー");
+  }
+}
+
+/* ========================= BOOKINGS ========================= */:
+async function loadSchedule() {
+  if (!currentSalonId) {
+    salonBusinessHours = [];
+    renderSchedule();
+    return;
+  }
+
+  try {
+    const { data, error } = await sb
+      .from("salon_business_hours")
+      .select("*")
+      .eq("salon_id", currentSalonId)
+      .order("weekday", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    salonBusinessHours = data || [];
+    renderSchedule();
+  } catch (error) {
+    console.error("loadSchedule error:", error);
+    salonBusinessHours = [];
+    renderSchedule();
+    showToast("営業時間の取得に失敗しました");
   }
 }
 
@@ -916,7 +949,71 @@ function updateMetrics(items) {
   setText("metricRisk", String(items.filter((item) => String(item.status || "") === "risk").length));
   setText("metricCancelled", String(items.filter((item) => String(item.status || "") === "cancelled").length));
 }
+/* ========================= SCHEDULE ========================= */
 
+function renderSchedule() {
+  const mount = document.getElementById("scheduleList");
+
+  if (!mount) {
+    return;
+  }
+
+  mount.innerHTML = "";
+
+  if (!salonBusinessHours.length) {
+    mount.innerHTML = `
+      <div class="empty-card">
+        営業時間がまだ登録されていません
+      </div>
+    `;
+    return;
+  }
+
+  salonBusinessHours
+    .slice()
+    .sort((a, b) => Number(a.weekday) - Number(b.weekday))
+    .forEach((day) => {
+      const card = document.createElement("div");
+      card.className = "service-card";
+
+      const isOpen = day.is_open !== false;
+      const weekdayLabel = getWeekdayLabel(day.weekday);
+
+      card.innerHTML = `
+        <div class="service-card-head">
+          <div>
+            <h4>${safe(weekdayLabel)}</h4>
+            <p>${isOpen ? "営業日" : "休業日"}</p>
+          </div>
+          <span class="badge ${isOpen ? "active" : "inactive"}">
+            ${isOpen ? "Open" : "Closed"}
+          </span>
+        </div>
+
+        <p class="service-meta">
+          ${isOpen ? `${safe(formatTime(day.start_time))} - ${safe(formatTime(day.end_time))}` : "終日休業"}
+        </p>
+
+        ${day.note ? `<p class="subtle">${safe(day.note)}</p>` : ""}
+      `;
+
+      mount.appendChild(card);
+    });
+}
+
+function getWeekdayLabel(weekday) {
+  const map = {
+    0: "日曜日 / Sunday",
+    1: "月曜日 / Monday",
+    2: "火曜日 / Tuesday",
+    3: "水曜日 / Wednesday",
+    4: "木曜日 / Thursday",
+    5: "金曜日 / Friday",
+    6: "土曜日 / Saturday",
+  };
+
+  return map[Number(weekday)] || `Weekday ${weekday}`;
+}
 /* ========================= STAFF ========================= */
 
 function renderStaff() {
@@ -1629,6 +1726,16 @@ function subscribeRealtime() {
       },
       () => loadStaff()
     )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "salon_business_hours",
+        filter: `salon_id=eq.${currentSalonId}`,
+      },
+      () => loadSchedule()
+    )
     .subscribe((status) => {
       console.log("[ADMIN] realtime status:", status);
     });
@@ -1668,6 +1775,7 @@ function bindUI() {
   document.getElementById("sendMagicLinkBtn")?.addEventListener("click", sendMagicLink);
   document.getElementById("logoutBtn")?.addEventListener("click", signOut);
   document.getElementById("refreshBtn")?.addEventListener("click", () => loadAll());
+  document.getElementById("refreshScheduleBtn")?.addEventListener("click", () => loadSchedule());
 
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => switchTab(button.dataset.tab));
@@ -1770,11 +1878,13 @@ function switchTab(tab) {
   document.getElementById("bookingsTab")?.classList.toggle("hidden", currentTab !== "bookings");
   document.getElementById("staffTab")?.classList.toggle("hidden", currentTab !== "staff");
   document.getElementById("servicesTab")?.classList.toggle("hidden", currentTab !== "services");
+  document.getElementById("scheduleTab")?.classList.toggle("hidden", currentTab !== "schedule");
 
   const titles = {
     bookings: "Bookings",
     staff: "Staff",
     services: "Services",
+    schedule: "Schedule",
   };
 
   setText("mainTitle", titles[currentTab] || "Bookings");

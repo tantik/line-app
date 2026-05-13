@@ -110,6 +110,7 @@
             <button class="tab-btn active" type="button" data-tab="bookings">Bookings</button>
             <button class="tab-btn" type="button" data-tab="staff">Staff</button>
             <button class="tab-btn" type="button" data-tab="services">Services</button>
+            <button class="tab-btn" type="button" data-tab="schedule">Schedule</button>
           </nav>
         </div>
 
@@ -202,6 +203,20 @@
           </div>
 
           <div id="servicesList" class="cards-grid"></div>
+        </section>
+        <section id="scheduleTab" class="tab-panel hidden">
+          <div class="section-head">
+            <div>
+              <h3>営業時間</h3>
+              <p>サロン全体の営業日・営業時間を確認できます</p>
+            </div>
+
+            <button id="refreshScheduleBtn" class="btn ghost" type="button">
+              更新
+            </button>
+          </div>
+
+          <div id="scheduleList" class="cards-grid"></div>
         </section>
       </section>
     </main>
