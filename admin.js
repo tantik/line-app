@@ -978,6 +978,7 @@ function renderSchedule() {
 
       const isOpen = day.is_open !== false;
       const weekdayLabel = getWeekdayLabel(day.weekday);
+      const dayId = String(day.id);
 
       card.innerHTML = `
         <div class="service-card-head">
@@ -990,12 +991,51 @@ function renderSchedule() {
           </span>
         </div>
 
-        <p class="service-meta">
-          ${isOpen ? `${safe(formatTime(day.start_time))} - ${safe(formatTime(day.end_time))}` : "終日休業"}
-        </p>
+        <div class="form-grid compact-form">
+          <label class="checkbox-item">
+            <input
+              id="scheduleOpen_${safe(dayId)}"
+              type="checkbox"
+              ${isOpen ? "checked" : ""}
+            />
+            営業する
+          </label>
+
+          <label>
+            開始
+            <input
+              id="scheduleStart_${safe(dayId)}"
+              type="time"
+              value="${safe(formatTime(day.start_time || "09:00"))}"
+            />
+          </label>
+
+          <label>
+            終了
+            <input
+              id="scheduleEnd_${safe(dayId)}"
+              type="time"
+              value="${safe(formatTime(day.end_time || "21:00"))}"
+            />
+          </label>
+        </div>
 
         ${day.note ? `<p class="subtle">${safe(day.note)}</p>` : ""}
+
+        <div class="card-actions">
+          <button
+            class="btn primary"
+            type="button"
+            data-schedule-save="${safe(dayId)}"
+          >
+            保存
+          </button>
+        </div>
       `;
+
+      card
+        .querySelector("[data-schedule-save]")
+        ?.addEventListener("click", () => saveScheduleDay(day.id));
 
       mount.appendChild(card);
     });
@@ -1014,6 +1054,54 @@ function getWeekdayLabel(weekday) {
 
   return map[Number(weekday)] || `Weekday ${weekday}`;
 }
+async function saveScheduleDay(dayId) {
+  if (!currentSalonId || !dayId) {
+    return;
+  }
+
+  const openInput = document.getElementById(`scheduleOpen_${dayId}`);
+  const startInput = document.getElementById(`scheduleStart_${dayId}`);
+  const endInput = document.getElementById(`scheduleEnd_${dayId}`);
+
+  const isOpen = openInput?.checked ?? true;
+  const startTime = normalizeTime(startInput?.value || "09:00");
+  const endTime = normalizeTime(endInput?.value || "21:00");
+
+  if (isOpen && (!startTime || !endTime || timeToMinutes(startTime) >= timeToMinutes(endTime))) {
+    showToast("営業時間を確認してください");
+    return;
+  }
+
+  showLoading("保存中...", "営業時間を保存しています");
+
+  try {
+    const { error } = await sb
+      .from("salon_business_hours")
+      .update({
+        is_open: isOpen,
+        start_time: startTime,
+        end_time: endTime,
+        updated_at: new Date().toISOString(),
+        note: "Updated from admin dashboard",
+      })
+      .eq("salon_id", currentSalonId)
+      .eq("id", dayId);
+
+    if (error) {
+      throw error;
+    }
+
+    await loadSchedule();
+    showToast("営業時間を保存しました");
+  } catch (error) {
+    console.error("saveScheduleDay error:", error);
+    showToast("営業時間の保存に失敗しました");
+  } finally {
+    hideLoading();
+  }
+}
+
+
 /* ========================= STAFF ========================= */
 
 function renderStaff() {
