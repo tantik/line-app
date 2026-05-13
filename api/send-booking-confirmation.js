@@ -1,10 +1,15 @@
 "use strict";
 
 const LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push";
+
 const REMINDER_KIND = "hours_before";
 const REMINDER_CHANNEL = "line";
-const DEFAULT_REMINDER_HOURS_BEFORE = 2;
-const DEFAULT_REMINDER_MIN_LEAD_MINUTES = 5;
+
+// Новое правило:
+// клиент может записаться минимум за 1 час,
+// reminder тоже отправляем за 1 час до записи.
+const DEFAULT_REMINDER_HOURS_BEFORE = 1;
+const MIN_BOOKING_LEAD_MINUTES = 60;
 
 function sendJson(res, statusCode, payload) {
   return res.status(statusCode).json(payload);
@@ -160,16 +165,10 @@ function getLineUserId(booking) {
 
 function getReminderHoursBefore() {
   const value = Number(process.env.REMINDER_HOURS_BEFORE);
+
   return Number.isFinite(value) && value > 0
     ? value
     : DEFAULT_REMINDER_HOURS_BEFORE;
-}
-
-function getReminderMinLeadMinutes() {
-  const value = Number(process.env.REMINDER_MIN_LEAD_MINUTES);
-  return Number.isFinite(value) && value > 0
-    ? value
-    : DEFAULT_REMINDER_MIN_LEAD_MINUTES;
 }
 
 function buildAppointmentDateJst(booking) {
@@ -189,27 +188,55 @@ function buildAppointmentDateJst(booking) {
   return appointmentDate;
 }
 
-function buildReminderSchedule(booking) {
+function buildReminderScheduleResult(booking) {
   const appointmentDate = buildAppointmentDateJst(booking);
 
   if (!appointmentDate) {
-    return null;
+    return {
+      shouldCreate: false,
+      reason: "invalid_booking_datetime",
+    };
   }
 
+  const now = new Date();
   const reminderHoursBefore = getReminderHoursBefore();
-  const minLeadMinutes = getReminderMinLeadMinutes();
+
+  const minimumAppointmentDate = new Date(
+    now.getTime() + MIN_BOOKING_LEAD_MINUTES * 60 * 1000
+  );
+
+  // Если запись через 1 час или ближе:
+  // confirmation отправляем, reminder job не создаём.
+  if (appointmentDate.getTime() <= minimumAppointmentDate.getTime()) {
+    return {
+      shouldCreate: false,
+      reason: "appointment_within_reminder_window",
+      appointment_at: appointmentDate.toISOString(),
+      minimum_appointment_at: minimumAppointmentDate.toISOString(),
+      reminder_hours_before: reminderHoursBefore,
+    };
+  }
 
   const reminderDate = new Date(
     appointmentDate.getTime() - reminderHoursBefore * 60 * 60 * 1000
   );
 
-  const minimumDate = new Date(Date.now() + minLeadMinutes * 60 * 1000);
-
-  if (reminderDate.getTime() < minimumDate.getTime()) {
-    return minimumDate.toISOString();
+  if (reminderDate.getTime() <= now.getTime()) {
+    return {
+      shouldCreate: false,
+      reason: "reminder_time_already_passed",
+      appointment_at: appointmentDate.toISOString(),
+      reminder_at: reminderDate.toISOString(),
+      reminder_hours_before: reminderHoursBefore,
+    };
   }
 
-  return reminderDate.toISOString();
+  return {
+    shouldCreate: true,
+    scheduled_for: reminderDate.toISOString(),
+    appointment_at: appointmentDate.toISOString(),
+    reminder_hours_before: reminderHoursBefore,
+  };
 }
 
 async function getExistingReminderJobs(bookingId) {
@@ -274,14 +301,18 @@ async function createReminderJobsForBooking(booking) {
     };
   }
 
-  const scheduledFor = buildReminderSchedule(booking);
+  const scheduleResult = buildReminderScheduleResult(booking);
 
-  if (!scheduledFor) {
+  if (!scheduleResult.shouldCreate) {
     return {
-      ok: false,
+      ok: true,
       created: 0,
       skipped: true,
-      reason: "invalid_booking_datetime",
+      reason: scheduleResult.reason,
+      appointment_at: scheduleResult.appointment_at || null,
+      minimum_appointment_at: scheduleResult.minimum_appointment_at || null,
+      reminder_at: scheduleResult.reminder_at || null,
+      reminder_hours_before: scheduleResult.reminder_hours_before || null,
     };
   }
 
@@ -292,7 +323,7 @@ async function createReminderJobsForBooking(booking) {
       salon_id: booking.salon_id,
       kind: REMINDER_KIND,
       channel: REMINDER_CHANNEL,
-      scheduled_for: scheduledFor,
+      scheduled_for: scheduleResult.scheduled_for,
       sent_at: null,
       delivery_status: "pending",
       last_error: null,
@@ -304,7 +335,9 @@ async function createReminderJobsForBooking(booking) {
     created: Array.isArray(rows) ? rows.length : 1,
     skipped: false,
     kind: REMINDER_KIND,
-    scheduled_for: scheduledFor,
+    scheduled_for: scheduleResult.scheduled_for,
+    appointment_at: scheduleResult.appointment_at,
+    reminder_hours_before: scheduleResult.reminder_hours_before,
   };
 }
 
