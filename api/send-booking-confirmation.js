@@ -1,6 +1,10 @@
 "use strict";
 
 const LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push";
+const REMINDER_KIND = "hours_before";
+const REMINDER_CHANNEL = "line";
+const DEFAULT_REMINDER_HOURS_BEFORE = 2;
+const DEFAULT_REMINDER_MIN_LEAD_MINUTES = 5;
 
 function sendJson(res, statusCode, payload) {
   return res.status(statusCode).json(payload);
@@ -52,6 +56,7 @@ async function supabaseRequest(path, options = {}) {
   });
 
   const text = await response.text();
+
   let data = null;
 
   if (text) {
@@ -78,7 +83,9 @@ async function getRowById(table, id, select = "*") {
   if (!id) return null;
 
   const rows = await supabaseRequest(
-    `/rest/v1/${table}?select=${encodeURIComponent(select)}&id=eq.${encodeEq(id)}&limit=1`,
+    `/rest/v1/${table}?select=${encodeURIComponent(select)}&id=eq.${encodeEq(
+      id
+    )}&limit=1`,
     { method: "GET" }
   );
 
@@ -149,6 +156,171 @@ function getCustomerName(booking) {
 
 function getLineUserId(booking) {
   return booking.line_user_id || booking.lineUserId || booking.line_id || "";
+}
+
+function getReminderHoursBefore() {
+  const value = Number(process.env.REMINDER_HOURS_BEFORE);
+  return Number.isFinite(value) && value > 0
+    ? value
+    : DEFAULT_REMINDER_HOURS_BEFORE;
+}
+
+function getReminderMinLeadMinutes() {
+  const value = Number(process.env.REMINDER_MIN_LEAD_MINUTES);
+  return Number.isFinite(value) && value > 0
+    ? value
+    : DEFAULT_REMINDER_MIN_LEAD_MINUTES;
+}
+
+function buildAppointmentDateJst(booking) {
+  const date = normalizeDate(getBookingDate(booking));
+  const time = normalizeTime(getBookingTime(booking));
+
+  if (date === "-" || time === "-") {
+    return null;
+  }
+
+  const appointmentDate = new Date(`${date}T${time}:00+09:00`);
+
+  if (Number.isNaN(appointmentDate.getTime())) {
+    return null;
+  }
+
+  return appointmentDate;
+}
+
+function buildReminderSchedule(booking) {
+  const appointmentDate = buildAppointmentDateJst(booking);
+
+  if (!appointmentDate) {
+    return null;
+  }
+
+  const reminderHoursBefore = getReminderHoursBefore();
+  const minLeadMinutes = getReminderMinLeadMinutes();
+
+  const reminderDate = new Date(
+    appointmentDate.getTime() - reminderHoursBefore * 60 * 60 * 1000
+  );
+
+  const minimumDate = new Date(Date.now() + minLeadMinutes * 60 * 1000);
+
+  if (reminderDate.getTime() < minimumDate.getTime()) {
+    return minimumDate.toISOString();
+  }
+
+  return reminderDate.toISOString();
+}
+
+async function getExistingReminderJobs(bookingId) {
+  if (!bookingId) return [];
+
+  const rows = await supabaseRequest(
+    `/rest/v1/reminder_jobs?select=id,kind,channel,delivery_status,scheduled_for&booking_id=eq.${encodeEq(
+      bookingId
+    )}&channel=eq.${REMINDER_CHANNEL}&kind=eq.${REMINDER_KIND}`,
+    { method: "GET" }
+  );
+
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function createReminderJobsForBooking(booking) {
+  if (!booking?.id) {
+    return {
+      ok: false,
+      created: 0,
+      skipped: true,
+      reason: "missing_booking_id",
+    };
+  }
+
+  if (!booking?.salon_id) {
+    return {
+      ok: false,
+      created: 0,
+      skipped: true,
+      reason: "missing_salon_id",
+    };
+  }
+
+  if (!getLineUserId(booking)) {
+    return {
+      ok: true,
+      created: 0,
+      skipped: true,
+      reason: "missing_line_user_id",
+    };
+  }
+
+  if (booking.status === "cancelled") {
+    return {
+      ok: true,
+      created: 0,
+      skipped: true,
+      reason: "booking_cancelled",
+    };
+  }
+
+  const existingJobs = await getExistingReminderJobs(booking.id);
+
+  if (existingJobs.length > 0) {
+    return {
+      ok: true,
+      created: 0,
+      skipped: true,
+      reason: "already_exists",
+      existing_count: existingJobs.length,
+    };
+  }
+
+  const scheduledFor = buildReminderSchedule(booking);
+
+  if (!scheduledFor) {
+    return {
+      ok: false,
+      created: 0,
+      skipped: true,
+      reason: "invalid_booking_datetime",
+    };
+  }
+
+  const rows = await supabaseRequest("/rest/v1/reminder_jobs", {
+    method: "POST",
+    body: JSON.stringify({
+      booking_id: booking.id,
+      salon_id: booking.salon_id,
+      kind: REMINDER_KIND,
+      channel: REMINDER_CHANNEL,
+      scheduled_for: scheduledFor,
+      sent_at: null,
+      delivery_status: "pending",
+      last_error: null,
+    }),
+  });
+
+  return {
+    ok: true,
+    created: Array.isArray(rows) ? rows.length : 1,
+    skipped: false,
+    kind: REMINDER_KIND,
+    scheduled_for: scheduledFor,
+  };
+}
+
+async function safeCreateReminderJobsForBooking(booking) {
+  try {
+    return await createReminderJobsForBooking(booking);
+  } catch (error) {
+    console.warn("reminder_jobs creation failed:", error.message);
+
+    return {
+      ok: false,
+      created: 0,
+      skipped: true,
+      error: error.message || "reminder_jobs_creation_failed",
+    };
+  }
 }
 
 async function insertBookingEvent({ booking, eventType, payload }) {
@@ -350,6 +522,7 @@ export default async function handler(req, res) {
     }
 
     const lineUserId = getLineUserId(booking);
+    const reminderJobsResult = await safeCreateReminderJobsForBooking(booking);
 
     if (!lineUserId) {
       await insertBookingEvent({
@@ -357,6 +530,7 @@ export default async function handler(req, res) {
         eventType: "line_confirmation_skipped",
         payload: {
           reason: "missing_line_user_id",
+          reminder_jobs: reminderJobsResult,
           at: new Date().toISOString(),
         },
       });
@@ -366,6 +540,7 @@ export default async function handler(req, res) {
         skipped: true,
         reason: "Booking has no line_user_id",
         booking_id: booking.id,
+        reminder_jobs: reminderJobsResult,
       });
     }
 
@@ -390,6 +565,7 @@ export default async function handler(req, res) {
         line_user_id: lineUserId,
         sent_at: new Date().toISOString(),
         message_type: "booking_confirmation_flex",
+        reminder_jobs: reminderJobsResult,
       },
     });
 
@@ -397,6 +573,7 @@ export default async function handler(req, res) {
       ok: true,
       sent: true,
       booking_id: booking.id,
+      reminder_jobs: reminderJobsResult,
     });
   } catch (error) {
     console.error("send-booking-confirmation error:", error);
