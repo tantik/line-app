@@ -1,6 +1,7 @@
 "use strict";
 
 const LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push";
+const MAX_STALE_HOURS = 48;
 
 function sendJson(res, statusCode, payload) {
   return res.status(statusCode).json(payload);
@@ -67,9 +68,9 @@ function encodeValue(value) {
 
 async function getDueReminderJobs(now) {
   return supabaseRequest(
-    `/rest/v1/reminder_jobs?select=*&sent_at=is.null&channel=eq.line&scheduled_for=lte.${encodeValue(
+    `/rest/v1/reminder_jobs?select=*&sent_at=is.null&channel=eq.line&delivery_status=eq.pending&scheduled_for=lte.${encodeValue(
       now
-    )}&limit=20`,
+    )}&order=scheduled_for.asc&limit=20`,
     {
       method: "GET",
     }
@@ -136,8 +137,20 @@ async function insertReminderEvent({
   });
 }
 
+async function safeInsertReminderEvent(params) {
+  try {
+    await insertReminderEvent(params);
+  } catch (error) {
+    console.warn("booking_events insert skipped:", error.message);
+  }
+}
+
 function getLineUserId(booking) {
   return booking?.line_user_id || booking?.lineUserId || booking?.line_id || "";
+}
+
+function isValidLineUserId(lineUserId) {
+  return /^U[a-f0-9]{32}$/i.test(String(lineUserId || "").trim());
 }
 
 function getBookingDate(booking) {
@@ -162,6 +175,11 @@ function getBookingTime(booking) {
   );
 }
 
+function normalizeDate(value) {
+  if (value === null || value === undefined) return "-";
+  return String(value).slice(0, 10) || "-";
+}
+
 function normalizeTime(value) {
   if (value === null || value === undefined) return "-";
 
@@ -174,13 +192,27 @@ function normalizeTime(value) {
 }
 
 function buildReminderMessage(booking) {
-  const date = String(getBookingDate(booking)).slice(0, 10);
+  const date = normalizeDate(getBookingDate(booking));
   const time = normalizeTime(getBookingTime(booking));
 
   return {
     type: "text",
     text: `予約のリマインドです。\n\n日時：${date} ${time}\nご来店をお待ちしております。`,
   };
+}
+
+function isStaleJob(job, nowDate) {
+  if (!job?.scheduled_for) return false;
+
+  const scheduledDate = new Date(job.scheduled_for);
+
+  if (Number.isNaN(scheduledDate.getTime())) {
+    return false;
+  }
+
+  const staleLimitMs = MAX_STALE_HOURS * 60 * 60 * 1000;
+
+  return nowDate.getTime() - scheduledDate.getTime() > staleLimitMs;
 }
 
 async function pushLineMessage(lineUserId, message) {
@@ -207,6 +239,20 @@ async function pushLineMessage(lineUserId, message) {
   return text;
 }
 
+async function failJob({ job, booking, reason }) {
+  await markJob(job.id, {
+    delivery_status: "failed",
+    last_error: reason,
+  });
+
+  await safeInsertReminderEvent({
+    booking,
+    job,
+    eventType: "reminder_failed",
+    errorMessage: reason,
+  });
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET" && req.method !== "POST") {
     return sendJson(res, 405, {
@@ -231,8 +277,10 @@ export default async function handler(req, res) {
   try {
     requireEnv("SUPABASE_URL");
     requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+    requireEnv("LINE_CHANNEL_ACCESS_TOKEN");
 
-    const now = new Date().toISOString();
+    const nowDate = new Date();
+    const now = nowDate.toISOString();
     const jobs = await getDueReminderJobs(now);
 
     let sent = 0;
@@ -245,14 +293,25 @@ export default async function handler(req, res) {
       try {
         booking = await getBookingById(job.booking_id);
 
-        const lineUserId = getLineUserId(booking);
-
         if (!booking) {
           skipped += 1;
 
-          await markJob(job.id, {
-            delivery_status: "skipped",
-            last_error: "booking_not_found",
+          await failJob({
+            job,
+            booking: null,
+            reason: "booking_not_found",
+          });
+
+          continue;
+        }
+
+        if (isStaleJob(job, nowDate)) {
+          skipped += 1;
+
+          await failJob({
+            job,
+            booking,
+            reason: `stale_reminder_job_over_${MAX_STALE_HOURS}_hours`,
           });
 
           continue;
@@ -261,20 +320,36 @@ export default async function handler(req, res) {
         if (booking.status === "cancelled") {
           skipped += 1;
 
-          await markJob(job.id, {
-            delivery_status: "skipped",
-            last_error: "booking_cancelled",
+          await failJob({
+            job,
+            booking,
+            reason: "booking_cancelled",
           });
 
           continue;
         }
 
+        const lineUserId = getLineUserId(booking);
+
         if (!lineUserId) {
           skipped += 1;
 
-          await markJob(job.id, {
-            delivery_status: "skipped",
-            last_error: "missing_line_user_id",
+          await failJob({
+            job,
+            booking,
+            reason: "missing_line_user_id",
+          });
+
+          continue;
+        }
+
+        if (!isValidLineUserId(lineUserId)) {
+          skipped += 1;
+
+          await failJob({
+            job,
+            booking,
+            reason: "invalid_line_user_id",
           });
 
           continue;
@@ -288,7 +363,7 @@ export default async function handler(req, res) {
           last_error: null,
         });
 
-        await insertReminderEvent({
+        await safeInsertReminderEvent({
           booking,
           job,
           eventType: "reminder_sent",
@@ -315,18 +390,12 @@ export default async function handler(req, res) {
           console.error("Failed to mark reminder job as failed:", markError);
         }
 
-        if (booking) {
-          try {
-            await insertReminderEvent({
-              booking,
-              job,
-              eventType: "reminder_failed",
-              errorMessage,
-            });
-          } catch (eventError) {
-            console.error("Failed to insert reminder_failed event:", eventError);
-          }
-        }
+        await safeInsertReminderEvent({
+          booking,
+          job,
+          eventType: "reminder_failed",
+          errorMessage,
+        });
       }
     }
 
