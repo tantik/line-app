@@ -1450,3 +1450,43 @@ select:focus {
     font-size: 1.04rem !important;
   }
 }
+.demo-privacy-notice {
+  margin: 12px 0 16px;
+  padding: 14px 15px;
+  border: 1px solid rgba(255, 149, 0, 0.28);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 248, 230, 0.98), rgba(255, 239, 208, 0.96));
+  color: #3b2a12;
+  box-shadow: 0 12px 28px rgba(91, 58, 10, 0.1);
+}
+
+.demo-privacy-notice strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.demo-privacy-notice strong::before {
+  content: "⚠️";
+}
+
+.demo-privacy-notice p {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.65;
+  font-weight: 700;
+}
+
+.demo-privacy-notice span {
+  display: inline-flex;
+  margin-top: 8px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #6b4a13;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
