@@ -917,12 +917,10 @@ async function updateBookingStatus(bookingId, nextStatus) {
 
     let reminderJobsCleanup = null;
 
-    if (nextStatus === "cancelled" || nextStatus === "completed") {
+    if (nextStatus === "cancelled") {
       reminderJobsCleanup = await closePendingReminderJobsForBooking(
         bookingId,
-        nextStatus === "cancelled"
-          ? "booking_cancelled_by_admin"
-          : "booking_completed_by_admin"
+        "booking_cancelled_by_admin"
       );
     }
 
