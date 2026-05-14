@@ -923,18 +923,6 @@ function getBookingEventMeta(event) {
       label: "管理者がキャンセルしました",
       kind: "cancelled",
     },
-    admin_cancel_notification_sent: {
-      label: "LINEキャンセル通知送信済み",
-      kind: "sent",
-    },
-    admin_cancel_notification_skipped: {
-      label: "LINEキャンセル通知スキップ",
-      kind: "default",
-    },
-    admin_cancel_notification_failed: {
-      label: "LINEキャンセル通知失敗",
-      kind: "failed",
-    },
     admin_completed: {
       label: "施術が完了しました",
       kind: "confirmed",
@@ -1069,23 +1057,7 @@ async function updateBookingStatus(bookingId, nextStatus) {
       reminderJobsCleanup,
     });
 
-    let adminNotification = null;
-
-    if (nextStatus === "cancelled") {
-      adminNotification = await sendAdminBookingNotification(
-        bookingId,
-        "admin_cancelled"
-      );
-    }
-
-    if (nextStatus === "cancelled" && adminNotification?.ok) {
-      showToast("予約をキャンセルし、LINE通知を送信しました");
-    } else if (nextStatus === "cancelled" && !adminNotification?.ok) {
-      showToast("予約はキャンセルしましたが、LINE通知に失敗しました");
-    } else {
-      showToast("予約を更新しました");
-    }
-
+    showToast("予約を更新しました");
     await loadBookings();
   } catch (error) {
     console.error("updateBookingStatus error:", error);
@@ -1138,52 +1110,6 @@ async function closePendingReminderJobsForBooking(
       updated: 0,
       reason,
       error: error.message || "reminder_jobs_cleanup_failed",
-    };
-  }
-}
-
-async function sendAdminBookingNotification(
-  bookingId,
-  action = "admin_cancelled"
-) {
-  if (!bookingId) {
-    return {
-      ok: false,
-      error: "missing_booking_id",
-    };
-  }
-
-  try {
-    const response = await fetch("/api/send-admin-booking-notification", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        booking_id: bookingId,
-        action,
-      }),
-    });
-
-    const data = await response.json().catch(() => null);
-
-    if (!response.ok || !data?.ok) {
-      console.error("sendAdminBookingNotification failed:", data);
-      return {
-        ok: false,
-        status: response.status,
-        error: data?.error || "notification_failed",
-        data,
-      };
-    }
-
-    return data;
-  } catch (error) {
-    console.error("sendAdminBookingNotification error:", error);
-
-    return {
-      ok: false,
-      error: error.message || "notification_failed",
     };
   }
 }
