@@ -1422,3 +1422,34 @@ textarea.text-input {
   background: rgba(255, 92, 92, 0.16);
   color: #ff9a9a;
 }
+
+.admin-demo-notice {
+  margin: 14px 0 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 193, 7, 0.34);
+  border-radius: 18px;
+  background: rgba(255, 193, 7, 0.12);
+  color: #ffe7a3;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+
+.admin-demo-notice strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 6px;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.admin-demo-notice strong::before {
+  content: "⚠️";
+}
+
+.admin-demo-notice p {
+  margin: 0;
+  color: rgba(255, 247, 218, 0.9);
+  font-size: 13px;
+  line-height: 1.65;
+  font-weight: 700;
+}
