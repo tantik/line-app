@@ -679,10 +679,6 @@ function buildBookingCard(booking) {
   const confirmationStatus = booking.confirmation_status || booking.confirmationStatus || "";
   const bookingDate = String(booking.booking_date || "").slice(0, 10);
   const timelineHtml = buildBookingTimeline(booking);
-  const riskInfo = getBookingRiskInfo(booking);
-  const riskBadgeHtml = riskInfo.isRisk
-    ? `<span class="risk-pill ${safeAttr(riskInfo.level)}">${safe(riskInfo.label)}</span>`
-    : "";
 
   card.innerHTML = `
     <div class="booking-time">
@@ -694,7 +690,6 @@ function buildBookingCard(booking) {
       <div class="booking-topline">
         <span class="status-pill ${safe(status)}">${safe(statusLabel(status))}</span>
         ${confirmationStatus ? `<span class="mini-pill">${safe(confirmationStatus)}</span>` : ""}
-        ${riskBadgeHtml}
       </div>
 
       <div class="booking-grid">
@@ -771,124 +766,6 @@ function buildBookingTimeline(booking) {
       </div>
     </div>
   `;
-}
-
-function getBookingEventsForBooking(bookingId) {
-  const id = String(bookingId || "");
-
-  if (!id) {
-    return [];
-  }
-
-  return allBookingEvents.filter((event) => String(event.booking_id) === id);
-}
-
-function getBookingStartAt(booking) {
-  const startsAtValue =
-    booking?.starts_at ||
-    booking?.start_at ||
-    booking?.started_at ||
-    "";
-
-  if (startsAtValue) {
-    const directDate = new Date(startsAtValue);
-
-    if (!Number.isNaN(directDate.getTime())) {
-      return directDate;
-    }
-  }
-
-  const bookingDate = String(booking?.booking_date || booking?.date || "").slice(0, 10);
-  const bookingTime = normalizeTime(booking?.start_time || booking?.time || "");
-
-  if (!bookingDate || !bookingTime) {
-    return null;
-  }
-
-  const date = new Date(`${bookingDate}T${bookingTime}+09:00`);
-
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date;
-}
-
-function getBookingRiskInfo(booking) {
-  const status = String(booking?.status || "pending");
-  const finalStatuses = ["cancelled", "completed"];
-
-  if (finalStatuses.includes(status)) {
-    return {
-      isRisk: false,
-      level: "none",
-      label: "",
-      reason: "final_status",
-    };
-  }
-
-  const events = getBookingEventsForBooking(booking?.id);
-
-  const hasReminderFailed = events.some(
-    (event) => String(event.event_type || "") === "reminder_failed"
-  );
-
-  if (hasReminderFailed) {
-    return {
-      isRisk: true,
-      level: "high",
-      label: "要確認・リマインダー失敗",
-      reason: "reminder_failed",
-    };
-  }
-
-  if (status === "confirmed") {
-    return {
-      isRisk: false,
-      level: "none",
-      label: "",
-      reason: "confirmed",
-    };
-  }
-
-  const startAt = getBookingStartAt(booking);
-
-  if (!startAt) {
-    return {
-      isRisk: status === "pending",
-      level: "medium",
-      label: status === "pending" ? "要確認" : "",
-      reason: "missing_start_at",
-    };
-  }
-
-  const diffMs = startAt.getTime() - Date.now();
-  const twoHoursMs = 2 * 60 * 60 * 1000;
-
-  if (status === "pending" && diffMs < 0) {
-    return {
-      isRisk: true,
-      level: "high",
-      label: "要確認・時間超過",
-      reason: "pending_after_start_time",
-    };
-  }
-
-  if (status === "pending" && diffMs <= twoHoursMs) {
-    return {
-      isRisk: true,
-      level: "medium",
-      label: "要確認",
-      reason: "pending_within_2_hours",
-    };
-  }
-
-  return {
-    isRisk: false,
-    level: "none",
-    label: "",
-    reason: "no_risk",
-  };
 }
 
 function getBookingEventMeta(event) {
@@ -1174,7 +1051,7 @@ function getAdminBookingEventType(status) {
 function updateMetrics(items) {
   setText("metricTotal", String(items.length));
   setText("metricPending", String(items.filter((item) => String(item.status || "pending") === "pending").length));
-  setText("metricRisk", String(items.filter((item) => getBookingRiskInfo(item).isRisk).length));
+  setText("metricRisk", String(items.filter((item) => String(item.status || "") === "risk").length));
   setText("metricCancelled", String(items.filter((item) => String(item.status || "") === "cancelled").length));
 }
 /* ========================= SCHEDULE ========================= */

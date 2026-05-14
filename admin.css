@@ -1394,3 +1394,31 @@ textarea.text-input {
   }
 }
 #scheduleList{margin-bottom: 20px;}
+
+/* Booking risk badge */
+.risk-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  border: 1px solid rgba(255, 193, 7, 0.36);
+  background: rgba(255, 193, 7, 0.14);
+  color: #ffd36a;
+  white-space: nowrap;
+}
+
+.risk-pill.medium {
+  border-color: rgba(255, 193, 7, 0.38);
+  background: rgba(255, 193, 7, 0.16);
+  color: #ffd36a;
+}
+
+.risk-pill.high {
+  border-color: rgba(255, 92, 92, 0.46);
+  background: rgba(255, 92, 92, 0.16);
+  color: #ff9a9a;
+}
